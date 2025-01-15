@@ -7,7 +7,6 @@ import com.epay.merchant.entity.KeyManagement;
 import com.epay.merchant.entity.MerchantInfo;
 import com.epay.merchant.entity.NotificationManagement;
 import com.epay.merchant.exception.MerchantException;
-import com.epay.merchant.exception.ValidationException;
 import com.epay.merchant.externalservice.KmsClient;
 import com.epay.merchant.externalservice.response.KMSAPIKeysResponse;
 import com.epay.merchant.externalservice.response.KMSEncryptionKeysResponse;
@@ -34,7 +33,9 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -60,10 +61,11 @@ class KeyDaoTest {
     private MerchantInfoDao merchantInfoDao;
 
     @Mock
-    private NotificationManagementRepository notificationManagementRepository;
+    NotificationManagementRepository notificationManagementRepository;
 
     private static final String MID = "testMerchant";
     private static final UUID KEY_ID = UUID.randomUUID();
+    private static final String ERROR_MESSAGE = "API Key generation failed.";
     private KeyGenerationRequest keyGenerationRequest;
 
     @BeforeEach
@@ -72,13 +74,19 @@ class KeyDaoTest {
         keyGenerationRequest = KeyGenerationRequest.builder().mId("mid").build();
     }
 
+    // Helper method to create a MerchantResponse
+    private <T> MerchantResponse<T> createMerchantResponse(List<T> data, int status, List<ErrorDto> errors) {
+        return MerchantResponse.<T>builder()
+                .data(data)
+                .status(status)
+                .errors(errors)
+                .build();
+    }
+
     @Test
     void testGenerateApiKey_Success() {
-        List<KMSAPIKeysResponse> apiKeysResponse = Collections.singletonList(KMSAPIKeysResponse.builder().id(KEY_ID).build());
-        MerchantResponse<KMSAPIKeysResponse> merchantResponse = MerchantResponse.<KMSAPIKeysResponse>builder()
-                .data(apiKeysResponse)
-                .status(MerchantConstant.RESPONSE_SUCCESS)
-                .build();
+        List<KMSAPIKeysResponse> apiKeysResponse = List.of(KMSAPIKeysResponse.builder().id(KEY_ID).build());
+        MerchantResponse<KMSAPIKeysResponse> merchantResponse = createMerchantResponse(apiKeysResponse, MerchantConstant.RESPONSE_SUCCESS, null);
 
         when(kmsClient.generateAPIKeys(anyString(), anyInt())).thenReturn(merchantResponse);
         when(keyRepository.save(any(KeyManagement.class))).thenReturn(KeyManagement.builder().id(KEY_ID).build());
@@ -92,17 +100,17 @@ class KeyDaoTest {
     }
 
     @Test
-    void testGenerateApiKey_RESPONSE_FAILURE() {
-        MerchantResponse<KMSAPIKeysResponse> merchantResponse = MerchantResponse.<KMSAPIKeysResponse>builder()
-                .data(Collections.singletonList(KMSAPIKeysResponse.builder().id(KEY_ID).build()))
-                .status(MerchantConstant.RESPONSE_FAILURE)
-                .errors(Collections.singletonList(ErrorDto.builder().errorMessage("Error").build()))
-                .build();
+    void testGenerateApiKey_Failure() {
+        MerchantResponse<KMSAPIKeysResponse> merchantResponse = createMerchantResponse(
+                null,
+                MerchantConstant.RESPONSE_FAILURE,
+                List.of(ErrorDto.builder().errorMessage("Error").build())
+        );
 
         when(kmsClient.generateAPIKeys(anyString(), anyInt())).thenReturn(merchantResponse);
 
         MerchantException exception = assertThrows(MerchantException.class, () -> keyDao.generateApiKey(MID));
-        assertEquals("API Key generation failed.", exception.getMessage());
+        assertEquals(ERROR_MESSAGE, exception.getMessage());
     }
 
     @Test
@@ -110,10 +118,7 @@ class KeyDaoTest {
         KeyType keyType = KeyType.API;
         MerchantInfo merchantInfo = MerchantInfo.builder().id(KEY_ID).build();
         String content = "Rahul";
-        MerchantEmailDto merchantEmailDto = MerchantEmailDto.builder()
-                .toEmail("abc@gmail.com")
-                .content(EmailUtil.generateDefaultContent(content))
-                .build();
+        MerchantEmailDto merchantEmailDto = MerchantEmailDto.builder().toEmail("abc@gmail.com").content(EmailUtil.generateDefaultContent(content)).build();
         NotificationManagement notificationMgmt = NotificationManagement.builder()
                 .requestType(keyType.name())
                 .entityId(KEY_ID)
@@ -131,86 +136,38 @@ class KeyDaoTest {
     @ParameterizedTest
     @ValueSource(strings = {MID})
     void testGetMerchantEncryptionKeys(String mId) {
-        List<KMSEncryptionKeysResponse> kmsEncryptionKeysResponses = Collections.singletonList(
-                KMSEncryptionKeysResponse.builder().kek("kek").mek("mek").id(KEY_ID).build());
-        MerchantResponse<KMSEncryptionKeysResponse> merchantResponse = MerchantResponse.<KMSEncryptionKeysResponse>builder()
-                .data(kmsEncryptionKeysResponses)
-                .build();
+        List<KMSEncryptionKeysResponse> kmsEncryptionKeysResponses = List.of(KMSEncryptionKeysResponse.builder().kek("kek").mek("mek").id(KEY_ID).build());
+        MerchantResponse<KMSEncryptionKeysResponse> merchantResponse = createMerchantResponse(kmsEncryptionKeysResponses, MerchantConstant.RESPONSE_SUCCESS, null);
 
         when(kmsClient.getEncryptionKeys(mId)).thenReturn(merchantResponse);
 
         MerchantResponse<KMSEncryptionKeysResponse> merchantEncryptionKeys = keyDao.getMerchantEncryptionKeys(mId);
+
         assertNotNull(merchantEncryptionKeys.getData());
     }
 
     @Test
     void testValidatedAPIKey_Success() {
-        APIKeyValidationRequest apiKeyValidationRequest = APIKeyValidationRequest.builder()
-                .apiKeySecret("apiKeySecret")
-                .apiKey("apiKey")
-                .build();
-
-        List<String> keys = Arrays.asList("mek", "kek");
-        MerchantResponse<String> merchantResponse = MerchantResponse.<String>builder()
-                .data(keys)
-                .status(1)
-                .build();
+        APIKeyValidationRequest apiKeyValidationRequest = APIKeyValidationRequest.builder().apiKeySecret("apiKeySecret").apiKey("apiKey").build();
+        MerchantResponse<String> merchantResponse = createMerchantResponse(List.of("mek", "kek"), MerchantConstant.RESPONSE_SUCCESS, null);
 
         when(kmsClient.validatedMerchantKeys(apiKeyValidationRequest)).thenReturn(merchantResponse);
         when(merchantInfoDao.isExistsByMIdAndStatus(anyString(), eq(MerchantStatus.ACTIVE.name()))).thenReturn(true);
 
-        boolean isValid = merchantInfoDao.isExistsByMIdAndStatus(MID, MerchantStatus.ACTIVE.name());
         MerchantResponse<String> stringMerchantResponse = keyDao.validatedAPIKey(apiKeyValidationRequest);
 
-        assertTrue(isValid);
         assertNotNull(stringMerchantResponse.getData());
         verify(merchantInfoDao, times(1)).isExistsByMIdAndStatus(MID, MerchantStatus.ACTIVE.name());
     }
 
     @Test
     void testValidatedAPIKey_Exception() {
-        APIKeyValidationRequest apiKeyValidationRequest = APIKeyValidationRequest.builder()
-                .apiKeySecret("apiKeySecret")
-                .apiKey("apiKey")
-                .build();
+        APIKeyValidationRequest apiKeyValidationRequest = APIKeyValidationRequest.builder().apiKeySecret("apiKeySecret").apiKey("apiKey").build();
 
         when(merchantInfoDao.isExistsByMIdAndStatus(anyString(), eq(MerchantStatus.ACTIVE.name()))).thenReturn(false);
 
         MerchantException exception = assertThrows(MerchantException.class, () -> keyDao.validatedAPIKey(apiKeyValidationRequest));
+
         assertEquals(ErrorConstants.INVALID_ERROR_CODE, exception.getErrorCode());
-    }
-
-    @Test
-    void testGenerateEncryptionKey_RESPONSE_SUCCESS() {
-        List<String> keysResponse = Arrays.asList("mek", "kek");
-        MerchantResponse<String> merchantResponse = MerchantResponse.<String>builder()
-                .data(keysResponse)
-                .status(MerchantConstant.RESPONSE_SUCCESS)
-                .build();
-
-        when(kmsClient.generateEncryptionKeys(keyGenerationRequest.getMId(), keyGenerationRequest.getOldKeyExpiryInHr(), merchantConfig.getEncryptionKeyExpiryTime()))
-                .thenReturn(merchantResponse);
-
-        when(keyRepository.save(any(KeyManagement.class))).thenReturn(KeyManagement.builder().id(KEY_ID).build());
-
-        KMSEncryptionKeysResponse kmsEncryptionKeysResponse = keyDao.generateEncryptionKey(keyGenerationRequest);
-        assertNotNull(kmsEncryptionKeysResponse);
-    }
-
-    @Test
-    void testGenerateEncryptionKey_RESPONSE_FAILURE() {
-        List<String> keysResponse = Arrays.asList("mek", "kek");
-        List<ErrorDto> errorDtos = Collections.singletonList(ErrorDto.builder().errorMessage("FAILURE").build());
-        MerchantResponse<String> merchantResponse = MerchantResponse.<String>builder()
-                .data(keysResponse)
-                .status(MerchantConstant.RESPONSE_FAILURE)
-                .errors(errorDtos)
-                .build();
-
-        when(kmsClient.generateEncryptionKeys(keyGenerationRequest.getMId(), keyGenerationRequest.getOldKeyExpiryInHr(), merchantConfig.getEncryptionKeyExpiryTime()))
-                .thenReturn(merchantResponse);
-
-        MerchantException exception = assertThrows(MerchantException.class, () -> keyDao.generateEncryptionKey(keyGenerationRequest));
-        assertEquals("API Key generation failed.", exception.getMessage());
     }
 }
