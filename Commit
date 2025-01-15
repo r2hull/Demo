@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.MockedStatic;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -29,53 +30,51 @@ class LogoutServiceTest {
     void testMerchantUserLogout_Success() {
         // Mock static method EPayIdentityUtil.getUserPrincipal()
         String mockUserName = "testUser";
-        MockedStatic<EPayIdentityUtil> mockedStatic = mockStatic(EPayIdentityUtil.class);
-        EPayIdentityUtil.EPayPrincipal mockPrincipal = mock(EPayIdentityUtil.EPayPrincipal.class);
-        
-        // Setup mocks
-        when(mockPrincipal.getAuthenticationId()).thenReturn(mockUserName);
-        mockedStatic.when(EPayIdentityUtil::getUserPrincipal).thenReturn(mockPrincipal);
-        
-        // Mock tokenService behavior
-        when(tokenService.invalidateUserToken(anyString())).thenReturn(1);
+        try (MockedStatic<EPayIdentityUtil> mockedStatic = mockStatic(EPayIdentityUtil.class)) {
+            // Mock EPayPrincipal behavior
+            EPayIdentityUtil.EPayPrincipal mockPrincipal = mock(EPayIdentityUtil.EPayPrincipal.class);
+            when(mockPrincipal.getAuthenticationId()).thenReturn(mockUserName);
+            mockedStatic.when(EPayIdentityUtil::getUserPrincipal).thenReturn(mockPrincipal);
 
-        // Call the method under test
-        MerchantResponse<String> response = logoutService.merchantUserLogout();
+            // Mock tokenService behavior
+            when(tokenService.invalidateUserToken(anyString())).thenReturn(1);
 
-        // Assertions
-        assertNotNull(response);
-        assertEquals(1, response.getStatus());
-        assertTrue(response.getData().contains("LogOut Successfully"));
+            // Call the method under test
+            MerchantResponse<String> response = logoutService.merchantUserLogout();
 
-        // Verify interactions
-        verify(tokenService, times(1)).invalidateUserToken(mockUserName);
-        mockedStatic.close();
+            // Assertions
+            assertNotNull(response);
+            assertEquals(1, response.getStatus());
+            assertTrue(response.getData().contains("LogOut Successfully"));
+
+            // Verify interactions
+            verify(tokenService, times(1)).invalidateUserToken(mockUserName);
+        }
     }
 
     @Test
     void testMerchantUserLogout_Failure() {
         // Mock static method EPayIdentityUtil.getUserPrincipal()
         String mockUserName = "testUser";
-        MockedStatic<EPayIdentityUtil> mockedStatic = mockStatic(EPayIdentityUtil.class);
-        EPayIdentityUtil.EPayPrincipal mockPrincipal = mock(EPayIdentityUtil.EPayPrincipal.class);
-        
-        // Setup mocks
-        when(mockPrincipal.getAuthenticationId()).thenReturn(mockUserName);
-        mockedStatic.when(EPayIdentityUtil::getUserPrincipal).thenReturn(mockPrincipal);
-        
-        // Mock tokenService behavior
-        when(tokenService.invalidateUserToken(anyString())).thenReturn(0);
+        try (MockedStatic<EPayIdentityUtil> mockedStatic = mockStatic(EPayIdentityUtil.class)) {
+            // Mock EPayPrincipal behavior
+            EPayIdentityUtil.EPayPrincipal mockPrincipal = mock(EPayIdentityUtil.EPayPrincipal.class);
+            when(mockPrincipal.getAuthenticationId()).thenReturn(mockUserName);
+            mockedStatic.when(EPayIdentityUtil::getUserPrincipal).thenReturn(mockPrincipal);
 
-        // Call the method under test
-        MerchantResponse<String> response = logoutService.merchantUserLogout();
+            // Mock tokenService behavior
+            when(tokenService.invalidateUserToken(anyString())).thenReturn(0);
 
-        // Assertions
-        assertNotNull(response);
-        assertEquals(0, response.getStatus());
-        assertTrue(response.getData().contains("LogOut Successfully"));
+            // Call the method under test
+            MerchantResponse<String> response = logoutService.merchantUserLogout();
 
-        // Verify interactions
-        verify(tokenService, times(1)).invalidateUserToken(mockUserName);
-        mockedStatic.close();
+            // Assertions
+            assertNotNull(response);
+            assertEquals(0, response.getStatus());
+            assertTrue(response.getData().contains("LogOut Successfully"));
+
+            // Verify interactions
+            verify(tokenService, times(1)).invalidateUserToken(mockUserName);
+        }
     }
 }
