@@ -1,26 +1,52 @@
-  public KMSEncryptionKeysResponse generateEncryptionKey(KeyGenerationRequest keyGenerationRequest) {
-        try {
-            MerchantResponse<String> kmsResponse = kmsClient.generateEncryptionKeys(keyGenerationRequest.getMId(), keyGenerationRequest.getOldKeyExpiryInHr(), merchantConfig.getEncryptionKeyExpiryTime());
-            if (MerchantConstant.RESPONSE_SUCCESS == kmsResponse.getStatus() && CollectionUtils.isNotEmpty(kmsResponse.getData())) {
-                UUID keyId = saveKey(keyGenerationRequest.getMId(), KeyType.ENCRYPTION, MerchantConstant.RESPONSE_SUCCESS, "Encryption Key Generated");
-                return KMSEncryptionKeysResponse.builder().id(keyId).mek(kmsResponse.getData().getFirst()).build();
-            } else if (kmsResponse.getStatus() == MerchantConstant.RESPONSE_FAILURE) {
-                saveKey(keyGenerationRequest.getMId(), KeyType.ENCRYPTION, MerchantConstant.RESPONSE_FAILURE, Arrays.toString(kmsResponse.getErrors().toArray(new ErrorDto[0])));
-                throw new ValidationException(kmsResponse.getErrors());
-            }
-            saveKey(keyGenerationRequest.getMId(), KeyType.ENCRYPTION, MerchantConstant.RESPONSE_FAILURE, "Error in Encryption Key Generated");
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE, MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, "API Key"));
-        } catch (Exception e) {
-            log.error("Error in Encryption Key Generation : ", e);
-            saveKey(keyGenerationRequest.getMId(), KeyType.ENCRYPTION, MerchantConstant.RESPONSE_FAILURE, "Error in Encryption Key Generated : " + e.getMessage());
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE, MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, "API Key"));
+public KMSEncryptionKeysResponse generateEncryptionKey(KeyGenerationRequest keyGenerationRequest) {
+    MerchantResponse<String> kmsResponse = kmsClient.generateEncryptionKeys(
+        keyGenerationRequest.getMId(), 
+        keyGenerationRequest.getOldKeyExpiryInHr(), 
+        merchantConfig.getEncryptionKeyExpiryTime()
+    );
+
+    UUID keyId = handleKeyGenerationResponse(
+        kmsResponse,
+        keyGenerationRequest.getMId(),
+        KeyType.ENCRYPTION,
+        "Encryption Key Generated"
+    );
+
+    return KMSEncryptionKeysResponse.builder()
+        .id(keyId)
+        .mek(kmsResponse.getData() != null && CollectionUtils.isNotEmpty(kmsResponse.getData()) 
+            ? kmsResponse.getData().getFirst() 
+            : null)
+        .build();
+}
+
+private UUID handleKeyGenerationResponse(
+    MerchantResponse<String> kmsResponse,
+    String mId,
+    KeyType keyType,
+    String successMessage
+) {
+    try {
+        if (kmsResponse.getStatus() == MerchantConstant.RESPONSE_SUCCESS 
+                && CollectionUtils.isNotEmpty(kmsResponse.getData())) {
+            return saveKey(mId, keyType, MerchantConstant.RESPONSE_SUCCESS, successMessage);
+        } else if (kmsResponse.getStatus() == MerchantConstant.RESPONSE_FAILURE) {
+            saveKey(mId, keyType, MerchantConstant.RESPONSE_FAILURE, 
+                Arrays.toString(kmsResponse.getErrors().toArray(new ErrorDto[0])));
+            throw new ValidationException(kmsResponse.getErrors());
         }
+        saveKey(mId, keyType, MerchantConstant.RESPONSE_FAILURE, "Error in Key Generation");
+        throw new MerchantException(
+            ErrorConstants.GENERATION_ERROR_CODE, 
+            MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, keyType.name())
+        );
+    } catch (Exception e) {
+        log.error("Error in {} Key Generation: ", keyType.name(), e);
+        saveKey(mId, keyType, MerchantConstant.RESPONSE_FAILURE, 
+            "Error in Key Generation: " + e.getMessage());
+        throw new MerchantException(
+            ErrorConstants.GENERATION_ERROR_CODE, 
+            MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, keyType.name())
+        );
     }
-
-
-
-
-    private UUID saveKey(String mid, KeyType keyType, int status, String remark) {
-        KeyManagement keyManagement = KeyManagement.builder().mid(mid).keyType(keyType).status(status == 1).remarks(remark).build();
-        return keyRepository.save(keyManagement).getId();
-    }
+}
