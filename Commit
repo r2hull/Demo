@@ -9,7 +9,6 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.MockedStatic;
 
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -28,16 +27,17 @@ class LogoutServiceTest {
 
     @Test
     void testMerchantUserLogout_Success() {
-        // Mock static method EPayIdentityUtil.getUserPrincipal()
         String mockUserName = "testUser";
+
+        // Mock the static method to return a mock EPayPrincipal with the mock userName
         try (MockedStatic<EPayIdentityUtil> mockedStatic = mockStatic(EPayIdentityUtil.class)) {
-            // Mock EPayPrincipal behavior
+            // Mock the behavior of getUserPrincipal() to return a mock with a mocked username
             EPayIdentityUtil.EPayPrincipal mockPrincipal = mock(EPayIdentityUtil.EPayPrincipal.class);
             when(mockPrincipal.getAuthenticationId()).thenReturn(mockUserName);
             mockedStatic.when(EPayIdentityUtil::getUserPrincipal).thenReturn(mockPrincipal);
 
             // Mock tokenService behavior
-            when(tokenService.invalidateUserToken(anyString())).thenReturn(1);
+            when(tokenService.invalidateUserToken(mockUserName)).thenReturn(1);
 
             // Call the method under test
             MerchantResponse<String> response = logoutService.merchantUserLogout();
@@ -54,16 +54,17 @@ class LogoutServiceTest {
 
     @Test
     void testMerchantUserLogout_Failure() {
-        // Mock static method EPayIdentityUtil.getUserPrincipal()
         String mockUserName = "testUser";
+
+        // Mock the static method to return a mock EPayPrincipal with the mock userName
         try (MockedStatic<EPayIdentityUtil> mockedStatic = mockStatic(EPayIdentityUtil.class)) {
-            // Mock EPayPrincipal behavior
+            // Mock the behavior of getUserPrincipal() to return a mock with a mocked username
             EPayIdentityUtil.EPayPrincipal mockPrincipal = mock(EPayIdentityUtil.EPayPrincipal.class);
             when(mockPrincipal.getAuthenticationId()).thenReturn(mockUserName);
             mockedStatic.when(EPayIdentityUtil::getUserPrincipal).thenReturn(mockPrincipal);
 
             // Mock tokenService behavior
-            when(tokenService.invalidateUserToken(anyString())).thenReturn(0);
+            when(tokenService.invalidateUserToken(mockUserName)).thenReturn(0);
 
             // Call the method under test
             MerchantResponse<String> response = logoutService.merchantUserLogout();
