@@ -1,14 +1,41 @@
-TRANSACTION_DATE	VARCHAR2(8)
-REFUND_TYPE	VARCHAR2(50)
-SBI_ORDER_REF_NUMBER	VARCHAR2(255)
-MERCHANT_ORDER_NUMBER	VARCHAR2(255)
-ATRN_NUM	VARCHAR2(255)
-BANK_NAME	VARCHAR2(100)
-PAYMODE_CODE	VARCHAR2(50)
-TRANSACTION_STATUS	VARCHAR2(50)
-ORDER_AMOUNT	NUMBER(15,2)
-REFUND_AMOUNT	NUMBER(15,2)
-COMMENTS	VARCHAR2(500)
-REFUND_STATUS	VARCHAR2(50)
-REMARKS	CHAR()
-ARRN_NUM	VARCHAR2(255)
+import java.math.BigDecimal;
+
+public class TransactionDetails {
+
+    private String transactionDate;
+    private String refundType;
+    private String sbiOrderRefNumber;
+    private String merchantOrderNumber;
+    private String atrnNum;
+    private String bankName;
+    private String paymodeCode;
+    private String transactionStatus;
+    private BigDecimal orderAmount;
+    private BigDecimal refundAmount;
+    private String comments;
+    private String refundStatus;
+    private String remarks;
+    private String arrnNum;
+
+    // Getters and Setters
+    public String getTransactionDate() {
+        return transactionDate;
+    }
+
+    public void setTransactionDate(String transactionDate) {
+        this.transactionDate = transactionDate;
+    }
+
+    public String getRefundType() {
+        return refundType;
+    }
+
+    public void setRefundType(String refundType) {
+        this.refundType = refundType;
+    }
+
+    public String getSbiOrderRefNumber() {
+        return sbiOrderRefNumber;
+    }
+
+    public void setSbiOrderRefNumber(String s
