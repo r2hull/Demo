@@ -1,41 +1,15 @@
-import java.math.BigDecimal;
-
-public class TransactionDetails {
-
-    private String transactionDate;
-    private String refundType;
-    private String sbiOrderRefNumber;
-    private String merchantOrderNumber;
-    private String atrnNum;
-    private String bankName;
-    private String paymodeCode;
-    private String transactionStatus;
-    private BigDecimal orderAmount;
-    private BigDecimal refundAmount;
-    private String comments;
-    private String refundStatus;
-    private String remarks;
-    private String arrnNum;
-
-    // Getters and Setters
-    public String getTransactionDate() {
-        return transactionDate;
-    }
-
-    public void setTransactionDate(String transactionDate) {
-        this.transactionDate = transactionDate;
-    }
-
-    public String getRefundType() {
-        return refundType;
-    }
-
-    public void setRefundType(String refundType) {
-        this.refundType = refundType;
-    }
-
-    public String getSbiOrderRefNumber() {
-        return sbiOrderRefNumber;
-    }
-
-    public void setSbiOrderRefNumber(String s
+ public static final String JDBC_ORDER_REPORT = """
+                   SELECT
+                   vew.TRANSACTION_DATE as transactionDate,
+                   vew.MERCHANT_ORDER_NUMBER as merchantOrderNumber,
+                   vew.CUSTOMER_ID as customerId,
+                   vew.TRANSACTION_CURRENCY as transactionCurrency,
+                   vew.ORDER_AMOUNT as orderAmount,
+                   vew.SBI_ORDER_REF_NUMBER as sbiOrderRefNumber,
+                   vew.ORDER_STATUS as status,
+                   vew.ATTEMPTS as attempts,
+                   vew.MID as mId
+                  FROM PAYAGGREPORT.VIEW_ORDER_REPORT vew
+                  WHERE vew.MID = :mId
+                  AND vew.TRANSACTION_DATE BETWEEN TO_DATE('1970-01-01','YYYY-MM-DD')+(:startDate/1000/86400) AND TO_DATE('1970-01-01','YYYY-MM-DD')+(:endDate/1000/86400)
+            """;
