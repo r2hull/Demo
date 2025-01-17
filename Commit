@@ -1,5 +1,30 @@
-PS C:\Users\V1014352\Workspace\Report\Refund\epay_reports_service> git merge origin/feature/ERP-15_OrderReport_Service
-error: Your local changes to the following files would be overwritten by merge:
-  src/main/java/com/epay/reporting/util/queries/RefundQueries.java
-Merge with strategy ort failed.
-PS C:\Users\V1014352\Workspace\Report\Refund\epay_reports_service> 
+   private void generateRefundReport(ReportManagementDto reportManagementDto) {
+        List<RefundReport> list = refundReportDao.getRefundOrders(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate());
+        List<List<Object>> fileData = list.stream().<List<Object>>map(refundReport -> List.of(refundReport.getTransactionDate(), refundReport.getRefundType(), refundReport.getSbiOrderRefNumber(), refundReport.getMerchantOrderNumber(), refundReport.getAtrnNum(), refundReport.getBankName(), refundReport.getPaymodeCode(), refundReport.getTransactionStatus(),refundReport.getOrderAmount(),refundReport.getRefundAmount(),refundReport.getComments(),refundReport.getRefundStatus(),refundReport.getRemarks(),refundReport.getArrnNum())).collect(Collectors.toList());
+        buildReport(reportManagementDto.getId(), reportManagementDto, refundHeader, fileData);
+    }
+
+
+ private void generateOrderReport(ReportManagementDto reportManagementDto) {
+        List<OrderReport> list = reportDao.getOrders(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate());
+        List<List<Object>> fileData = list.stream().map(this::convertToListOfObject).toList();
+        buildReport(reportManagementDto.getId(), reportManagementDto, orderHeader, fileData);
+    }
+
+    /**
+     * Converting OrderReport to List of its field values.
+     * @param orderReport OrderReport
+     * @return List
+     */
+    private List<Object> convertToListOfObject(OrderReport orderReport) {
+        List<Object> objectList = new ArrayList<>();
+        objectList.add(orderReport.getTransactionDate());
+        objectList.add(orderReport.getMerchantOrderNumber());
+        objectList.add(orderReport.getCustomerId());
+        objectList.add(orderReport.getTransactionCurrency());
+        objectList.add(orderReport.getOrderAmount());
+        objectList.add(orderReport.getSbiOrderRefNumber());
+        objectList.add(orderReport.getStatus());
+        objectList.add(orderReport.getAttempts());
+        return objectList;
+    }
