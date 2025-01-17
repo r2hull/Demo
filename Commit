@@ -1,30 +1,38 @@
-   private void generateRefundReport(ReportManagementDto reportManagementDto) {
-        List<RefundReport> list = refundReportDao.getRefundOrders(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate());
-        List<List<Object>> fileData = list.stream().<List<Object>>map(refundReport -> List.of(refundReport.getTransactionDate(), refundReport.getRefundType(), refundReport.getSbiOrderRefNumber(), refundReport.getMerchantOrderNumber(), refundReport.getAtrnNum(), refundReport.getBankName(), refundReport.getPaymodeCode(), refundReport.getTransactionStatus(),refundReport.getOrderAmount(),refundReport.getRefundAmount(),refundReport.getComments(),refundReport.getRefundStatus(),refundReport.getRemarks(),refundReport.getArrnNum())).collect(Collectors.toList());
-        buildReport(reportManagementDto.getId(), reportManagementDto, refundHeader, fileData);
-    }
+/**
+ * Converting RefundReport to List of its field values using Streams.
+ * @param refundReport RefundReport
+ * @return List
+ */
+private List<Object> convertToListOfObject(RefundReport refundReport) {
+    return Stream.of(
+        refundReport.getTransactionDate(),
+        refundReport.getRefundType(),
+        refundReport.getSbiOrderRefNumber(),
+        refundReport.getMerchantOrderNumber(),
+        refundReport.getAtrnNum(),
+        refundReport.getBankName(),
+        refundReport.getPaymodeCode(),
+        refundReport.getTransactionStatus(),
+        refundReport.getOrderAmount(),
+        refundReport.getRefundAmount(),
+        refundReport.getComments(),
+        refundReport.getRefundStatus(),
+        refundReport.getRemarks(),
+        refundReport.getArrnNum()
+    ).toList();
+}
 
 
- private void generateOrderReport(ReportManagementDto reportManagementDto) {
-        List<OrderReport> list = reportDao.getOrders(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate());
-        List<List<Object>> fileData = list.stream().map(this::convertToListOfObject).toList();
-        buildReport(reportManagementDto.getId(), reportManagementDto, orderHeader, fileData);
-    }
+private void generateRefundReport(ReportManagementDto reportManagementDto) {
+    List<List<Object>> fileData = refundReportDao
+        .getRefundOrders(
+            reportManagementDto.getMId(),
+            reportManagementDto.getDurationFromDate(),
+            reportManagementDto.getDurationToDate()
+        )
+        .stream()
+        .map(this::convertToListOfObject)
+        .toList();
 
-    /**
-     * Converting OrderReport to List of its field values.
-     * @param orderReport OrderReport
-     * @return List
-     */
-    private List<Object> convertToListOfObject(OrderReport orderReport) {
-        List<Object> objectList = new ArrayList<>();
-        objectList.add(orderReport.getTransactionDate());
-        objectList.add(orderReport.getMerchantOrderNumber());
-        objectList.add(orderReport.getCustomerId());
-        objectList.add(orderReport.getTransactionCurrency());
-        objectList.add(orderReport.getOrderAmount());
-        objectList.add(orderReport.getSbiOrderRefNumber());
-        objectList.add(orderReport.getStatus());
-        objectList.add(orderReport.getAttempts());
-        return objectList;
-    }
+    buildReport(reportManagementDto.getId(), reportManagementDto, refundHeader, fileData);
+}
