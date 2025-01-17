@@ -1,14 +1,5 @@
-PS C:\Users\V1014352\Workspace\Report\Refund\epay_reports_service> git log HEAD..origin/feature/ERP-15_OrderReport_Service --oneline
-2283d39 (origin/feature/ERP-15_OrderReport_Service) ERS-00|RJ|Refactor code
-b6d67b0 Merge branch 'develop' of https://gitlab.epay.sbi/epay/microservices/epay_reports_service into feature/ERP-15_OrderReport_Service
-3373fe9 Merge remote-tracking branch 'origin/feature/ERP-15_OrderReport_Service' into feature/ERP-15_OrderReport_Service
-ae38083 Merge remote-tracking branch 'origin/develop' into feature/ERP-15_OrderReport_Service
-60ea044 (origin/develop, origin/HEAD) ERS-12|SG|xls csv util
-4c6d8f4 ERS-12|SG|xls csv util
-b75c5a3 ERS-00|RR|Added mid validate call
-80f5f3b ERS-14|HP|Report Schedule Management Changes
-967e297 ERS-14|HP|Report Schedule Management Changes
-e2c4b7e ERS-00|RR|Added mid validate call
-7e20d4a (develop) ERS-00|RJ|Add Merchant Token, user and MID validator
-97f42f6 ERS-00|RJ|Add Merchant Token, user and MID validator
-(END)
+PS C:\Users\V1014352\Workspace\Report\Refund\epay_reports_service> git merge origin/feature/ERP-15_OrderReport_Service
+error: Your local changes to the following files would be overwritten by merge:
+  src/main/java/com/epay/reporting/util/queries/RefundQueries.java
+Merge with strategy ort failed.
+PS C:\Users\V1014352\Workspace\Report\Refund\epay_reports_service> 
