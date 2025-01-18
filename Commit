@@ -1,95 +1,128 @@
-  ///
-    @Test
-    void testGetNewMIdMappingList(){
+package com.epay.merchant.service;
 
-        List<MerchantInfoDto> merchantInfoDtoList = Arrays.asList(MerchantInfoDto.builder().mId("mid").build());
-        List<String> midList = Arrays.asList("mid", "mid2");
-        try (MockedStatic<MerchantUserService> mocked = Mockito.mockStatic(MerchantUserService.class,Mockito.CALLS_REAL_METHODS)) {
-            mocked.when(() -> MerchantUserService.getNewMIdMappingList(midList,merchantInfoDtoList)).thenReturn(midList);
-        }
+import com.epay.merchant.model.response.MerchantResponse;
+import com.epay.merchant.util.EPayIdentityUtil;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
-        assertEquals(midList.getFirst(),merchantInfoDtoList.getFirst().getMId());
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class MerchantUserServiceTest {
+
+    @Mock
+    private MerchantUserDao merchantUserDao;
+
+    @Mock
+    private MerchantMapper merchantMapper;
+
+    @Mock
+    private MerchantUserValidator merchantUserValidator;
+
+    @InjectMocks
+    private MerchantUserService merchantUserService;
+
+    private MerchantUserDto merchantUserDto;
+    private MerchantUserRequest merchantUserRequest;
+    private MerchantUserResponse merchantUserResponse;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        merchantUserDto = MerchantUserDto.builder().userName("rahul").role("role").build();
+        merchantUserRequest = MerchantUserRequest.builder().userName("rahul").build();
+        merchantUserResponse = new MerchantUserResponse();
+        merchantUserResponse.setUserName(merchantUserDto.getUserName());
+        merchantUserResponse.setRole("role");
     }
 
     @Test
-    void testGetMerchantUserAccess(){
-        UUID uuid= UUID.randomUUID();
+    void testCreateMerchantUser() {
+        setupCommonMocks(false);
 
-        List<UserMenuPermissionEntityDetails> userMenuPermissionEntityDetailsList=Arrays.asList(UserMenuPermissionEntityDetails.builder().userId(uuid).build());
-        SecurityContextHolder.getContext().setAuthentication(mock(Authentication.class));
+        MerchantResponse<MerchantUserResponse> response = merchantUserService.createMerchantUser(merchantUserRequest);
 
-        EPayPrincipal ePay=new EPayPrincipal();
-        ePay.setAuthenticationId("rahul");
-        String username = ePay.getUsername();
-        System.out.println(userName);
-        when(SecurityContextHolder.getContext().getAuthentication().getPrincipal()).thenReturn(ePay);
-        when(merchantUserDao.getByUserName(userName, UserStatus.ACTIVE)).thenReturn(merchantUserDto);
-        when(merchantUserDao.getUserMenuPermission(merchantUserDto.getId())).thenReturn(userMenuPermissionEntityDetailsList);
+        assertCommonAssertions(response);
+        verify(merchantUserValidator).validateMerchantUserRequest(merchantUserRequest, true);
+        verify(merchantUserDao).saveMerchantUser(merchantUserDto, StringUtils.EMPTY);
+    }
 
-        MerchantResponse<MerchantUserAccessResponse> merchantUserAccess = merchantUserService.getMerchantUserAccess();
+    @Test
+    void testUpdateMerchantUser() {
+        setupCommonMocks(false);
 
-        assertEquals(merchantUserAccess.getData().getFirst().getUserInfo().getUserName(),userName);
-        merchantUserDto=null;
-        when(merchantUserDao.getByUserName(userName, UserStatus.ACTIVE)).thenReturn(merchantUserDto);
+        MerchantResponse<MerchantUserResponse> response = merchantUserService.updateMerchantUser(merchantUserRequest);
+
+        assertCommonAssertions(response);
+        verify(merchantUserValidator).validateMerchantUserRequest(merchantUserRequest, true);
+        verify(merchantUserDao).updateMerchantUser(merchantUserDto, false);
+    }
+
+    @Test
+    void testUpdateMerchantUserProfile() {
+        setupCommonMocks(true);
+
+        MerchantResponse<MerchantUserResponse> response = merchantUserService.updateMerchantUserProfile(merchantUserRequest);
+
+        assertCommonAssertions(response);
+        verify(merchantUserValidator).validateMerchantUserProfile(merchantUserRequest);
+        verify(merchantUserDao).updateMerchantUser(merchantUserDto, true);
+    }
+
+    private void setupCommonMocks(boolean isProfileUpdate) {
+        if (isProfileUpdate) {
+            doNothing().when(merchantUserValidator).validateMerchantUserProfile(merchantUserRequest);
+        } else {
+            doNothing().when(merchantUserValidator).validateMerchantUserRequest(merchantUserRequest, true);
+        }
+        when(merchantMapper.mapMerchantUserRequestToMerchantUserDto(merchantUserRequest)).thenReturn(merchantUserDto);
+        when(merchantMapper.mapMerchantUserDtoToResponse(merchantUserDto)).thenReturn(merchantUserResponse);
+        when(merchantUserDao.getUserRoleName(merchantUserDto.getRole())).thenReturn("role");
+    }
+
+    private void assertCommonAssertions(MerchantResponse<MerchantUserResponse> response) {
+        assertNotNull(response);
+        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
+        assertEquals("rahul", response.getData().getUserName());
+        assertEquals("role", response.getData().getRole());
+    }
+
+    @Test
+    void testGetMerchantUserAccess_Success() {
+        UUID uuid = UUID.randomUUID();
+        List<UserMenuPermissionEntityDetails> permissions = List.of(UserMenuPermissionEntityDetails.builder().userId(uuid).build());
+        mockSecurityContext("rahul");
+
+        when(merchantUserDao.getByUserName("rahul", UserStatus.ACTIVE)).thenReturn(merchantUserDto);
+        when(merchantUserDao.getUserMenuPermission(merchantUserDto.getId())).thenReturn(permissions);
+
+        MerchantResponse<MerchantUserAccessResponse> response = merchantUserService.getMerchantUserAccess();
+
+        assertNotNull(response);
+        assertEquals("rahul", response.getData().getUserInfo().getUserName());
+    }
+
+    @Test
+    void testGetMerchantUserAccess_NotFound() {
+        mockSecurityContext("rahul");
+
+        when(merchantUserDao.getByUserName("rahul", UserStatus.ACTIVE)).thenReturn(null);
+
         MerchantException exception = assertThrows(MerchantException.class, () -> merchantUserService.getMerchantUserAccess());
         assertEquals(ErrorConstants.NOT_FOUND_ERROR_CODE, exception.getErrorCode());
     }
 
-
-    @Test
-    void testCreateMerchantUser(){
-        MerchantUserRequest merchantUserRequest = MerchantUserRequest.builder().userName("rahul").build();
-        doNothing().when(merchantUserValidator).validateMerchantUserRequest(merchantUserRequest, true);
-        when(merchantMapper.mapMerchantUserRequestToMerchantUserDto(merchantUserRequest)).thenReturn(merchantUserDto);
-        when(merchantUserDao.saveMerchantUser(merchantUserDto, StringUtils.EMPTY)).thenReturn(merchantUserDto);
-        MerchantUserResponse merchantUserResponse=new MerchantUserResponse();
-        merchantUserResponse.setUserName(merchantUserDto.getUserName());
-        when(merchantMapper.mapMerchantUserDtoToResponse(merchantUserDto)).thenReturn(merchantUserResponse);
-        when(merchantUserDao.getUserRoleName(merchantUserDto.getRole())).thenReturn("role");
-        merchantUserResponse.setRole("role");
-
-        MerchantResponse<MerchantUserResponse> merchantResponse = merchantUserService.createMerchantUser(merchantUserRequest);
-
-        assertEquals(MerchantConstant.RESPONSE_SUCCESS,merchantResponse.getStatus());
-
+    private void mockSecurityContext(String username) {
+        SecurityContextHolder.getContext().setAuthentication(mock(Authentication.class));
+        EPayPrincipal principal = new EPayPrincipal();
+        principal.setAuthenticationId(username);
+        when(SecurityContextHolder.getContext().getAuthentication().getPrincipal()).thenReturn(principal);
     }
-
-
-    @Test
-    void testUpdateMerchantUser(){
-        MerchantUserRequest merchantUserRequest = MerchantUserRequest.builder().userName("rahul").build();
-        doNothing().when(merchantUserValidator).validateMerchantUserRequest(merchantUserRequest, true);doNothing().when(merchantUserValidator).validateMerchantUserRequest(merchantUserRequest, true);
-        when(merchantMapper.mapMerchantUserRequestToMerchantUserDto(merchantUserRequest)).thenReturn(merchantUserDto);
-
-        MerchantUserResponse merchantUserResponse=new MerchantUserResponse();
-        merchantUserResponse.setUserName(merchantUserDto.getUserName());
-        when(merchantMapper.mapMerchantUserDtoToResponse(merchantUserDto)).thenReturn(merchantUserResponse);
-        when(merchantUserDao.getUserRoleName(merchantUserDto.getRole())).thenReturn("role");
-        merchantUserResponse.setRole("role");
-
-        when(merchantUserDao.updateMerchantUser(merchantUserDto, false)).thenReturn(merchantUserDto);
-        MerchantResponse<MerchantUserResponse> merchantResponse = merchantUserService.updateMerchantUser(merchantUserRequest);
-        assertEquals(MerchantConstant.RESPONSE_SUCCESS,merchantResponse.getStatus());
-
-    }
-
-
-    @Test
-    void testUpdateMerchantUserProfile(){
-        MerchantUserRequest merchantUserRequest = MerchantUserRequest.builder().userName("rahul").build();
-        doNothing().when(merchantUserValidator).validateMerchantUserProfile(merchantUserRequest);
-        when(merchantMapper.mapMerchantUserRequestToMerchantUserDto(merchantUserRequest)).thenReturn(merchantUserDto);
-
-        MerchantUserResponse merchantUserResponse=new MerchantUserResponse();
-        merchantUserResponse.setUserName(merchantUserDto.getUserName());
-        when(merchantMapper.mapMerchantUserDtoToResponse(merchantUserDto)).thenReturn(merchantUserResponse);
-        when(merchantUserDao.getUserRoleName(merchantUserDto.getRole())).thenReturn("role");
-        merchantUserResponse.setRole("role");
-
-        when(merchantUserDao.updateMerchantUser(merchantUserDto, true)).thenReturn(merchantUserDto);
-
-        MerchantResponse<MerchantUserResponse> merchantUserResponseMerchantResponse = merchantUserService.updateMerchantUserProfile(merchantUserRequest);
-        assertEquals(MerchantConstant.RESPONSE_SUCCESS,merchantUserResponseMerchantResponse.getStatus());
-
-    }
+}
