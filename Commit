@@ -1,38 +1,12 @@
-/**
- * Converting RefundReport to List of its field values using Streams.
- * @param refundReport RefundReport
- * @return List
- */
-private List<Object> convertToListOfObject(RefundReport refundReport) {
-    return Stream.of(
-        refundReport.getTransactionDate(),
-        refundReport.getRefundType(),
-        refundReport.getSbiOrderRefNumber(),
-        refundReport.getMerchantOrderNumber(),
-        refundReport.getAtrnNum(),
-        refundReport.getBankName(),
-        refundReport.getPaymodeCode(),
-        refundReport.getTransactionStatus(),
-        refundReport.getOrderAmount(),
-        refundReport.getRefundAmount(),
-        refundReport.getComments(),
-        refundReport.getRefundStatus(),
-        refundReport.getRemarks(),
-        refundReport.getArrnNum()
-    ).toList();
-}
-
-
-private void generateRefundReport(ReportManagementDto reportManagementDto) {
-    List<List<Object>> fileData = refundReportDao
-        .getRefundOrders(
-            reportManagementDto.getMId(),
-            reportManagementDto.getDurationFromDate(),
-            reportManagementDto.getDurationToDate()
-        )
-        .stream()
-        .map(this::convertToListOfObject)
-        .toList();
-
-    buildReport(reportManagementDto.getId(), reportManagementDto, refundHeader, fileData);
-}
+ private List<Object> convertToListOfObject(OrderReport orderReport) {
+        List<Object> objectList = new ArrayList<>();
+        objectList.add(StringUtils.isEmpty(orderReport.getTransactionDate()) ? StringUtils.EMPTY : orderReport.getTransactionDate());
+        objectList.add(StringUtils.isEmpty(orderReport.getMerchantOrderNumber()) ? StringUtils.EMPTY : orderReport.getMerchantOrderNumber());
+        objectList.add(StringUtils.isEmpty(orderReport.getCustomerId()) ? StringUtils.EMPTY : orderReport.getCustomerId());
+        objectList.add(StringUtils.isEmpty(orderReport.getTransactionCurrency()) ? StringUtils.EMPTY : orderReport.getTransactionCurrency());
+        objectList.add(ObjectUtils.isEmpty(orderReport.getOrderAmount()) ? StringUtils.EMPTY : orderReport.getOrderAmount());
+        objectList.add(StringUtils.isEmpty(orderReport.getSbiOrderRefNumber()) ? StringUtils.EMPTY : orderReport.getSbiOrderRefNumber());
+        objectList.add(StringUtils.isEmpty(orderReport.getStatus()) ? StringUtils.EMPTY : orderReport.getStatus());
+        objectList.add(ObjectUtils.isEmpty(orderReport.getAttempts()) ? StringUtils.EMPTY : orderReport.getAttempts());
+        return objectList;
+    }
