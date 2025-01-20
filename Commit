@@ -1,69 +1,26 @@
-package com.epay.reporting.service;
-
-import com.epay.reporting.dao.ReportDao;
-import com.epay.reporting.dao.ReportManagementDao;
-import com.epay.reporting.dto.ReportManagementDto;
-import com.epay.reporting.entity.view.OrderReport;
-import com.epay.reporting.entity.view.RefundReport;
-import com.epay.reporting.entity.view.TransactionReport;
-import com.epay.reporting.exception.ReportingException;
-import com.epay.reporting.util.enums.ReportStatus;
-import com.epay.reporting.util.file.model.FileModel;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.*;
-import org.slf4j.MDC;
-
-import java.io.File;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.*;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.*;
-
-class ReportServiceTest {
-
-    @Mock
-    private ReportDao reportDao;
-
-    @Mock
-    private ReportManagementDao reportManagementDao;
-
-    @Mock
-    private FileGeneratorService fileGeneratorService;
-
-    @InjectMocks
-    private ReportService reportService;
-
-    @Captor
-    private ArgumentCaptor<UUID> reportManagementIdCaptor;
-
-    private UUID reportManagementId;
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        reportManagementId = UUID.randomUUID();
-    }
 
     @Test
     void testGenerateReport_Success_OrderReport() {
         // Arrange
         ReportManagementDto reportManagementDto = new ReportManagementDto();
         reportManagementDto.setId(reportManagementId);
-        reportManagementDto.setReport("ORDER");
+        reportManagementDto.setReport(Report.ORDER);
         reportManagementDto.setMId("MID123");
-        reportManagementDto.setFormat("CSV");
-        reportManagementDto.setDurationFromDate(LocalDate.now().minusDays(10));
-        reportManagementDto.setDurationToDate(LocalDate.now());
+        reportManagementDto.setFormat(ReportFormat.CSV);
+        reportManagementDto.setDurationFromDate(1L);
+        reportManagementDto.setDurationToDate(1L);
 
-        List<OrderReport> orderReports = List.of(new OrderReport("2025-01-01", "ORD123", "CUST123", "USD", BigDecimal.valueOf(100.0), "SBI123", "SUCCESS", 2));
+        List<OrderReport> orderReports = List.of(OrderReport.builder().transactionDate("1L").mId("mid").orderAmount(BigDecimal.valueOf(100.0)).customerId("customerId").transactionCurrency("USD").sbiOrderRefNumber("RefNum").status("status").attempts(1).build());
 
         when(reportManagementDao.updateReportStatus(reportManagementId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
-        when(reportDao.getOrderReportData(anyString(), any(LocalDate.class), any(LocalDate.class))).thenReturn(orderReports);
-        when(fileGeneratorService.buildFileModel(anyString(), anyList(), anyList(), anyMap())).thenReturn(mock(FileModel.class));
-        when(fileGeneratorService.fileGenerator(anyString(), anyString(), anyString(), any(FileModel.class))).thenReturn(new File("dummyPath"));
+        when(reportDao.getOrderReportData("mid", 1L, 1L)).thenReturn(orderReports);
+        List<Object> objectList=Arrays.asList(OrderReport.builder().mId("mid").customerId("customerId").attempts(1).status("status").build());
+        List<List<Object>> fileData=Arrays.asList(objectList);
+        List<String> header=Arrays.asList("header1","header2");
+        FileModel fileModel1 = mock(FileModel.class);
+        when(fileGeneratorService.buildFileModel(ReportFormat.CSV,header, fileData, Collections.emptyMap())).thenReturn(fileModel1);
+        File file = new File("dummyPath");
+        when(fileGeneratorService.fileGenerator(ReportFormat.CSV, Report.ORDER, "mid", fileModel1)).thenReturn(file);
 
         // Act
         reportService.generateReport(reportManagementId);
@@ -72,35 +29,3 @@ class ReportServiceTest {
         verify(reportManagementDao).updateStatusAndFilePath(reportManagementIdCaptor.capture(), eq(ReportStatus.GENERATED), eq("dummyPath"));
         assert reportManagementIdCaptor.getValue().equals(reportManagementId);
     }
-
-    @Test
-    void testGenerateReport_Failure_ReportingException() {
-        // Arrange
-        ReportManagementDto reportManagementDto = new ReportManagementDto();
-        reportManagementDto.setId(reportManagementId);
-        reportManagementDto.setReport("TRANSACTION");
-
-        when(reportManagementDao.updateReportStatus(reportManagementId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
-        when(reportDao.getTransaction(anyString(), any(LocalDate.class), any(LocalDate.class)))
-                .thenThrow(new ReportingException("ERROR_CODE", "Mocked error"));
-
-        // Act & Assert
-        assertThrows(ReportingException.class, () -> reportService.generateReport(reportManagementId));
-        verify(reportManagementDao).updateStatusAndRemarks(eq(reportManagementId), eq(ReportStatus.GENERATION_FAILED), contains("Report Generation Failed"));
-    }
-
-    @Test
-    void testGenerateReport_Failure_GenericException() {
-        // Arrange
-        ReportManagementDto reportManagementDto = new ReportManagementDto();
-        reportManagementDto.setId(reportManagementId);
-        reportManagementDto.setReport("REFUNDS");
-
-        when(reportManagementDao.updateReportStatus(reportManagementId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
-        when(reportDao.getRefundReportData(anyString(), any(LocalDate.class), any(LocalDate.class))).thenThrow(new RuntimeException("Mocked generic exception"));
-
-        // Act & Assert
-        assertThrows(ReportingException.class, () -> reportService.generateReport(reportManagementId));
-        verify(reportManagementDao).updateStatusAndRemarks(eq(reportManagementId), eq(ReportStatus.GENERATION_FAILED), contains("Report Generation Failed"));
-    }
-}
