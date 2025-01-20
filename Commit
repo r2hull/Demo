@@ -1,31 +1,40 @@
+@Test
+void testGenerateReport_Success_OrderReport() {
+    // Arrange
+    ReportManagementDto reportManagementDto = new ReportManagementDto();
+    reportManagementDto.setId(reportManagementId);
+    reportManagementDto.setReport(Report.ORDER);
+    reportManagementDto.setMId("MID123");
+    reportManagementDto.setFormat(ReportFormat.CSV);
+    reportManagementDto.setDurationFromDate(1L);
+    reportManagementDto.setDurationToDate(1L);
 
-    @Test
-    void testGenerateReport_Success_OrderReport() {
-        // Arrange
-        ReportManagementDto reportManagementDto = new ReportManagementDto();
-        reportManagementDto.setId(reportManagementId);
-        reportManagementDto.setReport(Report.ORDER);
-        reportManagementDto.setMId("MID123");
-        reportManagementDto.setFormat(ReportFormat.CSV);
-        reportManagementDto.setDurationFromDate(1L);
-        reportManagementDto.setDurationToDate(1L);
+    List<OrderReport> orderReports = List.of(OrderReport.builder()
+            .transactionDate("2025-01-01")
+            .merchantOrderNumber("MO123")
+            .customerId("CUST123")
+            .transactionCurrency("USD")
+            .orderAmount(BigDecimal.valueOf(100.00))
+            .sbiOrderRefNumber("REF123")
+            .status("Success")
+            .attempts(1)
+            .build());
 
-        List<OrderReport> orderReports = List.of(OrderReport.builder().transactionDate("1L").mId("mid").orderAmount(BigDecimal.valueOf(100.0)).customerId("customerId").transactionCurrency("USD").sbiOrderRefNumber("RefNum").status("status").attempts(1).build());
+    when(reportManagementDao.updateReportStatus(reportManagementId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
+    when(reportDao.getOrderReportData("MID123", 1L, 1L)).thenReturn(orderReports);
 
-        when(reportManagementDao.updateReportStatus(reportManagementId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
-        when(reportDao.getOrderReportData("mid", 1L, 1L)).thenReturn(orderReports);
-        List<Object> objectList=Arrays.asList(OrderReport.builder().mId("mid").customerId("customerId").attempts(1).status("status").build());
-        List<List<Object>> fileData=Arrays.asList(objectList);
-        List<String> header=Arrays.asList("header1","header2");
-        FileModel fileModel1 = mock(FileModel.class);
-        when(fileGeneratorService.buildFileModel(ReportFormat.CSV,header, fileData, Collections.emptyMap())).thenReturn(fileModel1);
-        File file = new File("dummyPath");
-        when(fileGeneratorService.fileGenerator(ReportFormat.CSV, Report.ORDER, "mid", fileModel1)).thenReturn(file);
+    List<Object> expectedData = List.of("2025-01-01", "MO123", "CUST123", "USD", BigDecimal.valueOf(100.00), "REF123", "Success", 1);
+    List<List<Object>> fileData = List.of(expectedData);
+    List<String> header = List.of("Transaction Date", "Order Number", "Customer ID", "Currency", "Amount", "Reference Number", "Status", "Attempts");
 
-        // Act
-        reportService.generateReport(reportManagementId);
+    FileModel fileModel = mock(FileModel.class); // Mock FileModel
+    when(fileGeneratorService.buildFileModel(ReportFormat.CSV, header, fileData, Collections.emptyMap())).thenReturn(fileModel);
+    File file = new File("dummyPath");
+    when(fileGeneratorService.fileGenerator(ReportFormat.CSV, Report.ORDER, "MID123", fileModel)).thenReturn(file);
 
-        // Assert
-        verify(reportManagementDao).updateStatusAndFilePath(reportManagementIdCaptor.capture(), eq(ReportStatus.GENERATED), eq("dummyPath"));
-        assert reportManagementIdCaptor.getValue().equals(reportManagementId);
-    }
+    // Act
+    reportService.generateReport(reportManagementId);
+
+    // Assert
+    verify(reportManagementDao).updateStatusAndFilePath(eq(reportManagementId), eq(ReportStatus.GENERATED), eq("dummyPath"));
+}
