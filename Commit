@@ -1,3 +1,7 @@
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class OrderReport {
     private String transactionDate;
     private String merchantOrderNumber;
