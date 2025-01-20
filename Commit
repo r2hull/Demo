@@ -1,3 +1,11 @@
-File file = new File("dummyPath");
-when(fileGeneratorService.fileGenerator(eq(ReportFormat.CSV), eq(Report.ORDER), eq("MID123"), any(FileModel.class)))
-    .thenReturn(file);
+public class OrderReport {
+    private String transactionDate;
+    private String merchantOrderNumber;
+    private String customerId;
+    private String transactionCurrency;
+    private BigDecimal orderAmount;
+    private String sbiOrderRefNumber;
+    private String status;
+    private Integer attempts;
+    private String mId;
+}
