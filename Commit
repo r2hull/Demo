@@ -7,182 +7,100 @@ import com.epay.reporting.entity.view.OrderReport;
 import com.epay.reporting.entity.view.RefundReport;
 import com.epay.reporting.entity.view.TransactionReport;
 import com.epay.reporting.exception.ReportingException;
-import com.epay.reporting.util.ErrorConstants;
 import com.epay.reporting.util.enums.ReportStatus;
 import com.epay.reporting.util.file.model.FileModel;
-import com.sbi.epay.authentication.util.EPayAuthenticationConstant;
-import com.sbi.epay.logging.utility.LoggerFactoryUtility;
-import com.sbi.epay.logging.utility.LoggerUtility;
-import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.StringUtils;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.*;
 import org.slf4j.MDC;
-import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.math.BigDecimal;
-import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
+import java.time.LocalDate;
+import java.util.*;
 
-/**
- * Class Name: ReportService
- * *
- * Description: To define business logic to generate Order Report.
- * *
- * Author: Bhoopendra Rajput
- * <p>
- * Copyright (c) 2024 [State Bank of India]
- * All rights reserved
- * *
- * Version:1.0
- */
-@Service
-@RequiredArgsConstructor
-public class ReportService {
-    private final static List<String> orderHeader = List.of("Txn Date & Time", "Merchant Order Number", "Customer Id", "Txn Currency", "Order Amount", "SBIePay Order ID", "Order Id Status", "Attempts");
-    private final static List<String> refundHeader = List.of("Txn Date & Time", "Refund Type", "SBIePay Order ID", "Merchant Order ID", "ATRN", "Payment Gateway Name", "Payment Mode", "Transaction Status", "Merchant Order Amount", "Refund Amount", "Comment", "Refund Status", "Remarks", "ARRN/ACRN");
-    private final static List<String> transactionHeader = List.of("Txn Date & Time", "Merchant Order Number", "Cust Id", "Txn Currency", "Order Amount", "Gateway Posting", "Amount	SBIePay", "Order ID", "Order Status", "ATRN", "	Transaction Status", "Paymode Name", "Bank Name", "Bank Txn", "Reference No", "Amount Settled", "Amount Refunded", "Amount Chargeback");
-    private final LoggerUtility log = LoggerFactoryUtility.getLogger(this.getClass());
-    private final ReportDao reportDao;
-    private final ReportManagementDao reportManagementDao;
-    private final FileGeneratorService fileGeneratorService;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.*;
 
-    public void generateReport(UUID reportManagementId) {
-        ReportManagementDto reportManagementDto = reportManagementDao.updateReportStatus(reportManagementId, ReportStatus.GENERATION_STARTED);
-        try {
-            log.info("Report generation Request Received for {} with info reportManagementDto : {} ", reportManagementDto.getReport(), reportManagementDto);
-            switch (reportManagementDto.getReport()) {
-                case ORDER -> generateOrderReport(reportManagementDto);
-                case TRANSACTION -> generateTransactionReport(reportManagementDto);
-                case REFUNDS -> generateRefundReport(reportManagementDto);
-            }
-            log.info("Report generation Request Completed for {} with info reportManagementDto : {} ", reportManagementDto.getReport(), reportManagementDto);
-        } catch (ReportingException e) {
-            reportManagementDao.updateStatusAndRemarks(reportManagementDto.getId(), ReportStatus.GENERATION_FAILED, "Report Generation Failed : " + MDC.get(EPayAuthenticationConstant.CORRELATION_ID));
-            log.error("Error in Report Generation for {} with info reportManagementDto : {} and error : {} ", reportManagementDto.getReport(), reportManagementDto, e.getErrorMessage());
-            throw e;
-        } catch (Exception e) {
-            reportManagementDao.updateStatusAndRemarks(reportManagementDto.getId(), ReportStatus.GENERATION_FAILED, "Report Generation Failed : " + MDC.get(EPayAuthenticationConstant.CORRELATION_ID));
-            log.error("Error in Report Generation for {} with info reportManagementDto : {} and error : {} ", reportManagementDto.getReport(), reportManagementDto, e.getMessage());
-            throw new ReportingException(ErrorConstants.GENERATION_ERROR_CODE, MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, "Report"));
-        }
+class ReportServiceTest {
+
+    @Mock
+    private ReportDao reportDao;
+
+    @Mock
+    private ReportManagementDao reportManagementDao;
+
+    @Mock
+    private FileGeneratorService fileGeneratorService;
+
+    @InjectMocks
+    private ReportService reportService;
+
+    @Captor
+    private ArgumentCaptor<UUID> reportManagementIdCaptor;
+
+    private UUID reportManagementId;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        reportManagementId = UUID.randomUUID();
     }
 
-    /**
-     * Generate Order Report
-     */
-    private void generateOrderReport(ReportManagementDto reportManagementDto) {
-        List<OrderReport> list = reportDao.getOrderReportData(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate());
-        List<List<Object>> fileData = list.stream().map(this::convertToListOfObject).toList();
-        buildReport(reportManagementDto.getId(), reportManagementDto, orderHeader, fileData);
+    @Test
+    void testGenerateReport_Success_OrderReport() {
+        // Arrange
+        ReportManagementDto reportManagementDto = new ReportManagementDto();
+        reportManagementDto.setId(reportManagementId);
+        reportManagementDto.setReport("ORDER");
+        reportManagementDto.setMId("MID123");
+        reportManagementDto.setFormat("CSV");
+        reportManagementDto.setDurationFromDate(LocalDate.now().minusDays(10));
+        reportManagementDto.setDurationToDate(LocalDate.now());
+
+        List<OrderReport> orderReports = List.of(new OrderReport("2025-01-01", "ORD123", "CUST123", "USD", BigDecimal.valueOf(100.0), "SBI123", "SUCCESS", 2));
+
+        when(reportManagementDao.updateReportStatus(reportManagementId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
+        when(reportDao.getOrderReportData(anyString(), any(LocalDate.class), any(LocalDate.class))).thenReturn(orderReports);
+        when(fileGeneratorService.buildFileModel(anyString(), anyList(), anyList(), anyMap())).thenReturn(mock(FileModel.class));
+        when(fileGeneratorService.fileGenerator(anyString(), anyString(), anyString(), any(FileModel.class))).thenReturn(new File("dummyPath"));
+
+        // Act
+        reportService.generateReport(reportManagementId);
+
+        // Assert
+        verify(reportManagementDao).updateStatusAndFilePath(reportManagementIdCaptor.capture(), eq(ReportStatus.GENERATED), eq("dummyPath"));
+        assert reportManagementIdCaptor.getValue().equals(reportManagementId);
     }
 
-    /**
-     * Generate Transaction Report
-     */
-    private void generateTransactionReport(ReportManagementDto reportManagementDto) {
-        List<TransactionReport> list = reportDao.getTransaction(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate());
-        List<List<Object>> fileData = list.stream().map(this::convertToListOfObjectTrans).toList();
-        buildReport(reportManagementDto.getId(), reportManagementDto, transactionHeader, fileData);
+    @Test
+    void testGenerateReport_Failure_ReportingException() {
+        // Arrange
+        ReportManagementDto reportManagementDto = new ReportManagementDto();
+        reportManagementDto.setId(reportManagementId);
+        reportManagementDto.setReport("TRANSACTION");
+
+        when(reportManagementDao.updateReportStatus(reportManagementId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
+        when(reportDao.getTransaction(anyString(), any(LocalDate.class), any(LocalDate.class)))
+                .thenThrow(new ReportingException("ERROR_CODE", "Mocked error"));
+
+        // Act & Assert
+        assertThrows(ReportingException.class, () -> reportService.generateReport(reportManagementId));
+        verify(reportManagementDao).updateStatusAndRemarks(eq(reportManagementId), eq(ReportStatus.GENERATION_FAILED), contains("Report Generation Failed"));
     }
 
-    /**
-     * Generate Refund Report
-     */
-    private void generateRefundReport(ReportManagementDto reportManagementDto) {
-        List<RefundReport> list = reportDao.getRefundReportData(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate());
-        List<List<Object>> fileData = list.stream().map(this::convertToListOfObject).toList();
-        buildReport(reportManagementDto.getId(), reportManagementDto, refundHeader, fileData);
-    }
+    @Test
+    void testGenerateReport_Failure_GenericException() {
+        // Arrange
+        ReportManagementDto reportManagementDto = new ReportManagementDto();
+        reportManagementDto.setId(reportManagementId);
+        reportManagementDto.setReport("REFUNDS");
 
-    /**
-     * Converting OrderReport to List of its field values.
-     *
-     * @param orderReport OrderReport
-     * @return List
-     */
-    private List<Object> convertToListOfObject(OrderReport orderReport) {
-        List<Object> objectList = new ArrayList<>();
-        objectList.add(StringUtils.isEmpty(orderReport.getTransactionDate()) ? StringUtils.EMPTY : orderReport.getTransactionDate());
-        objectList.add(StringUtils.isEmpty(orderReport.getMerchantOrderNumber()) ? StringUtils.EMPTY : orderReport.getMerchantOrderNumber());
-        objectList.add(StringUtils.isEmpty(orderReport.getCustomerId()) ? StringUtils.EMPTY : orderReport.getCustomerId());
-        objectList.add(StringUtils.isEmpty(orderReport.getTransactionCurrency()) ? StringUtils.EMPTY : orderReport.getTransactionCurrency());
-        objectList.add(ObjectUtils.isEmpty(orderReport.getOrderAmount()) ? StringUtils.EMPTY : orderReport.getOrderAmount());
-        objectList.add(StringUtils.isEmpty(orderReport.getSbiOrderRefNumber()) ? StringUtils.EMPTY : orderReport.getSbiOrderRefNumber());
-        objectList.add(StringUtils.isEmpty(orderReport.getStatus()) ? StringUtils.EMPTY : orderReport.getStatus());
-        objectList.add(ObjectUtils.isEmpty(orderReport.getAttempts()) ? StringUtils.EMPTY : orderReport.getAttempts());
-        return objectList;
-    }
+        when(reportManagementDao.updateReportStatus(reportManagementId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
+        when(reportDao.getRefundReportData(anyString(), any(LocalDate.class), any(LocalDate.class))).thenThrow(new RuntimeException("Mocked generic exception"));
 
-    /**
-     * Converting RefundReport to List of its field values.
-     *
-     * @param refundReport RefundReport
-     * @return List
-     */
-    private List<Object> convertToListOfObject(RefundReport refundReport) {
-        List<Object> objectList = new ArrayList<>();
-        objectList.add(StringUtils.isEmpty(refundReport.getTransactionDate()) ? StringUtils.EMPTY : refundReport.getTransactionDate());
-        objectList.add(StringUtils.isEmpty(refundReport.getRefundType()) ? StringUtils.EMPTY : refundReport.getRefundType());
-        objectList.add(StringUtils.isEmpty(refundReport.getSbiOrderRefNumber()) ? StringUtils.EMPTY : refundReport.getSbiOrderRefNumber());
-        objectList.add(StringUtils.isEmpty(refundReport.getMerchantOrderNumber()) ? StringUtils.EMPTY : refundReport.getMerchantOrderNumber());
-        objectList.add(StringUtils.isEmpty(refundReport.getAtrnNum()) ? StringUtils.EMPTY : refundReport.getAtrnNum());
-        objectList.add(StringUtils.isEmpty(refundReport.getBankName()) ? StringUtils.EMPTY : refundReport.getBankName());
-        objectList.add(StringUtils.isEmpty(refundReport.getPaymodeCode()) ? StringUtils.EMPTY : refundReport.getPaymodeCode());
-        objectList.add(StringUtils.isEmpty(refundReport.getTransactionStatus()) ? StringUtils.EMPTY : refundReport.getTransactionStatus());
-        objectList.add(ObjectUtils.isEmpty(refundReport.getOrderAmount()) ? StringUtils.EMPTY : refundReport.getBankName());
-        objectList.add(ObjectUtils.isEmpty(refundReport.getRefundAmount()) ? StringUtils.EMPTY : refundReport.getRefundAmount());
-        objectList.add(StringUtils.isEmpty(refundReport.getRemarks()) ? StringUtils.EMPTY : refundReport.getRemarks());
-        objectList.add(StringUtils.isEmpty(refundReport.getArrnNum()) ? StringUtils.EMPTY : refundReport.getArrnNum());
-        return objectList;
+        // Act & Assert
+        assertThrows(ReportingException.class, () -> reportService.generateReport(reportManagementId));
+        verify(reportManagementDao).updateStatusAndRemarks(eq(reportManagementId), eq(ReportStatus.GENERATION_FAILED), contains("Report Generation Failed"));
     }
-    /**
-     * Converting TransactionReport to List of its field values.
-     *
-     * @param transactionReport transactionReport
-     * @return List
-     */
-    private List<Object> convertToListOfObjectTrans(TransactionReport transactionReport) {
-        List<Object> objectList = new ArrayList<>();
-        objectList.add(StringUtils.isEmpty(transactionReport.getTransactionDate()) ? StringUtils.EMPTY : transactionReport.getTransactionDate());
-        objectList.add(StringUtils.isEmpty(transactionReport.getMerchantOrderNumber()) ? StringUtils.EMPTY : transactionReport.getMerchantOrderNumber());
-        objectList.add(StringUtils.isEmpty(transactionReport.getCustomerId()) ? StringUtils.EMPTY : transactionReport.getCustomerId());
-        objectList.add(StringUtils.isEmpty(transactionReport.getTransactionCurrency()) ? StringUtils.EMPTY : transactionReport.getTransactionCurrency());
-        objectList.add(org.springframework.util.ObjectUtils.isEmpty(transactionReport.getOrderAmount()) ? BigDecimal.ZERO : transactionReport.getOrderAmount());
-        objectList.add(org.springframework.util.ObjectUtils.isEmpty(transactionReport.getDebitAmount()) ? BigDecimal.ZERO : transactionReport.getDebitAmount());//REMARK: Gateway Posting
-        objectList.add(StringUtils.isEmpty(transactionReport.getSbiOrderRefNumber()) ? StringUtils.EMPTY : transactionReport.getSbiOrderRefNumber());//REMARK: SBIePay Order ID
-        objectList.add(StringUtils.isEmpty(transactionReport.getOrderStatus()) ? StringUtils.EMPTY : transactionReport.getOrderStatus());
-        objectList.add(StringUtils.isEmpty(transactionReport.getAtrnNum()) ? StringUtils.EMPTY : transactionReport.getAtrnNum());
-        objectList.add(StringUtils.isEmpty(transactionReport.getTransactionStatus()) ? StringUtils.EMPTY : transactionReport.getTransactionStatus());
-        objectList.add(StringUtils.isEmpty(transactionReport.getPayModeName()) ? StringUtils.EMPTY : transactionReport.getPayModeName());
-        objectList.add(StringUtils.isEmpty(transactionReport.getBankName()) ? StringUtils.EMPTY : transactionReport.getBankName());
-        objectList.add(StringUtils.isEmpty(transactionReport.getBankReferenceNumber()) ? StringUtils.EMPTY : transactionReport.getBankReferenceNumber());//REMARK: Bank Txn Reference No
-        objectList.add(org.springframework.util.ObjectUtils.isEmpty(transactionReport.getSettledAmount()) ? BigDecimal.ZERO : transactionReport.getSettledAmount());
-        objectList.add(org.springframework.util.ObjectUtils.isEmpty(transactionReport.getRefundAmount()) ? BigDecimal.ZERO : transactionReport.getRefundAmount());
-        objectList.add(org.springframework.util.ObjectUtils.isEmpty(transactionReport.getChargeBackAmount()) ? BigDecimal.ZERO : transactionReport.getChargeBackAmount());
-        return objectList;
-    }
-
-
-    private void buildReport(UUID reportManagementId, ReportManagementDto reportManagementDto, List<String> header, List<List<Object>> fileData) {
-        FileModel fileModel = fileGeneratorService.buildFileModel(reportManagementDto.getFormat(), header, fileData, Collections.emptyMap());
-        File file = fileGeneratorService.fileGenerator(reportManagementDto.getFormat(), reportManagementDto.getReport(), reportManagementDto.getMId(), fileModel);
-        //TODO : File UPLOAD on S3 Bucket
-        reportManagementDao.updateStatusAndFilePath(reportManagementId, ReportStatus.GENERATED, file.getPath());
-    }
-
 }
-
-
-package com.epay.reporting.util.file.model;
-
-import lombok.Data;
-
-@Data
-public abstract class FileModel {
-    private String reportMonth;
-}
-
