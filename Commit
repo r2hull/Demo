@@ -1,22 +1,17 @@
- try (MockedStatic<MerchantUserService> mocked = Mockito.mockStatic(MerchantUserService.class,Mockito.CALLS_REAL_METHODS)) {
-            mocked.when(() -> MerchantUserService.getNewMIdMappingList(midList,merchantInfoDtoList)).thenReturn(midList);
-        }
+@Test
+void testGetNewMIdMappingListWithReflection() throws Exception {
+    List<String> mIds = Arrays.asList("mid1", "mid2", "mid3");
+    List<MerchantInfoDto> assignedMIds = Arrays.asList(
+            MerchantInfoDto.builder().mId("mid1").build(),
+            MerchantInfoDto.builder().mId("mid2").build()
+    );
 
+    Method method = MerchantUserService.class.getDeclaredMethod("getNewMIdMappingList", List.class, List.class);
+    method.setAccessible(true); // Make the private method accessible
 
+    @SuppressWarnings("unchecked")
+    List<String> result = (List<String>) method.invoke(null, mIds, assignedMIds);
 
-    private static List<String> getNewMIdMappingList(List<String> mIds, List<MerchantInfoDto> assignedMIds) {
-        List<String> newMappedMIds = new ArrayList<>();
-        for (String mId : mIds) {
-            boolean mIdFound = false;
-            for (MerchantInfoDto assignedMId : assignedMIds) {
-                if (mId.equalsIgnoreCase(assignedMId.getMId())) {
-                    mIdFound = true;
-                    break;
-                }
-            }
-            if (!mIdFound) {
-                newMappedMIds.add(mId);
-            }
-        }
-        return newMappedMIds;
-    }
+    assertEquals(1, result.size());
+    assertTrue(result.contains("mid3"));
+}
