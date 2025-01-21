@@ -1,43 +1,38 @@
-List<TransactionReport> transactionReportList = Arrays.asList(
-        TransactionReport.builder()
-                .payModeName("Credit Card")
-                .bankName("HDFC Bank")
-                .bankReferenceNumber("REF123456")
-                .refundAmount("500.00")
-                .chargeBackAmount("0.00")
-                .mId("MID001")
-                .transactionDate("2025-01-20")
-                .merchantOrderNumber("ORD12345")
-                .customerId("CUST001")
-                .transactionCurrency("INR")
-                .orderAmount(BigDecimal.valueOf(1500.75))
-                .debitAmount(BigDecimal.valueOf(1500.75))
-                .sbiOrderRefNumber("SBI12345")
-                .orderStatus("Success")
-                .atrnNum("ATRN001")
-                .transactionStatus("Completed")
-                .settledAmount("1500.75")
-                .build()
-);
-
-List<List<Object>> transactionFileData = new ArrayList<>();
-for (TransactionReport transactionReport : transactionReportList) {
-    transactionFileData.add(Arrays.asList(
-            transactionReport.getTransactionDate(),
-            transactionReport.getMerchantOrderNumber(),
-            transactionReport.getCustomerId(),
-            transactionReport.getTransactionCurrency(),
-            transactionReport.getOrderAmount(),
-            transactionReport.getDebitAmount(),
-            transactionReport.getSbiOrderRefNumber(),
-            transactionReport.getOrderStatus(),
-            transactionReport.getAtrnNum(),
-            transactionReport.getTransactionStatus(),
-            transactionReport.getPayModeName(),
-            transactionReport.getBankName(),
-            transactionReport.getBankReferenceNumber(),
-            transactionReport.getSettledAmount(),
-            transactionReport.getRefundAmount(),
-            transactionReport.getChargeBackAmount()
-    ));
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class RefundReport {
+    private String transactionDate;
+    private String refundType;
+    private String sbiOrderRefNumber;
+    private String merchantOrderNumber;
+    private String atrnNum;
+    private String bankName;
+    private String paymodeCode;
+    private String transactionStatus;
+    private BigDecimal orderAmount;
+    private BigDecimal refundAmount;
+    private String comments;
+    private String refundStatus;
+    private String remarks;
+    private String arrnNum;
 }
+
+
+  private List<Object> convertToListOfObject(RefundReport refundReport) {
+        List<Object> objectList = new ArrayList<>();
+        objectList.add(StringUtils.isEmpty(refundReport.getTransactionDate()) ? StringUtils.EMPTY : refundReport.getTransactionDate());
+        objectList.add(StringUtils.isEmpty(refundReport.getRefundType()) ? StringUtils.EMPTY : refundReport.getRefundType());
+        objectList.add(StringUtils.isEmpty(refundReport.getSbiOrderRefNumber()) ? StringUtils.EMPTY : refundReport.getSbiOrderRefNumber());
+        objectList.add(StringUtils.isEmpty(refundReport.getMerchantOrderNumber()) ? StringUtils.EMPTY : refundReport.getMerchantOrderNumber());
+        objectList.add(StringUtils.isEmpty(refundReport.getAtrnNum()) ? StringUtils.EMPTY : refundReport.getAtrnNum());
+        objectList.add(StringUtils.isEmpty(refundReport.getBankName()) ? StringUtils.EMPTY : refundReport.getBankName());
+        objectList.add(StringUtils.isEmpty(refundReport.getPaymodeCode()) ? StringUtils.EMPTY : refundReport.getPaymodeCode());
+        objectList.add(StringUtils.isEmpty(refundReport.getTransactionStatus()) ? StringUtils.EMPTY : refundReport.getTransactionStatus());
+        objectList.add(ObjectUtils.isEmpty(refundReport.getOrderAmount()) ? StringUtils.EMPTY : refundReport.getBankName());
+        objectList.add(ObjectUtils.isEmpty(refundReport.getRefundAmount()) ? StringUtils.EMPTY : refundReport.getRefundAmount());
+        objectList.add(StringUtils.isEmpty(refundReport.getRemarks()) ? StringUtils.EMPTY : refundReport.getRemarks());
+        objectList.add(StringUtils.isEmpty(refundReport.getArrnNum()) ? StringUtils.EMPTY : refundReport.getArrnNum());
+        return objectList;
+    }
