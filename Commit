@@ -1,16 +1,41 @@
-private List<Object> convertToListOfObject(RefundReport refundReport) {
-    List<Object> objectList = new ArrayList<>();
-    objectList.add(refundReport.getTransactionDate());
-    objectList.add(refundReport.getRefundType());
-    objectList.add(refundReport.getSbiOrderRefNumber());
-    objectList.add(refundReport.getMerchantOrderNumber());
-    objectList.add(refundReport.getAtrnNum());
-    objectList.add(refundReport.getBankName());
-    objectList.add(refundReport.getPaymodeCode());
-    objectList.add(refundReport.getTransactionStatus());
-    objectList.add(refundReport.getOrderAmount());
-    objectList.add(refundReport.getRefundAmount());
-    objectList.add(refundReport.getRemarks());
-    objectList.add(refundReport.getArrnNum());
-    return objectList;
-}
+ List<TransactionReport> transactionReportList = Arrays.asList((TransactionReport.builder()
+                    .payModeName("Credit Card")
+                    .bankName("HDFC Bank")
+                    .bankReferenceNumber("REF123456")
+                    .refundAmount("500.00")
+                    .chargeBackAmount("0.00")
+                    .mId("MID001")
+                    .transactionDate("2025-01-20")
+                    .merchantOrderNumber("ORD12345")
+                    .customerId("CUST001")
+                    .transactionCurrency("INR")
+                    .orderAmount(BigDecimal.valueOf(1500.75))
+                    .debitAmount(BigDecimal.valueOf(1500.75))
+                    .sbiOrderRefNumber("SBI12345")
+                    .orderStatus("Success")
+                    .atrnNum("ATRN001")
+                    .transactionStatus("Completed")
+                    .settledAmount("1500.75")
+                    .build()));
+
+            List<List<Object>> transactionFileData = new ArrayList<>();
+            for (TransactionReport transactionReport : transactionReportList) {
+                transactionFileData.add(Arrays.asList(
+                        transactionReport.getPayModeName(),
+                        transactionReport.getBankName(),
+                        transactionReport.getBankReferenceNumber(),
+                        transactionReport.getRefundAmount(),
+                        transactionReport.getChargeBackAmount(),
+                        transactionReport.getMId(),
+                        transactionReport.getTransactionDate(),
+                        transactionReport.getMerchantOrderNumber(),
+                        transactionReport.getCustomerId(),
+                        transactionReport.getTransactionCurrency(),
+                        transactionReport.getOrderAmount(),
+                        transactionReport.getDebitAmount(),
+                        transactionReport.getSbiOrderRefNumber(),
+                        transactionReport.getOrderStatus(),
+                        transactionReport.getAtrnNum(),
+                        transactionReport.getTransactionStatus(),
+                        transactionReport.getSettledAmount()
+                ));
