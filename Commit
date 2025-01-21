@@ -1,44 +1,20 @@
-List<TransactionReport> transactionReportList = Arrays.asList(
-        TransactionReport.builder()
-                .payModeName("Credit Card")
-                .bankName("HDFC Bank")
-                .bankReferenceNumber("REF123456")
-                .refundAmount("500.00")
-                .chargeBackAmount("0.00")
-                .mId("MID001")
-                .transactionDate("2025-01-20")
-                .merchantOrderNumber("ORD12345")
-                .customerId("CUST001")
-                .transactionCurrency("INR")
-                .orderAmount(BigDecimal.valueOf(1500.75))
-                .debitAmount(BigDecimal.valueOf(1500.75))
-                .sbiOrderRefNumber("SBI12345")
-                .orderStatus("Success")
-                .atrnNum("ATRN001")
-                .transactionStatus("Completed")
-                .settledAmount("1500.75")
-                .build()
-);
-
-List<List<Object>> transactionFileData = new ArrayList<>();
-for (TransactionReport transactionReport : transactionReportList) {
-    transactionFileData.add(Arrays.asList(
-            transactionReport.getTransactionDate(),          // 1. Transaction Date
-            transactionReport.getMerchantOrderNumber(),      // 2. Merchant Order Number
-            transactionReport.getCustomerId(),              // 3. Customer ID
-            transactionReport.getTransactionCurrency(),     // 4. Transaction Currency
-            transactionReport.getOrderAmount(),             // 5. Order Amount
-            transactionReport.getDebitAmount(),             // 6. Debit Amount
-            transactionReport.getSbiOrderRefNumber(),       // 7. SBI Order Reference Number
-            transactionReport.getOrderStatus(),             // 8. Order Status
-            transactionReport.getAtrnNum(),                 // 9. ATRN Number
-            transactionReport.getPayModeName(),             // 10. Pay Mode Name
-            transactionReport.getBankName(),                // 11. Bank Name
-            transactionReport.getBankReferenceNumber(),     // 12. Bank Reference Number
-            transactionReport.getRefundAmount(),            // 13. Refund Amount
-            transactionReport.getChargeBackAmount(),        // 14. Charge Back Amount
-            transactionReport.getTransactionStatus(),       // 15. Transaction Status
-            transactionReport.getSettledAmount(),           // 16. Settled Amount
-            transactionReport.getMId()                      // 17. Merchant ID
-    ));
-}
+  private List<Object> convertToListOfObjectTrans(TransactionReport transactionReport) {
+        List<Object> objectList = new ArrayList<>();
+        objectList.add(StringUtils.isEmpty(transactionReport.getTransactionDate()) ? StringUtils.EMPTY : transactionReport.getTransactionDate());
+        objectList.add(StringUtils.isEmpty(transactionReport.getMerchantOrderNumber()) ? StringUtils.EMPTY : transactionReport.getMerchantOrderNumber());
+        objectList.add(StringUtils.isEmpty(transactionReport.getCustomerId()) ? StringUtils.EMPTY : transactionReport.getCustomerId());
+        objectList.add(StringUtils.isEmpty(transactionReport.getTransactionCurrency()) ? StringUtils.EMPTY : transactionReport.getTransactionCurrency());
+        objectList.add(org.springframework.util.ObjectUtils.isEmpty(transactionReport.getOrderAmount()) ? BigDecimal.ZERO : transactionReport.getOrderAmount());
+        objectList.add(org.springframework.util.ObjectUtils.isEmpty(transactionReport.getDebitAmount()) ? BigDecimal.ZERO : transactionReport.getDebitAmount());//REMARK: Gateway Posting
+        objectList.add(StringUtils.isEmpty(transactionReport.getSbiOrderRefNumber()) ? StringUtils.EMPTY : transactionReport.getSbiOrderRefNumber());//REMARK: SBIePay Order ID
+        objectList.add(StringUtils.isEmpty(transactionReport.getOrderStatus()) ? StringUtils.EMPTY : transactionReport.getOrderStatus());
+        objectList.add(StringUtils.isEmpty(transactionReport.getAtrnNum()) ? StringUtils.EMPTY : transactionReport.getAtrnNum());
+        objectList.add(StringUtils.isEmpty(transactionReport.getTransactionStatus()) ? StringUtils.EMPTY : transactionReport.getTransactionStatus());
+        objectList.add(StringUtils.isEmpty(transactionReport.getPayModeName()) ? StringUtils.EMPTY : transactionReport.getPayModeName());
+        objectList.add(StringUtils.isEmpty(transactionReport.getBankName()) ? StringUtils.EMPTY : transactionReport.getBankName());
+        objectList.add(StringUtils.isEmpty(transactionReport.getBankReferenceNumber()) ? StringUtils.EMPTY : transactionReport.getBankReferenceNumber());//REMARK: Bank Txn Reference No
+        objectList.add(org.springframework.util.ObjectUtils.isEmpty(transactionReport.getSettledAmount()) ? BigDecimal.ZERO : transactionReport.getSettledAmount());
+        objectList.add(org.springframework.util.ObjectUtils.isEmpty(transactionReport.getRefundAmount()) ? BigDecimal.ZERO : transactionReport.getRefundAmount());
+        objectList.add(org.springframework.util.ObjectUtils.isEmpty(transactionReport.getChargeBackAmount()) ? BigDecimal.ZERO : transactionReport.getChargeBackAmount());
+        return objectList;
+    }
