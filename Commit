@@ -1,16 +1,16 @@
- private List<Object> convertToListOfObject(RefundReport refundReport) {
-        List<Object> objectList = new ArrayList<>();
-        objectList.add(StringUtils.isEmpty(refundReport.getTransactionDate()) ? StringUtils.EMPTY : refundReport.getTransactionDate());
-        objectList.add(StringUtils.isEmpty(refundReport.getRefundType()) ? StringUtils.EMPTY : refundReport.getRefundType());
-        objectList.add(StringUtils.isEmpty(refundReport.getSbiOrderRefNumber()) ? StringUtils.EMPTY : refundReport.getSbiOrderRefNumber());
-        objectList.add(StringUtils.isEmpty(refundReport.getMerchantOrderNumber()) ? StringUtils.EMPTY : refundReport.getMerchantOrderNumber());
-        objectList.add(StringUtils.isEmpty(refundReport.getAtrnNum()) ? StringUtils.EMPTY : refundReport.getAtrnNum());
-        objectList.add(StringUtils.isEmpty(refundReport.getBankName()) ? StringUtils.EMPTY : refundReport.getBankName());
-        objectList.add(StringUtils.isEmpty(refundReport.getPaymodeCode()) ? StringUtils.EMPTY : refundReport.getPaymodeCode());
-        objectList.add(StringUtils.isEmpty(refundReport.getTransactionStatus()) ? StringUtils.EMPTY : refundReport.getTransactionStatus());
-        objectList.add(ObjectUtils.isEmpty(refundReport.getOrderAmount()) ? StringUtils.EMPTY : refundReport.getBankName());
-        objectList.add(ObjectUtils.isEmpty(refundReport.getRefundAmount()) ? StringUtils.EMPTY : refundReport.getRefundAmount());
-        objectList.add(StringUtils.isEmpty(refundReport.getRemarks()) ? StringUtils.EMPTY : refundReport.getRemarks());
-        objectList.add(StringUtils.isEmpty(refundReport.getArrnNum()) ? StringUtils.EMPTY : refundReport.getArrnNum());
-        return objectList;
-    }
+private List<Object> convertToListOfObject(RefundReport refundReport) {
+    List<Object> objectList = new ArrayList<>();
+    objectList.add(refundReport.getTransactionDate());
+    objectList.add(refundReport.getRefundType());
+    objectList.add(refundReport.getSbiOrderRefNumber());
+    objectList.add(refundReport.getMerchantOrderNumber());
+    objectList.add(refundReport.getAtrnNum());
+    objectList.add(refundReport.getBankName());
+    objectList.add(refundReport.getPaymodeCode());
+    objectList.add(refundReport.getTransactionStatus());
+    objectList.add(refundReport.getOrderAmount());
+    objectList.add(refundReport.getRefundAmount());
+    objectList.add(refundReport.getRemarks());
+    objectList.add(refundReport.getArrnNum());
+    return objectList;
+}
