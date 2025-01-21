@@ -1,3 +1,24 @@
-Milliseconds since epoch for 2022-01-01: 1640995200000
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Data
+public class TransactionReport {
 
-Milliseconds since epoch for 2025-01-19: 1737225600000
+    private String payModeName;
+    private String bankName;
+    private String bankReferenceNumber;
+    private String  refundAmount;
+    private String  chargeBackAmount;
+    private String mId;
+    private String transactionDate;
+    private String merchantOrderNumber;
+    private String customerId;
+    private String transactionCurrency;
+    private BigDecimal orderAmount;
+    private BigDecimal  debitAmount;
+    private String sbiOrderRefNumber;
+    private String orderStatus;
+    private String atrnNum;
+    private String transactionStatus;
+    private String settledAmount;
+}
