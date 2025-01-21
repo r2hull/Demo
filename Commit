@@ -1,122 +1,16 @@
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-@AllArgsConstructor
-@NoArgsConstructor
-@Builder
-@Data
-public class TransactionReport {
-    private String payModeName;
-    private String bankName;
-    private String bankReferenceNumber;
-    private String refundAmount;
-    private String chargeBackAmount;
-    private String mId;
-    private String transactionDate;
-    private String merchantOrderNumber;
-    private String customerId;
-    private String transactionCurrency;
-    private BigDecimal orderAmount;
-    private BigDecimal debitAmount;
-    private String sbiOrderRefNumber;
-    private String orderStatus;
-    private String atrnNum;
-    private String transactionStatus;
-    private String settledAmount;
-}
-
-public class TransactionReportTest {
-    public static void main(String[] args) {
-        // Create a list of TransactionReport objects
-        List<TransactionReport> transactionReports = new ArrayList<>();
-
-        transactionReports.add(TransactionReport.builder()
-                .payModeName("Credit Card")
-                .bankName("HDFC Bank")
-                .bankReferenceNumber("REF123456")
-                .refundAmount("500.00")
-                .chargeBackAmount("0.00")
-                .mId("MID001")
-                .transactionDate("2025-01-20")
-                .merchantOrderNumber("ORD12345")
-                .customerId("CUST001")
-                .transactionCurrency("INR")
-                .orderAmount(BigDecimal.valueOf(1500.75))
-                .debitAmount(BigDecimal.valueOf(1500.75))
-                .sbiOrderRefNumber("SBI12345")
-                .orderStatus("Success")
-                .atrnNum("ATRN001")
-                .transactionStatus("Completed")
-                .settledAmount("1500.75")
-                .build());
-
-        transactionReports.add(TransactionReport.builder()
-                .payModeName("Net Banking")
-                .bankName("ICICI Bank")
-                .bankReferenceNumber("REF654321")
-                .refundAmount("0.00")
-                .chargeBackAmount("100.00")
-                .mId("MID002")
-                .transactionDate("2025-01-19")
-                .merchantOrderNumber("ORD12346")
-                .customerId("CUST002")
-                .transactionCurrency("USD")
-                .orderAmount(BigDecimal.valueOf(200.50))
-                .debitAmount(BigDecimal.valueOf(200.50))
-                .sbiOrderRefNumber("SBI12346")
-                .orderStatus("Failed")
-                .atrnNum("ATRN002")
-                .transactionStatus("Refunded")
-                .settledAmount("0.00")
-                .build());
-
-        transactionReports.add(TransactionReport.builder()
-                .payModeName("UPI")
-                .bankName("SBI")
-                .bankReferenceNumber("REF987654")
-                .refundAmount("0.00")
-                .chargeBackAmount("0.00")
-                .mId("MID003")
-                .transactionDate("2025-01-18")
-                .merchantOrderNumber("ORD12347")
-                .customerId("CUST003")
-                .transactionCurrency("EUR")
-                .orderAmount(BigDecimal.valueOf(100.00))
-                .debitAmount(BigDecimal.valueOf(100.00))
-                .sbiOrderRefNumber("SBI12347")
-                .orderStatus("Pending")
-                .atrnNum("ATRN003")
-                .transactionStatus("In Process")
-                .settledAmount("0.00")
-                .build());
-
-        // Convert to List<List<Object>>
-        List<List<Object>> listOfLists = new ArrayList<>();
-        for (TransactionReport report : transactionReports) {
-            listOfLists.add(Arrays.asList(
-                    report.getPayModeName(),
-                    report.getBankName(),
-                    report.getBankReferenceNumber(),
-                    report.getRefundAmount(),
-                    report.getChargeBackAmount(),
-                    report.getMId(),
-                    report.getTransactionDate(),
-                    report.getMerchantOrderNumber(),
-                    report.getCustomerId(),
-                    report.getTransactionCurrency(),
-                    report.getOrderAmount(),
-                    report.getDebitAmount(),
-                    report.getSbiOrderRefNumber(),
-                    report.getOrderStatus(),
-                    report.getAtrnNum(),
-                    report.getTransactionStatus(),
-                    report.getSettledAmount()
-            ));
-        }
-
-        // Print the List<List<Object>>
-        listOfLists.forEach(System.out::println);
+ private List<Object> convertToListOfObject(RefundReport refundReport) {
+        List<Object> objectList = new ArrayList<>();
+        objectList.add(StringUtils.isEmpty(refundReport.getTransactionDate()) ? StringUtils.EMPTY : refundReport.getTransactionDate());
+        objectList.add(StringUtils.isEmpty(refundReport.getRefundType()) ? StringUtils.EMPTY : refundReport.getRefundType());
+        objectList.add(StringUtils.isEmpty(refundReport.getSbiOrderRefNumber()) ? StringUtils.EMPTY : refundReport.getSbiOrderRefNumber());
+        objectList.add(StringUtils.isEmpty(refundReport.getMerchantOrderNumber()) ? StringUtils.EMPTY : refundReport.getMerchantOrderNumber());
+        objectList.add(StringUtils.isEmpty(refundReport.getAtrnNum()) ? StringUtils.EMPTY : refundReport.getAtrnNum());
+        objectList.add(StringUtils.isEmpty(refundReport.getBankName()) ? StringUtils.EMPTY : refundReport.getBankName());
+        objectList.add(StringUtils.isEmpty(refundReport.getPaymodeCode()) ? StringUtils.EMPTY : refundReport.getPaymodeCode());
+        objectList.add(StringUtils.isEmpty(refundReport.getTransactionStatus()) ? StringUtils.EMPTY : refundReport.getTransactionStatus());
+        objectList.add(ObjectUtils.isEmpty(refundReport.getOrderAmount()) ? StringUtils.EMPTY : refundReport.getBankName());
+        objectList.add(ObjectUtils.isEmpty(refundReport.getRefundAmount()) ? StringUtils.EMPTY : refundReport.getRefundAmount());
+        objectList.add(StringUtils.isEmpty(refundReport.getRemarks()) ? StringUtils.EMPTY : refundReport.getRemarks());
+        objectList.add(StringUtils.isEmpty(refundReport.getArrnNum()) ? StringUtils.EMPTY : refundReport.getArrnNum());
+        return objectList;
     }
-}
