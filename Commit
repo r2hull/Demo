@@ -1,36 +1,57 @@
-List<RefundReport> refundReportList = Arrays.asList(
-        RefundReport.builder()
-                .transactionDate("2025-01-20")
-                .refundType("Full")
-                .sbiOrderRefNumber("SBI12345")
-                .merchantOrderNumber("ORD12345")
-                .atrnNum("ATRN001")
-                .bankName("HDFC Bank")
-                .paymodeCode("Credit Card")
-                .transactionStatus("Completed")
-                .orderAmount(BigDecimal.valueOf(1500.75))
-                .refundAmount(BigDecimal.valueOf(500.00))
-                .comments("Refund processed successfully")
-                .refundStatus("Success")
-                .remarks("No issues")
-                .arrnNum("ARRN123")
-                .build()
-);
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
-List<List<Object>> refundFileData = new ArrayList<>();
-for (RefundReport refundReport : refundReportList) {
-    refundFileData.add(Arrays.asList(
-            refundReport.getTransactionDate(),
-            refundReport.getRefundType(),
-            refundReport.getSbiOrderRefNumber(),
-            refundReport.getMerchantOrderNumber(),
-            refundReport.getAtrnNum(),
-            refundReport.getBankName(),
-            refundReport.getPaymodeCode(),
-            refundReport.getTransactionStatus(),
-            refundReport.getOrderAmount(),
-            refundReport.getRefundAmount(),
-            refundReport.getRemarks(),
-            refundReport.getArrnNum()
-    ));
+public class Main {
+
+    public static void main(String[] args) throws Exception {
+        List<RefundReport> refundReportList = Arrays.asList(
+                RefundReport.builder()
+                        .transactionDate("2025-01-20")
+                        .refundType("Full")
+                        .sbiOrderRefNumber("SBI12345")
+                        .merchantOrderNumber("ORD12345")
+                        .atrnNum("ATRN001")
+                        .bankName("HDFC Bank")
+                        .paymodeCode("Credit Card")
+                        .transactionStatus("Completed")
+                        .orderAmount(BigDecimal.valueOf(1500.75))
+                        .refundAmount(BigDecimal.valueOf(500.00))
+                        .comments("Refund processed successfully")
+                        .refundStatus("Success")
+                        .remarks("No issues")
+                        .arrnNum("ARRN123")
+                        .build()
+        );
+
+        List<List<Object>> refundFileData = new ArrayList<>();
+        for (RefundReport refundReport : refundReportList) {
+            // Using reflection to invoke private method
+            Method method = Main.class.getDeclaredMethod("convertToListOfObject", RefundReport.class);
+            method.setAccessible(true); // make private method accessible
+            List<Object> objectList = (List<Object>) method.invoke(new Main(), refundReport);
+            refundFileData.add(objectList);
+        }
+
+        // Print the refundFileData for demonstration
+        System.out.println(refundFileData);
+    }
+
+    private List<Object> convertToListOfObject(RefundReport refundReport) {
+        List<Object> objectList = new ArrayList<>();
+        objectList.add(refundReport.getTransactionDate());
+        objectList.add(refundReport.getRefundType());
+        objectList.add(refundReport.getSbiOrderRefNumber());
+        objectList.add(refundReport.getMerchantOrderNumber());
+        objectList.add(refundReport.getAtrnNum());
+        objectList.add(refundReport.getBankName());
+        objectList.add(refundReport.getPaymodeCode());
+        objectList.add(refundReport.getTransactionStatus());
+        objectList.add(refundReport.getOrderAmount());
+        objectList.add(refundReport.getRefundAmount());
+        objectList.add(refundReport.getRemarks());
+        objectList.add(refundReport.getArrnNum());
+        return objectList;
+    }
 }
