@@ -1,22 +1,3 @@
-@Builder
-@AllArgsConstructor
-@Data
-@NoArgsConstructor
-@JsonInclude(JsonInclude.Include.NON_NULL)
-public class ReportManagementDto {
-    @JsonIgnore
-    private UUID id;
-    @JsonIgnore
-    private UUID reportId;
-    private Report report;
-    private String mId;
-    private Long durationFromDate;
-    private Long durationToDate;
-    private ReportFormat format;
-    private ReportStatus status;
-    private String filePath;
-    private String remarks;
-    @JsonIgnore
-    private UUID scheduledId;
+Milliseconds since epoch for 2022-01-01: 1640995200000
 
-}
+Milliseconds since epoch for 2025-01-19: 1737225600000
