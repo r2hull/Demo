@@ -1,67 +1,22 @@
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+@Builder
+@AllArgsConstructor
+@Data
+@NoArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class ReportManagementDto {
+    @JsonIgnore
+    private UUID id;
+    @JsonIgnore
+    private UUID reportId;
+    private Report report;
+    private String mId;
+    private Long durationFromDate;
+    private Long durationToDate;
+    private ReportFormat format;
+    private ReportStatus status;
+    private String filePath;
+    private String remarks;
+    @JsonIgnore
+    private UUID scheduledId;
 
-public class OrderReportTest {
-    public static void main(String[] args) {
-        // Create a list of dummy OrderReport objects
-        List<OrderReport> orderReports = new ArrayList<>();
-
-        orderReports.add(OrderReport.builder()
-                .transactionDate("2025-01-20")
-                .merchantOrderNumber("ORD12345")
-                .customerId("CUST001")
-                .transactionCurrency("USD")
-                .orderAmount(BigDecimal.valueOf(250.75))
-                .sbiOrderRefNumber("SBIREF001")
-                .status("Success")
-                .attempts(1)
-                .mId("MID001")
-                .build());
-
-        orderReports.add(OrderReport.builder()
-                .transactionDate("2025-01-19")
-                .merchantOrderNumber("ORD12346")
-                .customerId("CUST002")
-                .transactionCurrency("INR")
-                .orderAmount(BigDecimal.valueOf(5000.00))
-                .sbiOrderRefNumber("SBIREF002")
-                .status("Failed")
-                .attempts(3)
-                .mId("MID002")
-                .build());
-
-        orderReports.add(OrderReport.builder()
-                .transactionDate("2025-01-18")
-                .merchantOrderNumber("ORD12347")
-                .customerId("CUST003")
-                .transactionCurrency("EUR")
-                .orderAmount(BigDecimal.valueOf(100.50))
-                .sbiOrderRefNumber("SBIREF003")
-                .status("Pending")
-                .attempts(2)
-                .mId("MID003")
-                .build());
-
-        // Convert the OrderReport list to List<List<Object>>
-        List<List<Object>> listOfLists = new ArrayList<>();
-
-        for (OrderReport report : orderReports) {
-            listOfLists.add(Arrays.asList(
-                    report.getTransactionDate(),
-                    report.getMerchantOrderNumber(),
-                    report.getCustomerId(),
-                    report.getTransactionCurrency(),
-                    report.getOrderAmount(),
-                    report.getSbiOrderRefNumber(),
-                    report.getStatus(),
-                    report.getAttempts(),
-                    report.getMId()
-            ));
-        }
-
-        // Print the List<List<Object>>
-        listOfLists.forEach(System.out::println);
-    }
 }
