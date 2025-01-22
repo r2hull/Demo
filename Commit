@@ -1,65 +1,31 @@
-@Configuration
-@EnableBatchProcessing
-public class ReportScheduleBatchConfig {
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobParameters;
+import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.stereotype.Service;
 
-    @Autowired
-    private ReportScheduleManagementRepository repository;
+@Service
+public class ReportScheduleService {
 
-    @Autowired
-    private ReportManagementDao reportManagementDao;
+    private final JobLauncher jobLauncher;
+    private final Job reportScheduleJob;
 
-    @Bean
-    public Job reportScheduleJob(JobBuilderFactory jobBuilderFactory, StepBuilderFactory stepBuilderFactory) {
-        return jobBuilderFactory.get("reportScheduleJob")
-                .start(processReportSchedules(stepBuilderFactory))
-                .build();
+    public ReportScheduleService(JobLauncher jobLauncher, Job reportScheduleJob) {
+        this.jobLauncher = jobLauncher;
+        this.reportScheduleJob = reportScheduleJob;
     }
 
-    @Bean
-    public Step processReportSchedules(StepBuilderFactory stepBuilderFactory) {
-        return stepBuilderFactory.get("processReportSchedules")
-                .<ReportScheduleManagement, ReportManagement>chunk(10)
-                .reader(reportScheduleReader(null, null))
-                .processor(reportScheduleProcessor())
-                .writer(reportManagementWriter())
-                .build();
-    }
+    public void executeReportSchedules(long scheduleStartTime, long scheduleEndTime) {
+        try {
+            JobParameters params = new JobParametersBuilder()
+                    .addLong("startTime", scheduleStartTime)
+                    .addLong("endTime", scheduleEndTime)
+                    .addLong("timestamp", System.currentTimeMillis()) // Ensure unique job instance
+                    .toJobParameters();
 
-    @Bean
-    @StepScope
-    public RepositoryItemReader<ReportScheduleManagement> reportScheduleReader(
-            @Value("#{jobParameters['startTime']}") Long startTime,
-            @Value("#{jobParameters['endTime']}") Long endTime) {
-
-        return new RepositoryItemReaderBuilder<ReportScheduleManagement>()
-                .repository(repository)
-                .methodName("findByStatusAndNextScheduleExecutionTime")
-                .arguments(ReportScheduledStatus.TO_BE_START, startTime, endTime)
-                .sorts(Collections.singletonMap("nextScheduleExecutionTime", Sort.Direction.ASC))
-                .build();
-    }
-
-    @Bean
-    public ItemProcessor<ReportScheduleManagement, ReportManagement> reportScheduleProcessor() {
-        return schedule -> {
-            schedule.setLastScheduleExecutionTime(System.currentTimeMillis());
-            return ReportManagement.builder()
-                    .reportId(schedule.getReportId())
-                    .mId(schedule.getMId())
-                    .format(schedule.getFormat())
-                    .scheduledId(schedule.getId())
-                    .durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), System.currentTimeMillis()))
-                    .durationToDate(System.currentTimeMillis())
-                    .status(ReportStatus.TO_BE_GENERATE)
-                    .build();
-        };
-    }
-
-    @Bean
-    public ItemWriter<ReportManagement> reportManagementWriter() {
-        return items -> {
-            reportManagementDao.saveAll(items);
-            System.out.println("Processed and saved " + items.size() + " reports.");
-        };
+            jobLauncher.run(reportScheduleJob, params);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
