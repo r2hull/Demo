@@ -1,102 +1,65 @@
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.Step;
-import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
-import org.springframework.batch.core.repository.JobRepository;
-import org.springframework.batch.core.step.builder.StepBuilder;
-import org.springframework.batch.core.configuration.annotation.BatchConfigurer;
-import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
-import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.ItemReader;
-import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.data.RepositoryItemReader;
-import org.springframework.batch.item.support.builder.RepositoryItemReaderBuilder;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.data.domain.Sort;
-import org.springframework.transaction.PlatformTransactionManager;
-
-import java.util.Collections;
-import java.util.List;
-
 @Configuration
 @EnableBatchProcessing
-public class BatchConfiguration {
+public class ReportScheduleBatchConfig {
 
-    private final JobRepository jobRepository;
-    private final PlatformTransactionManager transactionManager;
-    private final ReportScheduleManagementRepository repository;
-    private final JobBuilderFactory jobBuilderFactory;
-    private final StepBuilderFactory stepBuilderFactory;
+    @Autowired
+    private ReportScheduleManagementRepository repository;
 
-    // Constructor injection of dependencies
-    public BatchConfiguration(JobRepository jobRepository,
-                               PlatformTransactionManager transactionManager,
-                               ReportScheduleManagementRepository repository,
-                               JobBuilderFactory jobBuilderFactory,
-                               StepBuilderFactory stepBuilderFactory) {
-        this.jobRepository = jobRepository;
-        this.transactionManager = transactionManager;
-        this.repository = repository;
-        this.jobBuilderFactory = jobBuilderFactory;
-        this.stepBuilderFactory = stepBuilderFactory;
-    }
+    @Autowired
+    private ReportManagementDao reportManagementDao;
 
-    // Define the job using the JobBuilderFactory
     @Bean
-    public Job reportScheduleJob() {
+    public Job reportScheduleJob(JobBuilderFactory jobBuilderFactory, StepBuilderFactory stepBuilderFactory) {
         return jobBuilderFactory.get("reportScheduleJob")
-                .start(reportScheduleStep())
+                .start(processReportSchedules(stepBuilderFactory))
                 .build();
     }
 
-    // Define the step using the StepBuilderFactory
     @Bean
-    public Step reportScheduleStep() {
-        return stepBuilderFactory.get("reportScheduleStep")
+    public Step processReportSchedules(StepBuilderFactory stepBuilderFactory) {
+        return stepBuilderFactory.get("processReportSchedules")
                 .<ReportScheduleManagement, ReportManagement>chunk(10)
-                .reader(reportScheduleReader())
+                .reader(reportScheduleReader(null, null))
                 .processor(reportScheduleProcessor())
-                .writer(reportScheduleWriter())
-                .transactionManager(transactionManager)
+                .writer(reportManagementWriter())
                 .build();
     }
 
-    // Define ItemReader to fetch data from the repository
     @Bean
-    public ItemReader<ReportScheduleManagement> reportScheduleReader() {
+    @StepScope
+    public RepositoryItemReader<ReportScheduleManagement> reportScheduleReader(
+            @Value("#{jobParameters['startTime']}") Long startTime,
+            @Value("#{jobParameters['endTime']}") Long endTime) {
+
         return new RepositoryItemReaderBuilder<ReportScheduleManagement>()
                 .repository(repository)
                 .methodName("findByStatusAndNextScheduleExecutionTime")
-                .arguments(
-                        ReportScheduledStatus.TO_BE_START,
-                        System.currentTimeMillis(),
-                        System.currentTimeMillis() + 3600000 // Example: 1-hour window
-                )
+                .arguments(ReportScheduledStatus.TO_BE_START, startTime, endTime)
                 .sorts(Collections.singletonMap("nextScheduleExecutionTime", Sort.Direction.ASC))
                 .build();
     }
 
-    // Define ItemProcessor to process the data
     @Bean
     public ItemProcessor<ReportScheduleManagement, ReportManagement> reportScheduleProcessor() {
-        return schedule -> ReportManagement.builder()
-                .reportId(schedule.getReportId())
-                .mId(schedule.getMId())
-                .format(schedule.getFormat())
-                .scheduledId(schedule.getId())
-                .durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), System.currentTimeMillis()))
-                .durationToDate(System.currentTimeMillis())
-                .status(ReportStatus.TO_BE_GENERATE)
-                .build();
+        return schedule -> {
+            schedule.setLastScheduleExecutionTime(System.currentTimeMillis());
+            return ReportManagement.builder()
+                    .reportId(schedule.getReportId())
+                    .mId(schedule.getMId())
+                    .format(schedule.getFormat())
+                    .scheduledId(schedule.getId())
+                    .durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), System.currentTimeMillis()))
+                    .durationToDate(System.currentTimeMillis())
+                    .status(ReportStatus.TO_BE_GENERATE)
+                    .build();
+        };
     }
 
-    // Define ItemWriter to save processed data
     @Bean
-    public ItemWriter<ReportManagement> reportScheduleWriter() {
+    public ItemWriter<ReportManagement> reportManagementWriter() {
         return items -> {
-            // Save processed data to the database (e.g., using DAO)
-            System.out.println("Processed Reports: " + items.size());
+            reportManagementDao.saveAll(items);
+            System.out.println("Processed and saved " + items.size() + " reports.");
         };
     }
 }
