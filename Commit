@@ -1,99 +1,14 @@
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.Step;
-import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
-import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
-import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.data.RepositoryItemReader;
-import org.springframework.batch.item.support.builder.RepositoryItemReaderBuilder;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.data.domain.Sort;
-
-import java.util.Collections;
-import java.util.List;
-
-@Configuration
-@EnableBatchProcessing
-public class BatchConfiguration {
-
-    private final JobBuilderFactory jobBuilderFactory;
-    private final StepBuilderFactory stepBuilderFactory;
-    private final ReportScheduleManagementRepository reportScheduleManagementRepository;
-    private final ReportManagementDao reportManagementDao;
-
-    public BatchConfiguration(JobBuilderFactory jobBuilderFactory,
-                               StepBuilderFactory stepBuilderFactory,
-                               ReportScheduleManagementRepository reportScheduleManagementRepository,
-                               ReportManagementDao reportManagementDao) {
-        this.jobBuilderFactory = jobBuilderFactory;
-        this.stepBuilderFactory = stepBuilderFactory;
-        this.reportScheduleManagementRepository = reportScheduleManagementRepository;
-        this.reportManagementDao = reportManagementDao;
-    }
-
-    @Bean
-    public Job reportJob() {
-        return jobBuilderFactory.get("reportJob")
-                .start(reportStep())
-                .build();
-    }
-
-    @Bean
-    public Step reportStep() {
-        return stepBuilderFactory.get("reportStep")
-                .<ReportScheduleManagement, ReportManagement>chunk(100) // Process 100 records per chunk
-                .reader(reportReader())
-                .processor(reportProcessor())
-                .writer(reportWriter())
-                .build();
-    }
-
-    @Bean
-    public RepositoryItemReader<ReportScheduleManagement> reportReader() {
+class ReportScheduleManagementDao{
+    public void executeReportBySchedule() {
         Long scheduleStartTime = DateTimeUtils.getCurrentTimeInMills();
-        Long scheduleEndTime = DateTimeUtils.addMinutes(30); // Example window: 30 minutes
-        return new RepositoryItemReaderBuilder<ReportScheduleManagement>()
-                .repository(reportScheduleManagementRepository)
-                .methodName("findByStatusAndNextScheduleExecutionTime")
-                .arguments(
-                        ReportScheduledStatus.TO_BE_START,
-                        scheduleStartTime,
-                        scheduleEndTime
-                )
-                .sorts(Collections.singletonMap("nextScheduleExecutionTime", Sort.Direction.ASC))
-                .build();
-    }
-
-    @Bean
-    public ItemProcessor<ReportScheduleManagement, ReportManagement> reportProcessor() {
-        return schedule -> {
+        Long scheduleEndTime = DateTimeUtils.addMinutes(reportingConfig.getReportScheduleExecutionWindow());
+        List<ReportScheduleManagement> reportScheduleManagement = findByStatusAndNextScheduleExecutionTime(scheduleStartTime, scheduleEndTime);
+        List<ReportManagement> reportManagementList = reportScheduleManagement.stream().map(schedule -> {
             schedule.setLastScheduleExecutionTime(DateTimeUtils.getCurrentTimeInMills());
-            return ReportManagement.builder()
-                    .reportId(schedule.getReportId())
-                    .mId(schedule.getMId())
-                    .format(schedule.getFormat())
-                    .scheduledId(schedule.getId())
-                    .durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), DateTimeUtils.getCurrentTimeInMills()))
-                    .durationToDate(DateTimeUtils.getCurrentTimeInMills())
-                    .status(ReportStatus.TO_BE_GENERATE)
-                    .build();
-        };
+            return ReportManagement.builder().reportId(schedule.getReportId()).mId(schedule.getMId()).format(schedule.getFormat()).scheduledId(schedule.getId()).durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), scheduleEndTime)).durationToDate(scheduleStartTime).scheduledId(schedule.getId()).status(ReportStatus.TO_BE_GENERATE).build();
+        }).toList();
+        reportScheduleManagementRepository.saveAll(reportScheduleManagement);
+        reportManagementDao.saveAll(reportManagementList);
     }
 
-    @Bean
-    public ItemWriter<ReportManagement> reportWriter() {
-        return items -> {
-            // Save ReportManagement records
-            reportManagementDao.saveAll(items);
-
-            // Update ReportScheduleManagement records (if needed)
-            items.forEach(item -> {
-                ReportScheduleManagement schedule = reportScheduleManagementRepository.findById(item.getScheduledId())
-                        .orElseThrow(() -> new IllegalArgumentException("Invalid Scheduled ID: " + item.getScheduledId()));
-                reportScheduleManagementRepository.save(schedule);
-            });
-        };
-    }
 }
