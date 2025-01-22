@@ -1,27 +1,21 @@
-@Test
-void testGenerateReport_ExceptionHandling() {
-    // Scenario: Report type is null, leading to a ReportingException
-    reportManagementDto.setReport(null);
-    when(reportManagementDao.updateReportStatus(uId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
+   private List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(long scheduleStartTime, long scheduleEndTime) {
+        // TODO : Spring Batch need to user here
+        return reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(ReportScheduledStatus.TO_BE_START, scheduleStartTime, scheduleEndTime);
+    }
 
-    doNothing().when(reportManagementDao).updateStatusAndRemarks(
-            eq(reportManagementDto.getId()),
-            eq(ReportStatus.GENERATION_FAILED),
-            contains("Report Generation Failed")
+
+@Repository
+public interface ReportScheduleManagementRepository extends JpaRepository<ReportScheduleManagement, UUID> {
+
+    @Query("SELECT r FROM ReportScheduleManagement r " +
+            "WHERE r.status = :status " +
+            "AND r.nextScheduleExecutionTime BETWEEN :currentTime AND :endTime ")
+    List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(
+            @Param("status") ReportScheduledStatus status,
+            @Param("currentTime") Long currentTime,
+            @Param("endTime") Long endTime
     );
 
-    // Assert that the exception is thrown
-    ReportingException exception = assertThrows(ReportingException.class, () -> reportService.generateReport(uId));
+    Page<ReportScheduleManagement> findAll(Specification<ReportScheduleManagement> specification, Pageable pageable);
 
-    // Verify exception details
-    assertNotNull(exception);
-    assertEquals(ErrorConstants.GENERATION_ERROR_CODE, exception.getErrorCode());
-    assertTrue(exception.getMessage().contains("Report Generation Failed"));
-
-    // Verify that the failure status update was called
-    verify(reportManagementDao, times(1)).updateStatusAndRemarks(
-            eq(reportManagementDto.getId()),
-            eq(ReportStatus.GENERATION_FAILED),
-            contains("Report Generation Failed")
-    );
 }
