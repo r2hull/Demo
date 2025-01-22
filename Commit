@@ -1,49 +1,106 @@
-public class ReportScheduleManagementScheduler {
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-batch'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa' // If you're using JPA
+    runtimeOnly 'com.h2database:h2' // Optional: H2 for in-memory DB during development
+}
 
-    private final ReportScheduleManagementService reportScheduleManagementService;
 
-    @Scheduled(cron = "${scheduled.cron.time}")
-    @SchedulerLock(name = "Report_Scheduler", lockAtLeastFor = "PT30S", lockAtMostFor = "PT2M")
-    public void scheduleReportGeneration() {
-        reportScheduleManagementService.executeReportBySchedule();
+@Configuration
+@EnableBatchProcessing
+public class ReportScheduleBatchConfig {
+
+    @Autowired
+    private ReportScheduleManagementRepository repository;
+
+    @Autowired
+    private ReportManagementDao reportManagementDao;
+
+    @Bean
+    public Job reportScheduleJob(JobBuilderFactory jobBuilderFactory, StepBuilderFactory stepBuilderFactory) {
+        return jobBuilderFactory.get("reportScheduleJob")
+                .start(processReportSchedules(stepBuilderFactory))
+                .build();
+    }
+
+    @Bean
+    public Step processReportSchedules(StepBuilderFactory stepBuilderFactory) {
+        return stepBuilderFactory.get("processReportSchedules")
+                .<ReportScheduleManagement, ReportManagement>chunk(10)
+                .reader(reportScheduleReader(null, null))
+                .processor(reportScheduleProcessor())
+                .writer(reportManagementWriter())
+                .build();
+    }
+
+    @Bean
+    @StepScope
+    public RepositoryItemReader<ReportScheduleManagement> reportScheduleReader(
+            @Value("#{jobParameters['startTime']}") Long startTime,
+            @Value("#{jobParameters['endTime']}") Long endTime) {
+
+        return new RepositoryItemReaderBuilder<ReportScheduleManagement>()
+                .repository(repository)
+                .methodName("findByStatusAndNextScheduleExecutionTime")
+                .arguments(ReportScheduledStatus.TO_BE_START, startTime, endTime)
+                .sorts(Collections.singletonMap("nextScheduleExecutionTime", Sort.Direction.ASC))
+                .build();
+    }
+
+    @Bean
+    public ItemProcessor<ReportScheduleManagement, ReportManagement> reportScheduleProcessor() {
+        return schedule -> {
+            schedule.setLastScheduleExecutionTime(System.currentTimeMillis());
+            return ReportManagement.builder()
+                    .reportId(schedule.getReportId())
+                    .mId(schedule.getMId())
+                    .format(schedule.getFormat())
+                    .scheduledId(schedule.getId())
+                    .durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), System.currentTimeMillis()))
+                    .durationToDate(System.currentTimeMillis())
+                    .status(ReportStatus.TO_BE_GENERATE)
+                    .build();
+        };
+    }
+
+    @Bean
+    public ItemWriter<ReportManagement> reportManagementWriter() {
+        return items -> {
+            reportManagementDao.saveAll(items);
+            System.out.println("Processed and saved " + items.size() + " reports.");
+        };
     }
 }
 
 
-  public void executeReportBySchedule() {
-        reportScheduleManagementDao.executeReportBySchedule();
+
+
+@Component
+public class ReportScheduleManagementScheduler {
+
+    private final JobLauncher jobLauncher;
+    private final Job reportScheduleJob;
+
+    public ReportScheduleManagementScheduler(JobLauncher jobLauncher, Job reportScheduleJob) {
+        this.jobLauncher = jobLauncher;
+        this.reportScheduleJob = reportScheduleJob;
     }
 
+    @Scheduled(cron = "${scheduled.cron.time}")
+    @SchedulerLock(name = "Report_Scheduler", lockAtLeastFor = "PT30S", lockAtMostFor = "PT2M")
+    public void scheduleReportGeneration() {
+        try {
+            Long scheduleStartTime = DateTimeUtils.getCurrentTimeInMills();
+            Long scheduleEndTime = DateTimeUtils.addMinutes(30); // Adjust as per your configuration
 
-    public void executeReportBySchedule() {
-        Long scheduleStartTime = DateTimeUtils.getCurrentTimeInMills();
-        Long scheduleEndTime = DateTimeUtils.addMinutes(reportingConfig.getReportScheduleExecutionWindow());
-        List<ReportScheduleManagement> reportScheduleManagement = findByStatusAndNextScheduleExecutionTime(scheduleStartTime, scheduleEndTime);
-        List<ReportManagement> reportManagementList = reportScheduleManagement.stream().map(schedule -> {
-            schedule.setLastScheduleExecutionTime(DateTimeUtils.getCurrentTimeInMills());
-            return ReportManagement.builder().reportId(schedule.getReportId()).mId(schedule.getMId()).format(schedule.getFormat()).scheduledId(schedule.getId()).durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), scheduleEndTime)).durationToDate(scheduleStartTime).scheduledId(schedule.getId()).status(ReportStatus.TO_BE_GENERATE).build();
-        }).toList();
-        reportScheduleManagementRepository.saveAll(reportScheduleManagement);
-        reportManagementDao.saveAll(reportManagementList);
+            JobParameters params = new JobParametersBuilder()
+                    .addLong("startTime", scheduleStartTime)
+                    .addLong("endTime", scheduleEndTime)
+                    .addLong("timestamp", System.currentTimeMillis())
+                    .toJobParameters();
+
+            jobLauncher.run(reportScheduleJob, params);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
-
-
-   private List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(long scheduleStartTime, long scheduleEndTime) {
-        // TODO : Spring Batch need to user here
-        return reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(ReportScheduledStatus.TO_BE_START, scheduleStartTime, scheduleEndTime);
-    }
-@Repository
-public interface ReportScheduleManagementRepository extends JpaRepository<ReportScheduleManagement, UUID> {
-
-    @Query("SELECT r FROM ReportScheduleManagement r " +
-            "WHERE r.status = :status " +
-            "AND r.nextScheduleExecutionTime BETWEEN :currentTime AND :endTime ")
-    List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(
-            @Param("status") ReportScheduledStatus status,
-            @Param("currentTime") Long currentTime,
-            @Param("endTime") Long endTime
-    );
-
-    Page<ReportScheduleManagement> findAll(Specification<ReportScheduleManagement> specification, Pageable pageable);
-
 }
