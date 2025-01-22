@@ -1,1 +1,88 @@
-https://github.com/PascoalBayonne/Batch-Processing-ETL/tree/feature/export-from-database-to-file
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.Step;
+import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
+import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
+import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.data.RepositoryItemReader;
+import org.springframework.batch.item.support.builder.RepositoryItemReaderBuilder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.domain.Sort;
+
+import java.util.Collections;
+
+@Configuration
+@EnableBatchProcessing
+public class BatchConfiguration {
+
+    private final JobBuilderFactory jobBuilderFactory;
+    private final StepBuilderFactory stepBuilderFactory;
+    private final ReportScheduleManagementRepository repository;
+
+    public BatchConfiguration(JobBuilderFactory jobBuilderFactory,
+                               StepBuilderFactory stepBuilderFactory,
+                               ReportScheduleManagementRepository repository) {
+        this.jobBuilderFactory = jobBuilderFactory;
+        this.stepBuilderFactory = stepBuilderFactory;
+        this.repository = repository;
+    }
+
+    @Bean
+    public Job reportGenerationJob() {
+        return jobBuilderFactory.get("reportGenerationJob")
+                .start(reportGenerationStep())
+                .build();
+    }
+
+    @Bean
+    public Step reportGenerationStep() {
+        return stepBuilderFactory.get("reportGenerationStep")
+                .<ReportScheduleManagement, ProcessedReport>chunk(100) // Process 100 records per chunk
+                .reader(reportReader())
+                .processor(reportProcessor())
+                .writer(reportWriter())
+                .build();
+    }
+
+    @Bean
+    public ItemReader<ReportScheduleManagement> reportReader() {
+        return new RepositoryItemReaderBuilder<ReportScheduleManagement>()
+                .repository(repository)
+                .methodName("findByStatusAndNextScheduleExecutionTime")
+                .arguments(
+                        ReportScheduledStatus.TO_BE_START,
+                        System.currentTimeMillis(),
+                        System.currentTimeMillis() + 3600000 // Example: 1-hour window
+                )
+                .sorts(Collections.singletonMap("nextScheduleExecutionTime", Sort.Direction.ASC))
+                .build();
+    }
+
+    @Bean
+    public ItemProcessor<ReportScheduleManagement, ProcessedReport> reportProcessor() {
+        return schedule -> {
+            // Transform the schedule into a processed report object
+            return new ProcessedReport(
+                    schedule.getReportId(),
+                    schedule.getMId(),
+                    schedule.getFormat(),
+                    schedule.getId(),
+                    schedule.getFrequency(),
+                    System.currentTimeMillis()
+            );
+        };
+    }
+
+    @Bean
+    public ItemWriter<ProcessedReport> reportWriter() {
+        return items -> {
+            // Generate files based on processed data
+            for (ProcessedReport report : items) {
+                FileGenerator.generateFile(report);
+            }
+        };
+    }
+}
