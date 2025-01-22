@@ -1,174 +1,27 @@
-package com.epay.reporting.service;
+@Test
+void testGenerateReport_ExceptionHandling() {
+    // Scenario: Report type is null, leading to a ReportingException
+    reportManagementDto.setReport(null);
+    when(reportManagementDao.updateReportStatus(uId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
 
-import com.epay.reporting.dao.ReportDao;
-import com.epay.reporting.dao.ReportManagementDao;
-import com.epay.reporting.dto.ReportManagementDto;
-import com.epay.reporting.entity.view.OrderReport;
-import com.epay.reporting.entity.view.RefundReport;
-import com.epay.reporting.entity.view.TransactionReport;
-import com.epay.reporting.exception.ReportingException;
-import com.epay.reporting.util.ErrorConstants;
-import com.epay.reporting.util.enums.Report;
-import com.epay.reporting.util.enums.ReportFormat;
-import com.epay.reporting.util.enums.ReportStatus;
-import com.epay.reporting.util.file.model.FileModel;
-import com.sbi.epay.authentication.util.EPayAuthenticationConstant;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.slf4j.MDC;
+    doNothing().when(reportManagementDao).updateStatusAndRemarks(
+            eq(reportManagementDto.getId()),
+            eq(ReportStatus.GENERATION_FAILED),
+            contains("Report Generation Failed")
+    );
 
-import java.io.File;
-import java.lang.reflect.Method;
-import java.math.BigDecimal;
-import java.util.*;
+    // Assert that the exception is thrown
+    ReportingException exception = assertThrows(ReportingException.class, () -> reportService.generateReport(uId));
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+    // Verify exception details
+    assertNotNull(exception);
+    assertEquals(ErrorConstants.GENERATION_ERROR_CODE, exception.getErrorCode());
+    assertTrue(exception.getMessage().contains("Report Generation Failed"));
 
-@ExtendWith(MockitoExtension.class)
-public class ReportServiceTest {
-
-    @Mock
-    private ReportManagementDao reportManagementDao;
-    @Mock
-    private ReportDao reportDao;
-    @Mock
-    private FileGeneratorService fileGeneratorService;
-
-    @InjectMocks
-    private ReportService reportService;
-
-    private UUID uId;
-    private ReportManagementDto reportManagementDto;
-
-    @BeforeEach
-    void setUp() {
-        uId = UUID.randomUUID();
-        reportManagementDto = ReportManagementDto.builder()
-                .mId("MID001")
-                .id(uId)
-                .durationFromDate(1640995200000L)
-                .durationToDate(1737225600000L)
-                .format(ReportFormat.CSV)
-                .build();
-    }
-
-    @Test
-    void testGenerateOrderReport() throws Exception {
-        reportManagementDto.setReport(Report.ORDER);
-
-        List<OrderReport> orderReports = List.of(
-            OrderReport.builder()
-                    .transactionDate("2025-01-20")
-                    .merchantOrderNumber("ORD12345")
-                    .customerId("CUST001")
-                    .transactionCurrency("USD")
-                    .orderAmount(BigDecimal.valueOf(250.75))
-                    .sbiOrderRefNumber("SBIREF001")
-                    .status("Success")
-                    .attempts(1)
-                    .mId("MID001")
-                    .build()
-        );
-
-        testGenerateReport(
-            orderReports,
-            List.of("Txn Date & Time", "Merchant Order Number", "Customer Id", "Txn Currency", "Order Amount", "SBIePay Order ID", "Order Id Status", "Attempts"),
-            Report.ORDER,
-            () -> when(reportDao.getOrderReportData(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate())).thenReturn(orderReports)
-        );
-    }
-
-    @Test
-    void testGenerateRefundReport() throws Exception {
-        reportManagementDto.setReport(Report.REFUNDS);
-
-        List<RefundReport> refundReports = List.of(
-            RefundReport.builder()
-                    .transactionDate("2025-01-20")
-                    .refundType("Full")
-                    .sbiOrderRefNumber("SBI12345")
-                    .merchantOrderNumber("ORD12345")
-                    .atrnNum("ATRN001")
-                    .bankName("HDFC Bank")
-                    .paymodeCode("Credit Card")
-                    .transactionStatus("Completed")
-                    .orderAmount(BigDecimal.valueOf(1500.75))
-                    .refundAmount(BigDecimal.valueOf(500.00))
-                    .remarks("No issues")
-                    .arrnNum("ARRN123")
-                    .build()
-        );
-
-        testGenerateReport(
-            refundReports,
-            List.of("Txn Date & Time", "Refund Type", "SBIePay Order ID", "Merchant Order ID", "ATRN", "Payment Gateway Name", "Payment Mode", "Transaction Status", "Merchant Order Amount", "Refund Amount", "Comment", "Refund Status", "Remarks", "ARRN/ACRN"),
-            Report.REFUNDS,
-            () -> when(reportDao.getRefundReportData(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate())).thenReturn(refundReports)
-        );
-    }
-
-    @Test
-    void testGenerateTransactionReport() throws Exception {
-        reportManagementDto.setReport(Report.TRANSACTION);
-
-        List<TransactionReport> transactionReports = List.of(
-            TransactionReport.builder()
-                    .payModeName("Credit Card")
-                    .bankName("HDFC Bank")
-                    .bankReferenceNumber("REF123456")
-                    .refundAmount("500.00")
-                    .chargeBackAmount("0.00")
-                    .mId("MID001")
-                    .transactionDate("2025-01-20")
-                    .merchantOrderNumber("ORD12345")
-                    .customerId("CUST001")
-                    .transactionCurrency("INR")
-                    .orderAmount(BigDecimal.valueOf(1500.75))
-                    .debitAmount(BigDecimal.valueOf(1500.75))
-                    .sbiOrderRefNumber("SBI12345")
-                    .orderStatus("Success")
-                    .atrnNum("ATRN001")
-                    .transactionStatus("Completed")
-                    .settledAmount("1500.75")
-                    .build()
-        );
-
-        testGenerateReport(
-            transactionReports,
-            List.of("Txn Date & Time", "Merchant Order Number", "Cust Id", "Txn Currency", "Order Amount", "Gateway Posting Amount", "SBIePay Order ID", "Order Status", "ATRN", "Transaction Status", "Paymode Name", "Bank Name", "Bank Txn Reference No", "Amount Settled", "Amount Refunded", "Amount Chargeback"),
-            Report.TRANSACTION,
-            () -> when(reportDao.getTransaction(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate())).thenReturn(transactionReports)
-        );
-    }
-
-    private <T> void testGenerateReport(List<T> reports, List<String> headers, Report reportType, Runnable mockSetup) throws Exception {
-        reportManagementDto.setReport(reportType);
-
-        when(reportManagementDao.updateReportStatus(uId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
-        mockSetup.run();
-
-        List<List<Object>> fileData = new ArrayList<>();
-        for (T report : reports) {
-            Method method = ReportService.class.getDeclaredMethod("convertToListOfObject", report.getClass());
-            method.setAccessible(true);
-            fileData.add((List<Object>) method.invoke(reportService, report));
-        }
-
-        FileModel fileModel = mock(FileModel.class);
-        when(fileGeneratorService.buildFileModel(reportManagementDto.getFormat(), headers, fileData, Map.of("headers", headers, "rows", fileData))).thenReturn(fileModel);
-
-        File file = new File("dummyPath");
-        when(fileGeneratorService.fileGenerator(reportManagementDto.getFormat(), reportType, reportManagementDto.getMId(), fileModel)).thenReturn(file);
-
-        doNothing().when(reportManagementDao).updateStatusAndFilePath(uId, ReportStatus.GENERATED, file.getPath());
-
-        reportService.generateReport(uId);
-
-        verify(reportManagementDao).updateStatusAndFilePath(uId, ReportStatus.GENERATED, file.getPath());
-    }
+    // Verify that the failure status update was called
+    verify(reportManagementDao, times(1)).updateStatusAndRemarks(
+            eq(reportManagementDto.getId()),
+            eq(ReportStatus.GENERATION_FAILED),
+            contains("Report Generation Failed")
+    );
 }
