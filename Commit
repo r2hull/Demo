@@ -1,7 +1,8 @@
-Required type:
-List
-<ReportManagement>
-
-Provided:
-Chunk
-<capture of ? extends ReportManagement>
+@Bean
+public ItemWriter<ReportManagement> reportWriter() {
+    return items -> {
+        // Convert Chunk<? extends ReportManagement> to List<ReportManagement>
+        List<ReportManagement> reportManagementList = new ArrayList<>(items);
+        reportManagementDao.saveAll(reportManagementList);
+    };
+}
