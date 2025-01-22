@@ -1,79 +1,90 @@
-dependencies {
-    implementation 'org.springframework.batch:spring-batch-core:5.0.0'
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa' // For JPA
-    runtimeOnly 'com.h2database:h2' // Optional: For testing with H2
-}
-
-
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
-import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
-import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.repository.JobRepository;
-import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.data.RepositoryItemReader;
+import org.springframework.batch.item.support.builder.RepositoryItemReaderBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.data.domain.Sort;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import java.util.Collections;
+import java.util.List;
 
 @Configuration
 @EnableBatchProcessing
 public class BatchConfiguration {
 
     private final JobRepository jobRepository;
-    private final JobLauncher jobLauncher;
-    private final StepBuilderFactory stepBuilderFactory;
+    private final PlatformTransactionManager transactionManager;
+    private final ReportScheduleManagementRepository repository;
 
-    public BatchConfiguration(JobRepository jobRepository, JobLauncher jobLauncher, StepBuilderFactory stepBuilderFactory) {
+    public BatchConfiguration(JobRepository jobRepository,
+                               PlatformTransactionManager transactionManager,
+                               ReportScheduleManagementRepository repository) {
         this.jobRepository = jobRepository;
-        this.jobLauncher = jobLauncher;
-        this.stepBuilderFactory = stepBuilderFactory;
+        this.transactionManager = transactionManager;
+        this.repository = repository;
     }
 
     @Bean
-    public Job exampleJob() {
-        return new JobBuilder("exampleJob", jobRepository)
-                .incrementer(new RunIdIncrementer())
-                .start(exampleStep())
+    public Job reportScheduleJob() {
+        return Job.builder()
+                .name("reportScheduleJob")
+                .repository(jobRepository)
+                .start(reportScheduleStep())
                 .build();
     }
 
     @Bean
-    public Step exampleStep() {
-        return new StepBuilder("exampleStep", stepBuilderFactory)
-                .<String, String>chunk(10)
-                .reader(exampleReader())
-                .processor(exampleProcessor())
-                .writer(exampleWriter())
+    public Step reportScheduleStep() {
+        return Step.builder()
+                .name("reportScheduleStep")
+                .repository(jobRepository)
+                .transactionManager(transactionManager)
+                .<ReportScheduleManagement, ReportManagement>chunk(10)
+                .reader(reportScheduleReader())
+                .processor(reportScheduleProcessor())
+                .writer(reportScheduleWriter())
                 .build();
     }
 
     @Bean
-    public ItemReader<String> exampleReader() {
-        return new ItemReader<>() {
-            private final String[] data = {"Item1", "Item2", "Item3"};
-            private int index = 0;
+    public ItemReader<ReportScheduleManagement> reportScheduleReader() {
+        return new RepositoryItemReaderBuilder<ReportScheduleManagement>()
+                .repository(repository)
+                .methodName("findByStatusAndNextScheduleExecutionTime")
+                .arguments(
+                        ReportScheduledStatus.TO_BE_START,
+                        System.currentTimeMillis(),
+                        System.currentTimeMillis() + 3600000 // Example: 1-hour window
+                )
+                .sorts(Collections.singletonMap("nextScheduleExecutionTime", Sort.Direction.ASC))
+                .build();
+    }
 
-            @Override
-            public String read() {
-                return index < data.length ? data[index++] : null;
-            }
+    @Bean
+    public ItemProcessor<ReportScheduleManagement, ReportManagement> reportScheduleProcessor() {
+        return schedule -> ReportManagement.builder()
+                .reportId(schedule.getReportId())
+                .mId(schedule.getMId())
+                .format(schedule.getFormat())
+                .scheduledId(schedule.getId())
+                .durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), System.currentTimeMillis()))
+                .durationToDate(System.currentTimeMillis())
+                .status(ReportStatus.TO_BE_GENERATE)
+                .build();
+    }
+
+    @Bean
+    public ItemWriter<ReportManagement> reportScheduleWriter() {
+        return items -> {
+            // Save processed data to the database (e.g., using DAO)
+            System.out.println("Processed Reports: " + items.size());
         };
-    }
-
-    @Bean
-    public ItemProcessor<String, String> exampleProcessor() {
-        return item -> "Processed " + item;
-    }
-
-    @Bean
-    public ItemWriter<String> exampleWriter() {
-        return items -> items.forEach(System.out::println);
     }
 }
