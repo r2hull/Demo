@@ -1,11 +1,115 @@
+package com.epay.reporting.service;
+
+
+import com.epay.reporting.dao.ReportDao;
+import com.epay.reporting.dao.ReportManagementDao;
+import com.epay.reporting.dto.ReportManagementDto;
+import com.epay.reporting.entity.view.OrderReport;
+import com.epay.reporting.entity.view.RefundReport;
+import com.epay.reporting.entity.view.TransactionReport;
+import com.epay.reporting.exception.ReportingException;
+import com.epay.reporting.util.ErrorConstants;
+import com.epay.reporting.util.enums.Report;
+import com.epay.reporting.util.enums.ReportFormat;
+import com.epay.reporting.util.enums.ReportStatus;
+import com.epay.reporting.util.file.model.FileModel;
+import com.sbi.epay.authentication.util.EPayAuthenticationConstant;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.MDC;
+
+import java.io.File;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.math.BigDecimal;
+import java.util.*;
 
-public class Main {
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-    public static void main(String[] args) throws Exception {
+@ExtendWith(MockitoExtension.class)
+public class ReportServiceTest {
+
+    @Mock
+    private ReportManagementDao reportManagementDao;
+    @Mock
+    private ReportDao reportDao;
+    @Mock
+    private FileGeneratorService fileGeneratorService;
+
+    @InjectMocks
+    private ReportService reportService;
+
+    UUID uId = UUID.randomUUID();
+
+    ReportManagementDto reportManagementDto ;
+    @BeforeEach
+    void setUp(){
+        reportManagementDto = ReportManagementDto.builder().mId("MID001").id(uId).durationFromDate(1640995200000L).durationToDate(1737225600000L).format(ReportFormat.CSV).build();
+
+    }
+
+    @Test
+    void testGenerateReport() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        reportManagementDto.setReport(Report.ORDER);
+            //ORDER
+        List<OrderReport> orderReportList = Arrays.asList(OrderReport.builder()
+                .transactionDate("2025-01-20")
+                .merchantOrderNumber("ORD12345")
+                .customerId("CUST001")
+                .transactionCurrency("USD")
+                .orderAmount(BigDecimal.valueOf(250.75))
+                .sbiOrderRefNumber("SBIREF001")
+                .status("Success")
+                .attempts(1)
+                .mId("MID001")
+                .build());
+
+
+        when(reportManagementDao.updateReportStatus(uId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
+        when(reportDao.getOrderReportData(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate())).thenReturn(orderReportList);
+
+        List<List<Object>> orderFileData = new ArrayList<>();
+
+        for (OrderReport report : orderReportList) {
+            Method method = ReportService.class.getDeclaredMethod("convertToListOfObject", OrderReport.class);
+            method.setAccessible(true);
+
+            List<Object> result = (List<Object>) method.invoke(reportService, report);
+            orderFileData.add(result);
+        }
+        List<String> orderHeader = List.of("Txn Date & Time", "Merchant Order Number", "Customer Id", "Txn Currency", "Order Amount", "SBIePay Order ID", "Order Id Status", "Attempts");
+
+        FileModel fileModel = mock(FileModel.class);
+        fileModel.setReportMonth("abc");
+        when(fileGeneratorService.buildFileModel(reportManagementDto.getFormat(), orderHeader, orderFileData, Map.of("headers", orderHeader, "rows", orderFileData))).thenReturn(fileModel);
+        File file = new File("dummy");
+        when(fileGeneratorService.fileGenerator(reportManagementDto.getFormat(), reportManagementDto.getReport(), reportManagementDto.getMId(), fileModel)).thenReturn(file);
+
+        doNothing().when(reportManagementDao).updateStatusAndFilePath(uId, ReportStatus.GENERATED, file.getPath());
+        reportService.generateReport(uId);
+        verify(reportDao, times(1)).getOrderReportData(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate());
+
+
+
+            //To cover Exceptions
+        reportManagementDto.setReport(null);
+        when(reportManagementDao.updateReportStatus(uId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
+        doNothing().when(reportManagementDao).updateStatusAndRemarks(reportManagementDto.getId(), ReportStatus.GENERATION_FAILED, "Report Generation Failed : " + MDC.get(EPayAuthenticationConstant.CORRELATION_ID));
+
+        ReportingException exception = assertThrows(ReportingException.class, () -> reportService.generateReport(uId));
+        assertEquals(ErrorConstants.GENERATION_ERROR_CODE, exception.getErrorCode());
+    }
+
+
+    @Test
+    void refund() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        reportManagementDto.setReport(Report.REFUNDS);
+        //REFUND
         List<RefundReport> refundReportList = Arrays.asList(
                 RefundReport.builder()
                         .transactionDate("2025-01-20")
@@ -18,8 +122,6 @@ public class Main {
                         .transactionStatus("Completed")
                         .orderAmount(BigDecimal.valueOf(1500.75))
                         .refundAmount(BigDecimal.valueOf(500.00))
-                        .comments("Refund processed successfully")
-                        .refundStatus("Success")
                         .remarks("No issues")
                         .arrnNum("ARRN123")
                         .build()
@@ -27,31 +129,85 @@ public class Main {
 
         List<List<Object>> refundFileData = new ArrayList<>();
         for (RefundReport refundReport : refundReportList) {
-            // Using reflection to invoke private method
-            Method method = Main.class.getDeclaredMethod("convertToListOfObject", RefundReport.class);
-            method.setAccessible(true); // make private method accessible
-            List<Object> objectList = (List<Object>) method.invoke(new Main(), refundReport);
-            refundFileData.add(objectList);
+
+            Method method = ReportService.class.getDeclaredMethod("convertToListOfObject", RefundReport.class);
+            method.setAccessible(true);
+
+            List<Object> result = (List<Object>) method.invoke(reportService, refundReport);
+            refundFileData.add(result);
+
         }
 
-        // Print the refundFileData for demonstration
-        System.out.println(refundFileData);
+        when(reportManagementDao.updateReportStatus(uId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
+        when(reportDao.getRefundReportData(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate())).thenReturn(refundReportList);
+        List<String> refundHeader = List.of("Txn Date & Time", "Refund Type", "SBIePay Order ID", "Merchant Order ID", "ATRN", "Payment Gateway Name", "Payment Mode", "Transaction Status", "Merchant Order Amount", "Refund Amount", "Comment", "Refund Status", "Remarks", "ARRN/ACRN");
+
+
+        FileModel fileModel2 = mock(FileModel.class);
+        fileModel2.setReportMonth("abc1");
+
+        when(fileGeneratorService.buildFileModel(reportManagementDto.getFormat(), refundHeader, refundFileData, Map.of("headers", refundHeader, "rows", refundFileData))).thenReturn(fileModel2);
+        File file2 = new File("dummy1");
+        when(fileGeneratorService.fileGenerator(reportManagementDto.getFormat(), reportManagementDto.getReport(), reportManagementDto.getMId(), fileModel2)).thenReturn(file2);
+        doNothing().when(reportManagementDao).updateStatusAndFilePath(uId, ReportStatus.GENERATED, file2.getPath());
+        reportService.generateReport(uId);
+        verify(reportDao, times(1)).getRefundReportData(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate());
+
+
     }
 
-    private List<Object> convertToListOfObject(RefundReport refundReport) {
-        List<Object> objectList = new ArrayList<>();
-        objectList.add(refundReport.getTransactionDate());
-        objectList.add(refundReport.getRefundType());
-        objectList.add(refundReport.getSbiOrderRefNumber());
-        objectList.add(refundReport.getMerchantOrderNumber());
-        objectList.add(refundReport.getAtrnNum());
-        objectList.add(refundReport.getBankName());
-        objectList.add(refundReport.getPaymodeCode());
-        objectList.add(refundReport.getTransactionStatus());
-        objectList.add(refundReport.getOrderAmount());
-        objectList.add(refundReport.getRefundAmount());
-        objectList.add(refundReport.getRemarks());
-        objectList.add(refundReport.getArrnNum());
-        return objectList;
+
+    @Test
+    void transaction() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        reportManagementDto.setReport(Report.TRANSACTION);
+        List<TransactionReport> transactionReportList = Arrays.asList((TransactionReport.builder()
+                .payModeName("Credit Card")
+                .bankName("HDFC Bank")
+                .bankReferenceNumber("REF123456")
+                .refundAmount("500.00")
+                .chargeBackAmount("0.00")
+                .mId("MID001")
+                .transactionDate("2025-01-20")
+                .merchantOrderNumber("ORD12345")
+                .customerId("CUST001")
+                .transactionCurrency("INR")
+                .orderAmount(BigDecimal.valueOf(1500.75))
+                .debitAmount(BigDecimal.valueOf(1500.75))
+                .sbiOrderRefNumber("SBI12345")
+                .orderStatus("Success")
+                .atrnNum("ATRN001")
+                .transactionStatus("Completed")
+                .settledAmount("1500.75")
+                .build()));
+
+        List<List<Object>> transactionFileData = new ArrayList<>();
+        for (TransactionReport transactionReport : transactionReportList) {
+            Method method = ReportService.class.getDeclaredMethod("convertToListOfObject", TransactionReport.class);
+            method.setAccessible(true);
+
+            List<Object> result = (List<Object>) method.invoke(reportService, transactionReport);
+            transactionFileData.add(result);
+        }
+
+
+
+        when(reportManagementDao.updateReportStatus(uId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
+        when(reportDao.getTransaction(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate())).thenReturn(transactionReportList);
+        List<String> transactionHeader = List.of("Txn Date & Time", "Merchant Order Number", "Cust Id", "Txn Currency", "Order Amount", "Gateway Posting Amount","SBIePay Order ID", "Order Status", "ATRN", "Transaction Status", "Paymode Name", "Bank Name", "Bank Txn Reference No", "Amount Settled", "Amount Refunded", "Amount Chargeback");
+
+
+        FileModel fileModel1 = mock(FileModel.class);
+        fileModel1.setReportMonth("abc1");
+
+        when(fileGeneratorService.buildFileModel(reportManagementDto.getFormat(), transactionHeader, transactionFileData, Map.of("headers", transactionHeader, "rows", transactionFileData))).thenReturn(fileModel1);
+        File file1 = new File("dummy1");
+        when(fileGeneratorService.fileGenerator(reportManagementDto.getFormat(), reportManagementDto.getReport(), reportManagementDto.getMId(), fileModel1)).thenReturn(file1);
+        doNothing().when(reportManagementDao).updateStatusAndFilePath(uId, ReportStatus.GENERATED, file1.getPath());
+        reportService.generateReport(uId);
+        verify(reportDao, times(1)).getTransaction(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate());
+
     }
 }
+
+
+
