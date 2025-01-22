@@ -1,16 +1,7 @@
-@Bean
-public ItemReader<ReportScheduleManagement> reportReader() {
-    Long scheduleStartTime = DateTimeUtils.getCurrentTimeInMills();
-    Long scheduleEndTime = DateTimeUtils.addMinutes(30); // Example time window
+Required type:
+List
+<ReportManagement>
 
-    return new RepositoryItemReaderBuilder<ReportScheduleManagement>()
-            .repository(reportScheduleManagementRepository)
-            .methodName("findByStatusAndNextScheduleExecutionTime")
-            .arguments(
-                    ReportScheduledStatus.TO_BE_START,
-                    scheduleStartTime,
-                    scheduleEndTime
-            )
-            .sorts(Map.of("nextScheduleExecutionTime", Sort.Direction.ASC)) // Fix: Use Map.of to provide a Map
-            .build();
-}
+Provided:
+Chunk
+<capture of ? extends ReportManagement>
