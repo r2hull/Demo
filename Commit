@@ -1,7 +1,16 @@
-Required type:
-Map
-<java. lang. String,
-org. springframework. data. domain. Sort. Direction>
+@Bean
+public ItemReader<ReportScheduleManagement> reportReader() {
+    Long scheduleStartTime = DateTimeUtils.getCurrentTimeInMills();
+    Long scheduleEndTime = DateTimeUtils.addMinutes(30); // Example time window
 
-
-Sort
+    return new RepositoryItemReaderBuilder<ReportScheduleManagement>()
+            .repository(reportScheduleManagementRepository)
+            .methodName("findByStatusAndNextScheduleExecutionTime")
+            .arguments(
+                    ReportScheduledStatus.TO_BE_START,
+                    scheduleStartTime,
+                    scheduleEndTime
+            )
+            .sorts(Map.of("nextScheduleExecutionTime", Sort.Direction.ASC)) // Fix: Use Map.of to provide a Map
+            .build();
+}
