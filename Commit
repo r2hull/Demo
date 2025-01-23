@@ -1,31 +1,49 @@
-@Bean
-public JpaPagingItemReader<ReportScheduleManagement> reader(EntityManagerFactory entityManagerFactory) {
-    return new JpaPagingItemReaderBuilder<ReportScheduleManagement>()
-            .name("reportScheduleReader")
-            .entityManagerFactory(entityManagerFactory)
-            .queryString("SELECT r FROM ReportScheduleManagement r WHERE r.status = 'TO_BE_START'")
-            .pageSize(10)
-            .build();
-}
+@Configuration
+@EnableBatchProcessing
+@RequiredArgsConstructor
+public class BatchConfig {
 
-@Component
-public class ReportItemProcessor implements ItemProcessor<ReportScheduleManagement, ReportManagement> {
+    private final JobRepository jobRepository;
+    private final PlatformTransactionManager transactionManager;
 
-    @Override
-    public ReportManagement process(ReportScheduleManagement schedule) {
-        return ReportManagement.builder()
-                .reportId(schedule.getReportId())
-                .status(ReportStatus.TO_BE_GENERATE)
-                .durationFromDate(schedule.getLastScheduleExecutionTime())
+    @Bean
+    public Job reportScheduleJob(Step reportScheduleStep) {
+        return new JobBuilder("reportScheduleJob", jobRepository)
+                .start(reportScheduleStep)
                 .build();
     }
-}
 
+    @Bean
+    public Step reportScheduleStep(ItemReader<ReportScheduleManagement> reader,
+                                   ItemProcessor<ReportScheduleManagement, ReportManagement> processor,
+                                   ItemWriter<ReportManagement> writer) {
+        return new StepBuilder("reportScheduleStep", jobRepository)
+                .<ReportScheduleManagement, ReportManagement>chunk(10, transactionManager)
+                .reader(reader)
+                .processor(processor)
+                .writer(writer)
+                .build();
+    }
 
+    @Bean
+    public JpaPagingItemReader<ReportScheduleManagement> reader(EntityManagerFactory entityManagerFactory) {
+        return new JpaPagingItemReaderBuilder<ReportScheduleManagement>()
+                .name("reportScheduleReader")
+                .entityManagerFactory(entityManagerFactory)
+                .queryString("SELECT r FROM ReportScheduleManagement r WHERE r.status = 'TO_BE_START'")
+                .pageSize(10)
+                .build();
+    }
 
-@Bean
-public JpaItemWriter<ReportManagement> writer(EntityManagerFactory entityManagerFactory) {
-    return new JpaItemWriterBuilder<ReportManagement>()
-            .entityManagerFactory(entityManagerFactory)
-            .build();
+    @Bean
+    public ReportItemProcessor processor() {
+        return new ReportItemProcessor();
+    }
+
+    @Bean
+    public JpaItemWriter<ReportManagement> writer(EntityManagerFactory entityManagerFactory) {
+        return new JpaItemWriterBuilder<ReportManagement>()
+                .entityManagerFactory(entityManagerFactory)
+                .build();
+    }
 }
