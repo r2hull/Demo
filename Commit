@@ -1,3 +1,29 @@
-implementation 'org.springframework.boot:spring-boot-starter-batch'
-implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-implementation 'com.h2database:h2'
+@Configuration
+@EnableBatchProcessing
+@RequiredArgsConstructor
+public class BatchConfig {
+
+    private final JobBuilderFactory jobBuilderFactory;
+    private final StepBuilderFactory stepBuilderFactory;
+
+    @Bean
+    public Job reportScheduleJob(Step reportScheduleStep) {
+        return jobBuilderFactory.get("reportScheduleJob")
+                .incrementer(new RunIdIncrementer())
+                .flow(reportScheduleStep)
+                .end()
+                .build();
+    }
+
+    @Bean
+    public Step reportScheduleStep(ItemReader<ReportScheduleManagement> reader,
+                                   ItemProcessor<ReportScheduleManagement, ReportManagement> processor,
+                                   ItemWriter<ReportManagement> writer) {
+        return stepBuilderFactory.get("reportScheduleStep")
+                .<ReportScheduleManagement, ReportManagement>chunk(10)
+                .reader(reader)
+                .processor(processor)
+                .writer(writer)
+                .build();
+    }
+}
