@@ -3,15 +3,13 @@
 @RequiredArgsConstructor
 public class BatchConfig {
 
-    private final JobBuilderFactory jobBuilderFactory;
-    private final StepBuilderFactory stepBuilderFactory;
+    private final JobRepository jobRepository;
+    private final PlatformTransactionManager transactionManager;
 
     @Bean
     public Job reportScheduleJob(Step reportScheduleStep) {
-        return jobBuilderFactory.get("reportScheduleJob")
-                .incrementer(new RunIdIncrementer())
-                .flow(reportScheduleStep)
-                .end()
+        return new JobBuilder("reportScheduleJob", jobRepository)
+                .start(reportScheduleStep)
                 .build();
     }
 
@@ -19,8 +17,8 @@ public class BatchConfig {
     public Step reportScheduleStep(ItemReader<ReportScheduleManagement> reader,
                                    ItemProcessor<ReportScheduleManagement, ReportManagement> processor,
                                    ItemWriter<ReportManagement> writer) {
-        return stepBuilderFactory.get("reportScheduleStep")
-                .<ReportScheduleManagement, ReportManagement>chunk(10)
+        return new StepBuilder("reportScheduleStep", jobRepository)
+                .<ReportScheduleManagement, ReportManagement>chunk(10, transactionManager)
                 .reader(reader)
                 .processor(processor)
                 .writer(writer)
