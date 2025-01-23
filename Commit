@@ -1,49 +1,55 @@
-@Configuration
-@EnableBatchProcessing
+@Component
 @RequiredArgsConstructor
-public class BatchConfig {
+public class ReportScheduleManagementScheduler {
 
-    private final JobRepository jobRepository;
-    private final PlatformTransactionManager transactionManager;
+    private final ReportScheduleManagementService reportScheduleManagementService;
 
-    @Bean
-    public Job reportScheduleJob(Step reportScheduleStep) {
-        return new JobBuilder("reportScheduleJob", jobRepository)
-                .start(reportScheduleStep)
-                .build();
+    @Scheduled(cron = "${scheduled.cron.time}")
+    @SchedulerLock(name = "Report_Scheduler", lockAtLeastFor = "PT30S", lockAtMostFor = "PT2M")
+    public void scheduleReportGeneration() {
+        reportScheduleManagementService.executeReportBySchedule();
     }
+}
 
-    @Bean
-    public Step reportScheduleStep(ItemReader<ReportScheduleManagement> reader,
-                                   ItemProcessor<ReportScheduleManagement, ReportManagement> processor,
-                                   ItemWriter<ReportManagement> writer) {
-        return new StepBuilder("reportScheduleStep", jobRepository)
-                .<ReportScheduleManagement, ReportManagement>chunk(10, transactionManager)
-                .reader(reader)
-                .processor(processor)
-                .writer(writer)
-                .build();
+
+
+@Service
+@RequiredArgsConstructor
+public class ReportScheduleManagementService {
+
+    private final JobLauncher jobLauncher;
+    private final Job reportScheduleJob;  // Injecting the job here
+    private final ReportScheduleManagementDao reportScheduleManagementDao;
+    private final LoggerUtility log = LoggerFactoryUtility.getLogger(this.getClass());
+
+    public void executeReportBySchedule() {
+        try {
+            // Prepare Job Parameters
+            JobParameters jobParameters = new JobParametersBuilder()
+                    .addLong("time", System.currentTimeMillis())
+                    .toJobParameters();
+            jobLauncher.run(reportScheduleJob, jobParameters);  // Launch the batch job
+        } catch (Exception e) {
+            log.error("Error executing report by schedule", e);
+        }
     }
+}
 
-    @Bean
-    public JpaPagingItemReader<ReportScheduleManagement> reader(EntityManagerFactory entityManagerFactory) {
-        return new JpaPagingItemReaderBuilder<ReportScheduleManagement>()
-                .name("reportScheduleReader")
-                .entityManagerFactory(entityManagerFactory)
-                .queryString("SELECT r FROM ReportScheduleManagement r WHERE r.status = 'TO_BE_START'")
-                .pageSize(10)
-                .build();
-    }
 
-    @Bean
-    public ReportItemProcessor processor() {
-        return new ReportItemProcessor();
-    }
 
-    @Bean
-    public JpaItemWriter<ReportManagement> writer(EntityManagerFactory entityManagerFactory) {
-        return new JpaItemWriterBuilder<ReportManagement>()
-                .entityManagerFactory(entityManagerFactory)
+
+@Component
+public class ReportItemProcessor implements ItemProcessor<ReportScheduleManagement, ReportManagement> {
+
+    @Override
+    public ReportManagement process(ReportScheduleManagement schedule) {
+        return ReportManagement.builder()
+                .reportId(schedule.getReportId())
+                .status(ReportStatus.TO_BE_GENERATE)
+                .durationFromDate(schedule.getLastScheduleExecutionTime())
                 .build();
     }
 }
+
+
+
