@@ -1,103 +1,51 @@
-spring:
-  profiles:
-    active: dev
-  application:
-    name: epay_reporting_service
+@Component
+@RequiredArgsConstructor
+public class ReportScheduleManagementDao {
 
-  # JPA Configuration
-  jpa:
-    show-sql: true
-    properties:
-      hibernate:
-        show_sql: true
-        jdbc:
-          batch_size: 400
-        order_updates: true
-        order_inserts: true
-        batch_versioned_data: true
-        generate_statistics: true
+    private final ReportScheduleManagementRepository reportScheduleManagementRepository;
+    private final Logger log = LoggerFactory.getLogger(ReportScheduleManagementDao.class);
 
-  # Db Connectivity Configuration
-  datasource:
-    url: jdbc:oracle:thin:@10.177.134.124:1590:epaydbdev1
-    username: 
-    password: 
-    driver-class-name: oracle.jdbc.OracleDriver
+    @Transactional
+    public void executeReportBySchedule() {
+        Long scheduleStartTime = DateTimeUtils.getCurrentTimeInMills();
+        Long scheduleEndTime = DateTimeUtils.addMinutes(reportingConfig.getReportScheduleExecutionWindow());
+        
+        // Fetch the reports to be processed within the scheduled time window
+        List<ReportScheduleManagement> reportScheduleManagementList = findByStatusAndNextScheduleExecutionTime(scheduleStartTime, scheduleEndTime);
+        
+        int totalSize = reportScheduleManagementList.size();
+        int batchSize = 400;  // This should match the batch size configured in application.yml
+        int processed = 0;
 
-  # Liquibase Properties
-  liquibase:
-    change-log: classpath:db/changelog/db.changelog-master.xml
-    enabled: true
-    drop-first: false
+        for (int i = 0; i < totalSize; i += batchSize) {
+            int end = Math.min(i + batchSize, totalSize);
+            List<ReportScheduleManagement> batch = reportScheduleManagementList.subList(i, end);
+            
+            // Perform the batch insert/update here
+            reportScheduleManagementRepository.saveAll(batch);
+            
+            processed += batch.size();
+            log.info("Processed {} of {} records", processed, totalSize);  // Log progress after each batch
+        }
 
-  # Kafka Configuration
-  kafka:
-    bootstrapServers: dev-cluster-kafka-bootstrap-dev-kafka.apps.dev.sbiepay.sbi:443
-    consumer:
-      groupId: merchant-consumers
-      keyDeserializer: org.apache.kafka.common.serialization.StringDeserializer
-      valueDeserializer: org.apache.kafka.common.serialization.StringDeserializer
-      autoOffsetReset: latest
-      autoCommitInterval: 100
-      enableAutoCommit: true
-      sessionTimeoutMS: 300000
-      requestTimeoutMS: 420000
-      fetchMaxWaitMS: 200
-      maxPollRecords: 5
-      retryMaxAttempts: 3
-      retryBackOffInitialIntervalMS: 10000
-      retryBackOffMaxIntervalMS: 30000
-      retryBackOffMultiplier: 2
-      spring.json.trusted.packages: com.epay.reporting
-      numberOfConsumers: 1
-    producer:
-      keySerializer: org.apache.kafka.common.serialization.StringSerializer
-      valueSerializer: org.apache.kafka.common.serialization.StringSerializer
-      acks: all
-      retries: 3
-      batchSize: 1000
-      lingerMs: 1
-      bufferMemory: 33554432
-    topic:
-      report: merchant_report_topic
-      partitions: 4
-      replicationFactor: 1
-
-  # External API Configuration
-  external:
-    api:
-      merchant:
-        services:
-          base:
-            path: http://localhost:9093/merchant/v1
-
-  # Spring Security Configuration
-  security:
-    jwt:
-      secret:
-        issuer: https://sbi.epay.com
-        key: gdjfgskjfhsdjkhkflkdlksdlfkskfwperip3ke3le3lmldrnkfnhiewjfejfokepfkldkfoikfokork3dklwedlsvflvkfkvlkdfvodkvcdokro3
-    whitelist:
-      urls: /webjars/, /actuator/, /swagger-resources/, /v3/api-docs, /v3/api-docs/**, /swagger-ui/**, /index.html
-    cors:
-      allowed:
-        origins: "*"
-
-  # Logging Configuration
-  logging:
-    level:
-      liquibase: DEBUG
-
-  # Server Configuration
-  server:
-    servlet:
-      context-path: /reporting/v1/
-    port: 9096
-
-  # Scheduled Tasks Configuration
-  scheduled:
-    cron:
-      time: 0 */30 * * * *
-    report:
-      execution:
-        window: 30
+        // Other logic (e.g., saving associated ReportManagement entities) can go here
+        List<ReportManagement> reportManagementList = reportScheduleManagementList.stream().map(schedule -> {
+            schedule.setLastScheduleExecutionTime(DateTimeUtils.getCurrentTimeInMills());
+            return ReportManagement.builder()
+                    .reportId(schedule.getReportId())
+                    .mId(schedule.getMId())
+                    .format(schedule.getFormat())
+                    .scheduledId(schedule.getId())
+                    .durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), scheduleEndTime))
+                    .durationToDate(scheduleStartTime)
+                    .status(ReportStatus.TO_BE_GENERATE)
+                    .build();
+        }).toList();
+        
+        reportManagementDao.saveAll(reportManagementList);
+    }
+    
+    private List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(long scheduleStartTime, long scheduleEndTime) {
+        return reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(ReportScheduledStatus.TO_BE_START, scheduleStartTime, scheduleEndTime);
+    }
+}
