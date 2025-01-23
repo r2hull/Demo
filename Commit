@@ -1,217 +1,35 @@
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.Step;
+import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
+import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
-@Component
-@RequiredArgsConstructor
-public class ReportScheduleManagementScheduler {
+@Configuration
+@EnableBatchProcessing
+public class BatchConfig {
 
-    private final ReportScheduleManagementService reportScheduleManagementService;
-
-    @Scheduled(cron = "${scheduled.cron.time}")
-    @SchedulerLock(name = "Report_Scheduler", lockAtLeastFor = "PT30S", lockAtMostFor = "PT2M")
-    public void scheduleReportGeneration() {
-        reportScheduleManagementService.executeReportBySchedule();
-    }
-}
-
-
-
-package com.epay.reporting.service;
-
-import com.epay.reporting.dao.ReportScheduleManagementDao;
-import com.epay.reporting.dto.ReportScheduleManagementDto;
-import com.epay.reporting.mapper.ReportScheduleManagementMapper;
-import com.epay.reporting.model.request.ReportScheduleManagementRequest;
-import com.epay.reporting.model.request.ReportScheduleManagementSearchRequest;
-import com.epay.reporting.model.request.ReportScheduleManagementUpdateRequest;
-import com.epay.reporting.model.response.ReportScheduleManagementResponse;
-import com.epay.reporting.model.response.ReportingResponse;
-import com.epay.reporting.util.ReportingConstant;
-import com.epay.reporting.validator.ReportScheduleManagementValidator;
-import com.sbi.epay.logging.utility.LoggerFactoryUtility;
-import com.sbi.epay.logging.utility.LoggerUtility;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.UUID;
-
-@Service
-@RequiredArgsConstructor
-public class ReportScheduleManagementService {
-
-    private final ReportScheduleManagementDao reportScheduleManagementDao;
-    private final ReportScheduleManagementMapper mapper;
-    private final ReportScheduleManagementValidator validator;
-    private final LoggerUtility log = LoggerFactoryUtility.getLogger(this.getClass());
-
-    public ReportingResponse<ReportScheduleManagementResponse> searchAndGetAll(ReportScheduleManagementSearchRequest searchRequest, Pageable pageable) {
-        validator.validateRequest(searchRequest);
-        Page<ReportScheduleManagementDto> reportManagementDTOs = reportScheduleManagementDao.searchAndGetAll(searchRequest, pageable);
-        List<ReportScheduleManagementResponse> reportManagementResponses = mapper.mapDtoListToResponseList(reportManagementDTOs.getContent());
-        return ReportingResponse.<ReportScheduleManagementResponse>builder().data(reportManagementResponses).count(reportManagementDTOs.stream().count()).total(reportManagementDTOs.getTotalElements()).status(ReportingConstant.RESPONSE_SUCCESS).build();
+    @Bean
+    public Job reportScheduleJob(JobBuilder jobBuilder, Step reportScheduleStep) {
+        return jobBuilder.get("reportScheduleJob")
+                .incrementer(new RunIdIncrementer())
+                .flow(reportScheduleStep)
+                .end()
+                .build();
     }
 
-    public ReportingResponse<String> save(ReportScheduleManagementRequest reportScheduleManagementRequest) {
-        validator.validateRequest(reportScheduleManagementRequest);
-        reportScheduleManagementDao.save(mapper.mapRequestToDto(reportScheduleManagementRequest));
-        return ReportingResponse.<String>builder().data(List.of("ScheduleManagement Request received Successfully")).status(ReportingConstant.RESPONSE_SUCCESS).build();
+    @Bean
+    public Step reportScheduleStep(StepBuilder stepBuilder,
+                                   ReportItemReader reader,
+                                   ReportItemProcessor processor,
+                                   ReportItemWriter writer) {
+        return stepBuilder.get("reportScheduleStep")
+                .<ReportScheduleManagement, ReportManagement>chunk(10) // Chunk size
+                .reader(reader)
+                .processor(processor)
+                .writer(writer)
+                .build();
     }
-
-    public void executeReportBySchedule() {
-        reportScheduleManagementDao.executeReportBySchedule();
-    }
-
-    /**
-     * Updates a schedule management entry in the database.
-     *
-     * @param id      UUID ID of the schedule management entry to be updated.
-     * @param request ReportScheduleManagementUpdateRequest Update request containing new details.
-     */
-    public ReportingResponse<String> updateScheduleManagement(UUID id, ReportScheduleManagementUpdateRequest request) {
-        log.info("Started updating schedule management entry for ID: {}, Request: {}", id, request);
-        reportScheduleManagementDao.update(id, request);
-        return ReportingResponse.<String>builder().data(List.of(ReportingConstant.UPDATED_SUCCESSFULLY)).count(1L).total(1L).build();
-    }
-
-    /**
-     * Cancel a schedule management entry based on the provided ID.
-     *
-     * @param id UUID ID of the schedule management entry to be updated.
-     */
-    public ReportingResponse<String> cancelScheduler(UUID id) {
-        reportScheduleManagementDao.cancelScheduler(id);
-        log.info("scheduler cancelled for ID: {}", id);
-        return ReportingResponse.<String>builder().data(List.of(ReportingConstant.SCHEDULER_CANCELED)).build();
-    }
-}
-
-
-
-
-
-package com.epay.reporting.dao;
-
-import com.epay.reporting.config.ReportingConfig;
-import com.epay.reporting.dto.ReportScheduleManagementDto;
-import com.epay.reporting.entity.ReportManagement;
-import com.epay.reporting.entity.ReportScheduleManagement;
-import com.epay.reporting.exception.ReportingException;
-import com.epay.reporting.mapper.ReportScheduleManagementMapper;
-import com.epay.reporting.model.request.ReportScheduleManagementSearchRequest;
-import com.epay.reporting.model.request.ReportScheduleManagementUpdateRequest;
-import com.epay.reporting.model.response.ReportScheduleManagementResponse;
-import com.epay.reporting.repository.ReportScheduleManagementRepository;
-import com.epay.reporting.specification.ReportScheduleManagementSpecification;
-import com.epay.reporting.util.DateTimeUtils;
-import com.epay.reporting.util.ErrorConstants;
-import com.epay.reporting.util.enums.ReportScheduledStatus;
-import com.epay.reporting.util.enums.ReportStatus;
-import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.ObjectUtils;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Component;
-
-import java.text.MessageFormat;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-@Component
-@RequiredArgsConstructor
-public class ReportScheduleManagementDao {
-
-    private final ReportScheduleManagementRepository reportScheduleManagementRepository;
-    private final ReportScheduleManagementMapper mapper;
-    private final ReportMasterDao reportMasterDao;
-    private final ReportManagementDao reportManagementDao;
-    private final ReportingConfig reportingConfig;
-
-    public void save(ReportScheduleManagementDto reportScheduleManagementDto) {
-        UUID reportId = reportMasterDao.getReportIdByName(reportScheduleManagementDto.getReport());
-        reportScheduleManagementDto.setReportId(reportId);
-        reportScheduleManagementDto.setStatus(ReportScheduledStatus.TO_BE_START);
-        reportScheduleManagementDto.setNextScheduleExecutionTime(DateTimeUtils.calculateDateByFrequency(reportScheduleManagementDto.getFrequency(), reportScheduleManagementDto.getScheduleExecutionTime()));
-        ReportScheduleManagement reportScheduleManagement = mapper.mapDtoToEntity(reportScheduleManagementDto);
-        reportScheduleManagementRepository.save(reportScheduleManagement);
-    }
-
-    public void executeReportBySchedule() {
-        Long scheduleStartTime = DateTimeUtils.getCurrentTimeInMills();
-        Long scheduleEndTime = DateTimeUtils.addMinutes(reportingConfig.getReportScheduleExecutionWindow());
-        List<ReportScheduleManagement> reportScheduleManagement = findByStatusAndNextScheduleExecutionTime(scheduleStartTime, scheduleEndTime);
-        List<ReportManagement> reportManagementList = reportScheduleManagement.stream().map(schedule -> {
-            schedule.setLastScheduleExecutionTime(DateTimeUtils.getCurrentTimeInMills());
-            return ReportManagement.builder().reportId(schedule.getReportId()).mId(schedule.getMId()).format(schedule.getFormat()).scheduledId(schedule.getId()).durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), scheduleEndTime)).durationToDate(scheduleStartTime).scheduledId(schedule.getId()).status(ReportStatus.TO_BE_GENERATE).build();
-        }).toList();
-        reportScheduleManagementRepository.saveAll(reportScheduleManagement);
-        reportManagementDao.saveAll(reportManagementList);
-    }
-
-    public Page<ReportScheduleManagementDto> searchAndGetAll(ReportScheduleManagementSearchRequest searchRequest, Pageable pageable) {
-        UUID reportId = null;
-        if (ObjectUtils.isNotEmpty(searchRequest.getReport())) {
-            reportId = reportMasterDao.getReportIdByName(searchRequest.getReport());
-        }
-        Specification<ReportScheduleManagement> specification = ReportScheduleManagementSpecification.searchSchedulerManagement(reportId, searchRequest);
-        return reportScheduleManagementRepository.findAll(specification, pageable).map(this::convertEntityToDTO);
-    }
-
-    public void update(UUID id, ReportScheduleManagementUpdateRequest request){
-        ReportScheduleManagement reportScheduleManagement = reportScheduleManagementRepository.findById(id).orElseThrow(() -> new ReportingException(ErrorConstants.NOT_FOUND_ERROR_CODE, MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, ErrorConstants.SCHEDULE_REQUEST_ID)));
-        mergeNonNullFields(reportScheduleManagement, request);
-        reportScheduleManagementRepository.save(reportScheduleManagement);
-    }
-
-    public void cancelScheduler(UUID id){
-        ReportScheduleManagement reportScheduleManagement = reportScheduleManagementRepository.findById(id).orElseThrow(() -> new ReportingException(ErrorConstants.NOT_FOUND_ERROR_CODE, MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, ErrorConstants.SCHEDULE_REQUEST_ID)));
-        reportScheduleManagement.setCancelled(true);
-        reportScheduleManagement.setNextScheduleExecutionTime(null);
-        reportScheduleManagementRepository.save(reportScheduleManagement);
-    }
-
-    private List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(long scheduleStartTime, long scheduleEndTime) {
-        // TODO : Spring Batch need to user here
-        return reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(ReportScheduledStatus.TO_BE_START, scheduleStartTime, scheduleEndTime);
-    }
-
-    private ReportScheduleManagementDto convertEntityToDTO(ReportScheduleManagement reportScheduleManagement) {
-        ReportScheduleManagementDto reportScheduleManagementDto = mapper.mapEntityToDto(reportScheduleManagement);
-        reportScheduleManagementDto.setReport(reportMasterDao.getReportNameById(reportScheduleManagementDto.getReportId()));
-        return reportScheduleManagementDto;
-    }
-
-    private void mergeNonNullFields(ReportScheduleManagement reportScheduleManagement, ReportScheduleManagementUpdateRequest request) {
-        Optional.ofNullable(request.getFormat()).ifPresent(reportScheduleManagement::setFormat);
-        Optional.ofNullable(request.getFrequency()).ifPresent(reportScheduleManagement::setFrequency);
-        Optional.ofNullable(request.getScheduleExecutionTime()).ifPresent(reportScheduleManagement::setScheduleExecutionTime);
-    }
-}
-
-
-
-   private List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(long scheduleStartTime, long scheduleEndTime) {
-        // TODO : Spring Batch need to user here
-        return reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(ReportScheduledStatus.TO_BE_START, scheduleStartTime, scheduleEndTime);
-    }
-
-
-
-@Repository
-public interface ReportScheduleManagementRepository extends JpaRepository<ReportScheduleManagement, UUID> {
-
-    @Query("SELECT r FROM ReportScheduleManagement r " +
-            "WHERE r.status = :status " +
-            "AND r.nextScheduleExecutionTime BETWEEN :currentTime AND :endTime ")
-    List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(
-            @Param("status") ReportScheduledStatus status,
-            @Param("currentTime") Long currentTime,
-            @Param("endTime") Long endTime
-    );
-
-    Page<ReportScheduleManagement> findAll(Specification<ReportScheduleManagement> specification, Pageable pageable);
-
 }
