@@ -12,11 +12,6 @@ public class ReportScheduleManagementScheduler {
 }
 
 
-
-
-
-
-
 @Service
 @RequiredArgsConstructor
 public class ReportScheduleManagementService {
@@ -38,11 +33,6 @@ public class ReportScheduleManagementService {
         }
     }
 }
-
-
-
-
-
 
 
 @Configuration
@@ -73,7 +63,10 @@ public class ReportScheduleBatchConfig {
         return new RepositoryItemReaderBuilder<ReportScheduleManagement>()
                 .repository(reportScheduleManagementRepository)
                 .methodName("findByStatusAndNextScheduleExecutionTime")
-                .arguments(List.of(ReportScheduledStatus.TO_BE_START, System.currentTimeMillis(), System.currentTimeMillis() + 30 * 60 * 1000))
+                .arguments(List.of(
+                        ReportScheduledStatus.TO_BE_START, 
+                        System.currentTimeMillis(), 
+                        System.currentTimeMillis() + 30 * 60 * 1000))
                 .pageSize(10)
                 .build();
     }
@@ -84,6 +77,11 @@ public class ReportScheduleBatchConfig {
             schedule.setLastScheduleExecutionTime(System.currentTimeMillis());
             return ReportManagement.builder()
                     .reportId(schedule.getReportId())
+                    .mId(schedule.getMId())
+                    .format(schedule.getFormat())
+                    .scheduledId(schedule.getId())
+                    .durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), System.currentTimeMillis()))
+                    .durationToDate(System.currentTimeMillis())
                     .status(ReportStatus.TO_BE_GENERATE)
                     .build();
         };
@@ -92,17 +90,11 @@ public class ReportScheduleBatchConfig {
     @Bean
     public ItemWriter<ReportManagement> reportScheduleItemWriter() {
         return items -> {
-            // Persist processed items
-            System.out.println("Writing items: " + items);
+            // Persist processed items (save to ReportManagement table)
+            System.out.println("Saving processed items: " + items);
         };
     }
 }
-
-
-
-
-
-
 
 
 @Repository
