@@ -1,51 +1,10 @@
-@Component
-public class ReportItemProcessor implements ItemProcessor<ReportScheduleManagement, ReportManagement> {
+@Repository
+public interface ReportScheduleManagementRepository extends JpaRepository<ReportScheduleManagement, UUID> {
 
-    @Override
-    public ReportManagement process(ReportScheduleManagement schedule) {
-        return ReportManagement.builder()
-                .reportId(schedule.getReportId())
-                .status(ReportStatus.TO_BE_GENERATE)
-                .durationFromDate(schedule.getLastScheduleExecutionTime())
-                .build();
-    }
-}
-
-
-
-@Component
-@RequiredArgsConstructor
-public class ReportScheduleManagementDao {
-
-    private final ReportScheduleManagementRepository reportScheduleManagementRepository;
-    private final ReportManagementDao reportManagementDao;
-    private final ReportingConfig reportingConfig;
-
-    public void save(ReportScheduleManagementDto reportScheduleManagementDto) {
-        ReportScheduleManagement reportScheduleManagement = mapper.mapDtoToEntity(reportScheduleManagementDto);
-        reportScheduleManagementRepository.save(reportScheduleManagement);
-    }
-
-    public void executeReportBySchedule() {
-        Long scheduleStartTime = DateTimeUtils.getCurrentTimeInMills();
-        Long scheduleEndTime = DateTimeUtils.addMinutes(reportingConfig.getReportScheduleExecutionWindow());
-        List<ReportScheduleManagement> reportScheduleManagementList = findByStatusAndNextScheduleExecutionTime(scheduleStartTime, scheduleEndTime);
-        
-        // Process and write to ReportManagement
-        List<ReportManagement> reportManagementList = reportScheduleManagementList.stream().map(schedule -> {
-            schedule.setLastScheduleExecutionTime(DateTimeUtils.getCurrentTimeInMills());
-            return ReportManagement.builder()
-                    .reportId(schedule.getReportId())
-                    .mId(schedule.getMId())
-                    .status(ReportStatus.TO_BE_GENERATE)
-                    .build();
-        }).collect(Collectors.toList());
-
-        reportScheduleManagementRepository.saveAll(reportScheduleManagementList);
-        reportManagementDao.saveAll(reportManagementList);
-    }
-
-    private List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(long scheduleStartTime, long scheduleEndTime) {
-        return reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(ReportScheduledStatus.TO_BE_START, scheduleStartTime, scheduleEndTime);
-    }
+    @Query("SELECT r FROM ReportScheduleManagement r WHERE r.status = :status AND r.nextScheduleExecutionTime BETWEEN :currentTime AND :endTime ")
+    List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(
+            @Param("status") ReportScheduledStatus status,
+            @Param("currentTime") Long currentTime,
+            @Param("endTime") Long endTime
+    );
 }
