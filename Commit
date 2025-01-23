@@ -24,4 +24,6 @@ public class BatchConfig {
                 .writer(writer)
                 .build();
     }
+
+    // ItemReader, ItemProcessor, ItemWriter Beans go here
 }
