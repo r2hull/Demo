@@ -7,3 +7,25 @@ public JpaPagingItemReader<ReportScheduleManagement> reader(EntityManagerFactory
             .pageSize(10)
             .build();
 }
+
+@Component
+public class ReportItemProcessor implements ItemProcessor<ReportScheduleManagement, ReportManagement> {
+
+    @Override
+    public ReportManagement process(ReportScheduleManagement schedule) {
+        return ReportManagement.builder()
+                .reportId(schedule.getReportId())
+                .status(ReportStatus.TO_BE_GENERATE)
+                .durationFromDate(schedule.getLastScheduleExecutionTime())
+                .build();
+    }
+}
+
+
+
+@Bean
+public JpaItemWriter<ReportManagement> writer(EntityManagerFactory entityManagerFactory) {
+    return new JpaItemWriterBuilder<ReportManagement>()
+            .entityManagerFactory(entityManagerFactory)
+            .build();
+}
