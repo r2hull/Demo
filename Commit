@@ -34,22 +34,3 @@ public class ReportScheduleManagementService {
         }
     }
 }
-
-
-
-
-@Component
-public class ReportItemProcessor implements ItemProcessor<ReportScheduleManagement, ReportManagement> {
-
-    @Override
-    public ReportManagement process(ReportScheduleManagement schedule) {
-        return ReportManagement.builder()
-                .reportId(schedule.getReportId())
-                .status(ReportStatus.TO_BE_GENERATE)
-                .durationFromDate(schedule.getLastScheduleExecutionTime())
-                .build();
-    }
-}
-
-
-
