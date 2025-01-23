@@ -4,12 +4,15 @@ public class ReportScheduleManagementScheduler {
 
     private final ReportScheduleManagementService reportScheduleManagementService;
 
-    @Scheduled(cron = "${scheduled.cron.time}") // Example cron job
+    @Scheduled(cron = "${scheduled.cron.time}") // Cron expression for scheduling
     @SchedulerLock(name = "Report_Scheduler", lockAtLeastFor = "PT30S", lockAtMostFor = "PT2M")
     public void scheduleReportGeneration() {
-        reportScheduleManagementService.executeReportBySchedule();
+        reportScheduleManagementService.executeBatchJob();
     }
 }
+
+
+
 
 
 
@@ -18,15 +21,20 @@ public class ReportScheduleManagementScheduler {
 @RequiredArgsConstructor
 public class ReportScheduleManagementService {
 
-    private final ReportScheduleManagementDao reportScheduleManagementDao;
+    private final JobLauncher jobLauncher;
+    private final Job reportScheduleJob;
 
-    public void executeReportBySchedule() {
+    public void executeBatchJob() {
         try {
-            // Call the DAO layer method
-            reportScheduleManagementDao.executeReportBySchedule();
+            JobParameters jobParameters = new JobParametersBuilder()
+                    .addLong("startTime", System.currentTimeMillis())
+                    .toJobParameters();
+
+            // Launch the batch job
+            jobLauncher.run(reportScheduleJob, jobParameters);
+
         } catch (Exception e) {
-            // Handle exceptions and logging
-            System.err.println("Error in executing scheduled report: " + e.getMessage());
+            System.err.println("Error executing batch job: " + e.getMessage());
         }
     }
 }
@@ -35,36 +43,76 @@ public class ReportScheduleManagementService {
 
 
 
-@Component
+
+
+@Configuration
 @RequiredArgsConstructor
-public class ReportScheduleManagementDao {
+public class ReportScheduleBatchConfig {
 
     private final ReportScheduleManagementRepository reportScheduleManagementRepository;
-    private final ReportManagementDao reportManagementDao;
 
-    public void executeReportBySchedule() {
-        // Get the current execution window
-        Long scheduleStartTime = System.currentTimeMillis();
-        Long scheduleEndTime = scheduleStartTime + 30 * 60 * 1000; // Example: 30-minute execution window
+    @Bean
+    public Job reportScheduleJob(JobRepository jobRepository, Step reportScheduleStep) {
+        return new JobBuilder("reportScheduleJob", jobRepository)
+                .start(reportScheduleStep)
+                .build();
+    }
 
-        // Fetch reports to be scheduled
-        List<ReportScheduleManagement> reportScheduleManagementList =
-                reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(
-                        ReportScheduledStatus.TO_BE_START, scheduleStartTime, scheduleEndTime);
+    @Bean
+    public Step reportScheduleStep(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        return new StepBuilder("reportScheduleStep", jobRepository)
+                .<ReportScheduleManagement, ReportManagement>chunk(10, transactionManager)
+                .reader(reportScheduleItemReader())
+                .processor(reportScheduleItemProcessor())
+                .writer(reportScheduleItemWriter())
+                .build();
+    }
 
-        // Update fetched reports and create new report entries
-        List<ReportManagement> reportManagementList = reportScheduleManagementList.stream().map(schedule -> {
+    @Bean
+    public ItemReader<ReportScheduleManagement> reportScheduleItemReader() {
+        return new RepositoryItemReaderBuilder<ReportScheduleManagement>()
+                .repository(reportScheduleManagementRepository)
+                .methodName("findByStatusAndNextScheduleExecutionTime")
+                .arguments(List.of(ReportScheduledStatus.TO_BE_START, System.currentTimeMillis(), System.currentTimeMillis() + 30 * 60 * 1000))
+                .pageSize(10)
+                .build();
+    }
+
+    @Bean
+    public ItemProcessor<ReportScheduleManagement, ReportManagement> reportScheduleItemProcessor() {
+        return schedule -> {
             schedule.setLastScheduleExecutionTime(System.currentTimeMillis());
             return ReportManagement.builder()
                     .reportId(schedule.getReportId())
                     .status(ReportStatus.TO_BE_GENERATE)
                     .build();
-        }).toList();
+        };
+    }
 
-        // Persist updated reports
-        reportScheduleManagementRepository.saveAll(reportScheduleManagementList);
-        reportManagementDao.saveAll(reportManagementList);
+    @Bean
+    public ItemWriter<ReportManagement> reportScheduleItemWriter() {
+        return items -> {
+            // Persist processed items
+            System.out.println("Writing items: " + items);
+        };
     }
 }
 
 
+
+
+
+
+
+
+@Repository
+public interface ReportScheduleManagementRepository extends JpaRepository<ReportScheduleManagement, UUID> {
+
+    @Query("SELECT r FROM ReportScheduleManagement r " +
+            "WHERE r.status = :status " +
+            "AND r.nextScheduleExecutionTime BETWEEN :currentTime AND :endTime")
+    List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(
+            @Param("status") ReportScheduledStatus status,
+            @Param("currentTime") Long currentTime,
+            @Param("endTime") Long endTime);
+}
