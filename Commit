@@ -1,204 +1,217 @@
-package com.epay.reporting.service;
 
+@Component
+@RequiredArgsConstructor
+public class ReportScheduleManagementScheduler {
 
-import com.epay.reporting.dao.ReportDao;
-import com.epay.reporting.dao.ReportManagementDao;
-import com.epay.reporting.dto.ReportManagementDto;
-import com.epay.reporting.entity.view.OrderReport;
-import com.epay.reporting.entity.view.RefundReport;
-import com.epay.reporting.entity.view.TransactionReport;
-import com.epay.reporting.exception.ReportingException;
-import com.epay.reporting.util.ErrorConstants;
-import com.epay.reporting.util.enums.Report;
-import com.epay.reporting.util.enums.ReportFormat;
-import com.epay.reporting.util.enums.ReportStatus;
-import com.epay.reporting.util.file.model.FileModel;
-import com.sbi.epay.authentication.util.EPayAuthenticationConstant;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.slf4j.MDC;
+    private final ReportScheduleManagementService reportScheduleManagementService;
 
-import java.io.File;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.math.BigDecimal;
-import java.util.*;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
-@ExtendWith(MockitoExtension.class)
-public class ReportServiceTest {
-
-    @Mock
-    private ReportManagementDao reportManagementDao;
-    @Mock
-    private ReportDao reportDao;
-    @Mock
-    private FileGeneratorService fileGeneratorService;
-
-    @InjectMocks
-    private ReportService reportService;
-
-    UUID uId = UUID.randomUUID();
-
-    ReportManagementDto reportManagementDto ;
-    @BeforeEach
-    void setUp(){
-        reportManagementDto = ReportManagementDto.builder().mId("MID001").id(uId).durationFromDate(1640995200000L).durationToDate(1737225600000L).format(ReportFormat.CSV).build();
-
-    }
-
-    @Test
-    void testOrderReport() {
-        reportManagementDto.setReport(Report.ORDER);
-            //ORDER
-        List<OrderReport> orderReportList = Arrays.asList(OrderReport.builder()
-                .transactionDate("2025-01-20")
-                .merchantOrderNumber("ORD12345")
-                .customerId("CUST001")
-                .transactionCurrency("USD")
-                .orderAmount(BigDecimal.valueOf(250.75))
-                .sbiOrderRefNumber("SBIREF001")
-                .status("Success")
-                .attempts(1)
-                .mId("MID001")
-                .build());
-
-
-        when(reportManagementDao.updateReportStatus(uId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
-        when(reportDao.getOrderReportData(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate())).thenReturn(orderReportList);
-
-        List<List<Object>> orderFileData = new ArrayList<>();
-
-        for (OrderReport report : orderReportList) {
-            List<Object> result = (reportService.convertToListOfObject(report));
-            orderFileData.add(result);
-        }
-        List<String> orderHeader = List.of("Txn Date & Time", "Merchant Order Number", "Customer Id", "Txn Currency", "Order Amount", "SBIePay Order ID", "Order Id Status", "Attempts");
-
-        FileModel fileModel = mock(FileModel.class);
-        fileModel.setReportMonth("abc");
-        when(fileGeneratorService.buildFileModel(reportManagementDto.getFormat(), orderHeader, orderFileData, Map.of("headers", orderHeader, "rows", orderFileData))).thenReturn(fileModel);
-        File file = new File("dummy");
-        when(fileGeneratorService.fileGenerator(reportManagementDto.getFormat(), reportManagementDto.getReport(), reportManagementDto.getMId(), fileModel)).thenReturn(file);
-
-        doNothing().when(reportManagementDao).updateStatusAndFilePath(uId, ReportStatus.GENERATED, file.getPath());
-        reportService.generateReport(uId);
-        verify(reportDao, times(1)).getOrderReportData(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate());
-
-
-
-            //To cover Exceptions
-        reportManagementDto.setReport(null);
-        when(reportManagementDao.updateReportStatus(uId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
-        doNothing().when(reportManagementDao).updateStatusAndRemarks(reportManagementDto.getId(), ReportStatus.GENERATION_FAILED, "Report Generation Failed : " + MDC.get(EPayAuthenticationConstant.CORRELATION_ID));
-
-        ReportingException exception = assertThrows(ReportingException.class, () -> reportService.generateReport(uId));
-        assertEquals(ErrorConstants.GENERATION_ERROR_CODE, exception.getErrorCode());
-    }
-
-
-    @Test
-    void testRefundReport(){
-        reportManagementDto.setReport(Report.REFUNDS);
-        //REFUND
-        List<RefundReport> refundReportList = Arrays.asList(
-                RefundReport.builder()
-                        .transactionDate("2025-01-20")
-                        .refundType("Full")
-                        .sbiOrderRefNumber("SBI12345")
-                        .merchantOrderNumber("ORD12345")
-                        .atrnNum("ATRN001")
-                        .bankName("HDFC Bank")
-                        .paymodeCode("Credit Card")
-                        .transactionStatus("Completed")
-                        .orderAmount(BigDecimal.valueOf(1500.75))
-                        .refundAmount(BigDecimal.valueOf(500.00))
-                        .remarks("No issues")
-                        .arrnNum("ARRN123")
-                        .build()
-        );
-
-        List<List<Object>> refundFileData = new ArrayList<>();
-        for (RefundReport refundReport : refundReportList) {
-            List<Object> result = (reportService.convertToListOfObject(refundReport));
-            refundFileData.add(result);
-        }
-
-        when(reportManagementDao.updateReportStatus(uId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
-        when(reportDao.getRefundReportData(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate())).thenReturn(refundReportList);
-        List<String> refundHeader = List.of("Txn Date & Time", "Refund Type", "SBIePay Order ID", "Merchant Order ID", "ATRN", "Payment Gateway Name", "Payment Mode", "Transaction Status", "Merchant Order Amount", "Refund Amount", "Comment", "Refund Status", "Remarks", "ARRN/ACRN");
-
-
-        FileModel fileModel2 = mock(FileModel.class);
-        fileModel2.setReportMonth("abc1");
-
-        when(fileGeneratorService.buildFileModel(reportManagementDto.getFormat(), refundHeader, refundFileData, Map.of("headers", refundHeader, "rows", refundFileData))).thenReturn(fileModel2);
-        File file2 = new File("dummy1");
-        when(fileGeneratorService.fileGenerator(reportManagementDto.getFormat(), reportManagementDto.getReport(), reportManagementDto.getMId(), fileModel2)).thenReturn(file2);
-        doNothing().when(reportManagementDao).updateStatusAndFilePath(uId, ReportStatus.GENERATED, file2.getPath());
-        reportService.generateReport(uId);
-        verify(reportDao, times(1)).getRefundReportData(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate());
-
-
-    }
-
-
-    @Test
-    void testTransactionReport() {
-        reportManagementDto.setReport(Report.TRANSACTION);
-        List<TransactionReport> transactionReportList = Arrays.asList((TransactionReport.builder()
-                .payModeName("Credit Card")
-                .bankName("HDFC Bank")
-                .bankReferenceNumber("REF123456")
-                .refundAmount("500.00")
-                .chargeBackAmount("0.00")
-                .mId("MID001")
-                .transactionDate("2025-01-20")
-                .merchantOrderNumber("ORD12345")
-                .customerId("CUST001")
-                .transactionCurrency("INR")
-                .orderAmount(BigDecimal.valueOf(1500.75))
-                .debitAmount(BigDecimal.valueOf(1500.75))
-                .sbiOrderRefNumber("SBI12345")
-                .orderStatus("Success")
-                .atrnNum("ATRN001")
-                .transactionStatus("Completed")
-                .settledAmount("1500.75")
-                .build()));
-
-        List<List<Object>> transactionFileData = new ArrayList<>();
-        for (TransactionReport transactionReport : transactionReportList) {
-                List<Object> result = (reportService.convertToListOfObject(transactionReport));
-                transactionFileData.add(result);
-        }
-
-
-
-        when(reportManagementDao.updateReportStatus(uId, ReportStatus.GENERATION_STARTED)).thenReturn(reportManagementDto);
-        when(reportDao.getTransaction(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate())).thenReturn(transactionReportList);
-        List<String> transactionHeader = List.of("Txn Date & Time", "Merchant Order Number", "Cust Id", "Txn Currency", "Order Amount", "Gateway Posting Amount","SBIePay Order ID", "Order Status", "ATRN", "Transaction Status", "Paymode Name", "Bank Name", "Bank Txn Reference No", "Amount Settled", "Amount Refunded", "Amount Chargeback");
-
-
-        FileModel fileModel1 = mock(FileModel.class);
-        fileModel1.setReportMonth("abc1");
-
-        when(fileGeneratorService.buildFileModel(reportManagementDto.getFormat(), transactionHeader, transactionFileData, Map.of("headers", transactionHeader, "rows", transactionFileData))).thenReturn(fileModel1);
-        File file1 = new File("dummy1");
-        when(fileGeneratorService.fileGenerator(reportManagementDto.getFormat(), reportManagementDto.getReport(), reportManagementDto.getMId(), fileModel1)).thenReturn(file1);
-        doNothing().when(reportManagementDao).updateStatusAndFilePath(uId, ReportStatus.GENERATED, file1.getPath());
-        reportService.generateReport(uId);
-        verify(reportDao, times(1)).getTransaction(reportManagementDto.getMId(), reportManagementDto.getDurationFromDate(), reportManagementDto.getDurationToDate());
-
+    @Scheduled(cron = "${scheduled.cron.time}")
+    @SchedulerLock(name = "Report_Scheduler", lockAtLeastFor = "PT30S", lockAtMostFor = "PT2M")
+    public void scheduleReportGeneration() {
+        reportScheduleManagementService.executeReportBySchedule();
     }
 }
 
 
-//rahull
+
+package com.epay.reporting.service;
+
+import com.epay.reporting.dao.ReportScheduleManagementDao;
+import com.epay.reporting.dto.ReportScheduleManagementDto;
+import com.epay.reporting.mapper.ReportScheduleManagementMapper;
+import com.epay.reporting.model.request.ReportScheduleManagementRequest;
+import com.epay.reporting.model.request.ReportScheduleManagementSearchRequest;
+import com.epay.reporting.model.request.ReportScheduleManagementUpdateRequest;
+import com.epay.reporting.model.response.ReportScheduleManagementResponse;
+import com.epay.reporting.model.response.ReportingResponse;
+import com.epay.reporting.util.ReportingConstant;
+import com.epay.reporting.validator.ReportScheduleManagementValidator;
+import com.sbi.epay.logging.utility.LoggerFactoryUtility;
+import com.sbi.epay.logging.utility.LoggerUtility;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class ReportScheduleManagementService {
+
+    private final ReportScheduleManagementDao reportScheduleManagementDao;
+    private final ReportScheduleManagementMapper mapper;
+    private final ReportScheduleManagementValidator validator;
+    private final LoggerUtility log = LoggerFactoryUtility.getLogger(this.getClass());
+
+    public ReportingResponse<ReportScheduleManagementResponse> searchAndGetAll(ReportScheduleManagementSearchRequest searchRequest, Pageable pageable) {
+        validator.validateRequest(searchRequest);
+        Page<ReportScheduleManagementDto> reportManagementDTOs = reportScheduleManagementDao.searchAndGetAll(searchRequest, pageable);
+        List<ReportScheduleManagementResponse> reportManagementResponses = mapper.mapDtoListToResponseList(reportManagementDTOs.getContent());
+        return ReportingResponse.<ReportScheduleManagementResponse>builder().data(reportManagementResponses).count(reportManagementDTOs.stream().count()).total(reportManagementDTOs.getTotalElements()).status(ReportingConstant.RESPONSE_SUCCESS).build();
+    }
+
+    public ReportingResponse<String> save(ReportScheduleManagementRequest reportScheduleManagementRequest) {
+        validator.validateRequest(reportScheduleManagementRequest);
+        reportScheduleManagementDao.save(mapper.mapRequestToDto(reportScheduleManagementRequest));
+        return ReportingResponse.<String>builder().data(List.of("ScheduleManagement Request received Successfully")).status(ReportingConstant.RESPONSE_SUCCESS).build();
+    }
+
+    public void executeReportBySchedule() {
+        reportScheduleManagementDao.executeReportBySchedule();
+    }
+
+    /**
+     * Updates a schedule management entry in the database.
+     *
+     * @param id      UUID ID of the schedule management entry to be updated.
+     * @param request ReportScheduleManagementUpdateRequest Update request containing new details.
+     */
+    public ReportingResponse<String> updateScheduleManagement(UUID id, ReportScheduleManagementUpdateRequest request) {
+        log.info("Started updating schedule management entry for ID: {}, Request: {}", id, request);
+        reportScheduleManagementDao.update(id, request);
+        return ReportingResponse.<String>builder().data(List.of(ReportingConstant.UPDATED_SUCCESSFULLY)).count(1L).total(1L).build();
+    }
+
+    /**
+     * Cancel a schedule management entry based on the provided ID.
+     *
+     * @param id UUID ID of the schedule management entry to be updated.
+     */
+    public ReportingResponse<String> cancelScheduler(UUID id) {
+        reportScheduleManagementDao.cancelScheduler(id);
+        log.info("scheduler cancelled for ID: {}", id);
+        return ReportingResponse.<String>builder().data(List.of(ReportingConstant.SCHEDULER_CANCELED)).build();
+    }
+}
 
 
+
+
+
+package com.epay.reporting.dao;
+
+import com.epay.reporting.config.ReportingConfig;
+import com.epay.reporting.dto.ReportScheduleManagementDto;
+import com.epay.reporting.entity.ReportManagement;
+import com.epay.reporting.entity.ReportScheduleManagement;
+import com.epay.reporting.exception.ReportingException;
+import com.epay.reporting.mapper.ReportScheduleManagementMapper;
+import com.epay.reporting.model.request.ReportScheduleManagementSearchRequest;
+import com.epay.reporting.model.request.ReportScheduleManagementUpdateRequest;
+import com.epay.reporting.model.response.ReportScheduleManagementResponse;
+import com.epay.reporting.repository.ReportScheduleManagementRepository;
+import com.epay.reporting.specification.ReportScheduleManagementSpecification;
+import com.epay.reporting.util.DateTimeUtils;
+import com.epay.reporting.util.ErrorConstants;
+import com.epay.reporting.util.enums.ReportScheduledStatus;
+import com.epay.reporting.util.enums.ReportStatus;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.ObjectUtils;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Component;
+
+import java.text.MessageFormat;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Component
+@RequiredArgsConstructor
+public class ReportScheduleManagementDao {
+
+    private final ReportScheduleManagementRepository reportScheduleManagementRepository;
+    private final ReportScheduleManagementMapper mapper;
+    private final ReportMasterDao reportMasterDao;
+    private final ReportManagementDao reportManagementDao;
+    private final ReportingConfig reportingConfig;
+
+    public void save(ReportScheduleManagementDto reportScheduleManagementDto) {
+        UUID reportId = reportMasterDao.getReportIdByName(reportScheduleManagementDto.getReport());
+        reportScheduleManagementDto.setReportId(reportId);
+        reportScheduleManagementDto.setStatus(ReportScheduledStatus.TO_BE_START);
+        reportScheduleManagementDto.setNextScheduleExecutionTime(DateTimeUtils.calculateDateByFrequency(reportScheduleManagementDto.getFrequency(), reportScheduleManagementDto.getScheduleExecutionTime()));
+        ReportScheduleManagement reportScheduleManagement = mapper.mapDtoToEntity(reportScheduleManagementDto);
+        reportScheduleManagementRepository.save(reportScheduleManagement);
+    }
+
+    public void executeReportBySchedule() {
+        Long scheduleStartTime = DateTimeUtils.getCurrentTimeInMills();
+        Long scheduleEndTime = DateTimeUtils.addMinutes(reportingConfig.getReportScheduleExecutionWindow());
+        List<ReportScheduleManagement> reportScheduleManagement = findByStatusAndNextScheduleExecutionTime(scheduleStartTime, scheduleEndTime);
+        List<ReportManagement> reportManagementList = reportScheduleManagement.stream().map(schedule -> {
+            schedule.setLastScheduleExecutionTime(DateTimeUtils.getCurrentTimeInMills());
+            return ReportManagement.builder().reportId(schedule.getReportId()).mId(schedule.getMId()).format(schedule.getFormat()).scheduledId(schedule.getId()).durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), scheduleEndTime)).durationToDate(scheduleStartTime).scheduledId(schedule.getId()).status(ReportStatus.TO_BE_GENERATE).build();
+        }).toList();
+        reportScheduleManagementRepository.saveAll(reportScheduleManagement);
+        reportManagementDao.saveAll(reportManagementList);
+    }
+
+    public Page<ReportScheduleManagementDto> searchAndGetAll(ReportScheduleManagementSearchRequest searchRequest, Pageable pageable) {
+        UUID reportId = null;
+        if (ObjectUtils.isNotEmpty(searchRequest.getReport())) {
+            reportId = reportMasterDao.getReportIdByName(searchRequest.getReport());
+        }
+        Specification<ReportScheduleManagement> specification = ReportScheduleManagementSpecification.searchSchedulerManagement(reportId, searchRequest);
+        return reportScheduleManagementRepository.findAll(specification, pageable).map(this::convertEntityToDTO);
+    }
+
+    public void update(UUID id, ReportScheduleManagementUpdateRequest request){
+        ReportScheduleManagement reportScheduleManagement = reportScheduleManagementRepository.findById(id).orElseThrow(() -> new ReportingException(ErrorConstants.NOT_FOUND_ERROR_CODE, MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, ErrorConstants.SCHEDULE_REQUEST_ID)));
+        mergeNonNullFields(reportScheduleManagement, request);
+        reportScheduleManagementRepository.save(reportScheduleManagement);
+    }
+
+    public void cancelScheduler(UUID id){
+        ReportScheduleManagement reportScheduleManagement = reportScheduleManagementRepository.findById(id).orElseThrow(() -> new ReportingException(ErrorConstants.NOT_FOUND_ERROR_CODE, MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, ErrorConstants.SCHEDULE_REQUEST_ID)));
+        reportScheduleManagement.setCancelled(true);
+        reportScheduleManagement.setNextScheduleExecutionTime(null);
+        reportScheduleManagementRepository.save(reportScheduleManagement);
+    }
+
+    private List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(long scheduleStartTime, long scheduleEndTime) {
+        // TODO : Spring Batch need to user here
+        return reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(ReportScheduledStatus.TO_BE_START, scheduleStartTime, scheduleEndTime);
+    }
+
+    private ReportScheduleManagementDto convertEntityToDTO(ReportScheduleManagement reportScheduleManagement) {
+        ReportScheduleManagementDto reportScheduleManagementDto = mapper.mapEntityToDto(reportScheduleManagement);
+        reportScheduleManagementDto.setReport(reportMasterDao.getReportNameById(reportScheduleManagementDto.getReportId()));
+        return reportScheduleManagementDto;
+    }
+
+    private void mergeNonNullFields(ReportScheduleManagement reportScheduleManagement, ReportScheduleManagementUpdateRequest request) {
+        Optional.ofNullable(request.getFormat()).ifPresent(reportScheduleManagement::setFormat);
+        Optional.ofNullable(request.getFrequency()).ifPresent(reportScheduleManagement::setFrequency);
+        Optional.ofNullable(request.getScheduleExecutionTime()).ifPresent(reportScheduleManagement::setScheduleExecutionTime);
+    }
+}
+
+
+
+   private List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(long scheduleStartTime, long scheduleEndTime) {
+        // TODO : Spring Batch need to user here
+        return reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(ReportScheduledStatus.TO_BE_START, scheduleStartTime, scheduleEndTime);
+    }
+
+
+
+@Repository
+public interface ReportScheduleManagementRepository extends JpaRepository<ReportScheduleManagement, UUID> {
+
+    @Query("SELECT r FROM ReportScheduleManagement r " +
+            "WHERE r.status = :status " +
+            "AND r.nextScheduleExecutionTime BETWEEN :currentTime AND :endTime ")
+    List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(
+            @Param("status") ReportScheduledStatus status,
+            @Param("currentTime") Long currentTime,
+            @Param("endTime") Long endTime
+    );
+
+    Page<ReportScheduleManagement> findAll(Specification<ReportScheduleManagement> specification, Pageable pageable);
+
+}
