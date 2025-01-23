@@ -1,45 +1,17 @@
-@Component
-@RequiredArgsConstructor
-public class ReportScheduleManagementScheduler {
-
-    private final ReportScheduleManagementService reportScheduleManagementService;
-
-    @Scheduled(cron = "${scheduled.cron.time}") // Cron expression for scheduling
-    @SchedulerLock(name = "Report_Scheduler", lockAtLeastFor = "PT30S", lockAtMostFor = "PT2M")
-    public void scheduleReportGeneration() {
-        reportScheduleManagementService.executeBatchJob();
-    }
+@Bean
+public ItemWriter<ReportManagement> reportScheduleItemWriter(ReportManagementRepository reportManagementRepository) {
+    return items -> {
+        reportManagementRepository.saveAll(items); // Save processed items in the database
+        System.out.println("Saved processed items to DB: " + items);
+    };
 }
-
-
-@Service
-@RequiredArgsConstructor
-public class ReportScheduleManagementService {
-
-    private final JobLauncher jobLauncher;
-    private final Job reportScheduleJob;
-
-    public void executeBatchJob() {
-        try {
-            JobParameters jobParameters = new JobParametersBuilder()
-                    .addLong("startTime", System.currentTimeMillis())
-                    .toJobParameters();
-
-            // Launch the batch job
-            jobLauncher.run(reportScheduleJob, jobParameters);
-
-        } catch (Exception e) {
-            System.err.println("Error executing batch job: " + e.getMessage());
-        }
-    }
-}
-
 
 @Configuration
 @RequiredArgsConstructor
 public class ReportScheduleBatchConfig {
 
     private final ReportScheduleManagementRepository reportScheduleManagementRepository;
+    private final ReportManagementRepository reportManagementRepository;
 
     @Bean
     public Job reportScheduleJob(JobRepository jobRepository, Step reportScheduleStep) {
@@ -54,7 +26,7 @@ public class ReportScheduleBatchConfig {
                 .<ReportScheduleManagement, ReportManagement>chunk(10, transactionManager)
                 .reader(reportScheduleItemReader())
                 .processor(reportScheduleItemProcessor())
-                .writer(reportScheduleItemWriter())
+                .writer(reportScheduleItemWriter(reportManagementRepository))
                 .build();
     }
 
@@ -88,23 +60,21 @@ public class ReportScheduleBatchConfig {
     }
 
     @Bean
-    public ItemWriter<ReportManagement> reportScheduleItemWriter() {
+    public ItemWriter<ReportManagement> reportScheduleItemWriter(ReportManagementRepository reportManagementRepository) {
         return items -> {
-            // Persist processed items (save to ReportManagement table)
-            System.out.println("Saving processed items: " + items);
+            reportManagementRepository.saveAll(items); // Save processed items in DB
+            System.out.println("Saved processed items to DB: " + items);
         };
     }
 }
 
 
-@Repository
-public interface ReportScheduleManagementRepository extends JpaRepository<ReportScheduleManagement, UUID> {
 
-    @Query("SELECT r FROM ReportScheduleManagement r " +
-            "WHERE r.status = :status " +
-            "AND r.nextScheduleExecutionTime BETWEEN :currentTime AND :endTime")
-    List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(
-            @Param("status") ReportScheduledStatus status,
-            @Param("currentTime") Long currentTime,
-            @Param("endTime") Long endTime);
+
+@Bean
+public ItemWriter<ReportManagement> reportScheduleItemWriter(ReportManagementRepository reportManagementRepository) {
+    return items -> {
+        reportManagementRepository.saveAll(items); // Saves list to DB
+        System.out.println("Saved processed items to DB: " + items);
+    };
 }
