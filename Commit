@@ -1,49 +1,70 @@
-@Configuration
-@EnableBatchProcessing
+@Component
 @RequiredArgsConstructor
-public class BatchConfig {
+public class ReportScheduleManagementScheduler {
 
-    private final JobRepository jobRepository;
-    private final PlatformTransactionManager transactionManager;
+    private final ReportScheduleManagementService reportScheduleManagementService;
 
-    @Bean
-    public Job reportScheduleJob(Step reportScheduleStep) {
-        return new JobBuilder("reportScheduleJob", jobRepository)
-                .start(reportScheduleStep)
-                .build();
-    }
-
-    @Bean
-    public Step reportScheduleStep(ItemReader<ReportScheduleManagement> reader,
-                                   ItemProcessor<ReportScheduleManagement, ReportManagement> processor,
-                                   ItemWriter<ReportManagement> writer) {
-        return new StepBuilder("reportScheduleStep", jobRepository)
-                .<ReportScheduleManagement, ReportManagement>chunk(10, transactionManager)
-                .reader(reader)
-                .processor(processor)
-                .writer(writer)
-                .build();
-    }
-
-    @Bean
-    public JpaPagingItemReader<ReportScheduleManagement> reader(EntityManagerFactory entityManagerFactory) {
-        return new JpaPagingItemReaderBuilder<ReportScheduleManagement>()
-                .name("reportScheduleReader")
-                .entityManagerFactory(entityManagerFactory)
-                .queryString("SELECT r FROM ReportScheduleManagement r WHERE r.status = 'TO_BE_START'")
-                .pageSize(10)
-                .build();
-    }
-
-    @Bean
-    public ReportItemProcessor processor() {
-        return new ReportItemProcessor();
-    }
-
-    @Bean
-    public JpaItemWriter<ReportManagement> writer(EntityManagerFactory entityManagerFactory) {
-        return new JpaItemWriterBuilder<ReportManagement>()
-                .entityManagerFactory(entityManagerFactory)
-                .build();
+    @Scheduled(cron = "${scheduled.cron.time}") // Example cron job
+    @SchedulerLock(name = "Report_Scheduler", lockAtLeastFor = "PT30S", lockAtMostFor = "PT2M")
+    public void scheduleReportGeneration() {
+        reportScheduleManagementService.executeReportBySchedule();
     }
 }
+
+
+
+
+@Service
+@RequiredArgsConstructor
+public class ReportScheduleManagementService {
+
+    private final ReportScheduleManagementDao reportScheduleManagementDao;
+
+    public void executeReportBySchedule() {
+        try {
+            // Call the DAO layer method
+            reportScheduleManagementDao.executeReportBySchedule();
+        } catch (Exception e) {
+            // Handle exceptions and logging
+            System.err.println("Error in executing scheduled report: " + e.getMessage());
+        }
+    }
+}
+
+
+
+
+
+@Component
+@RequiredArgsConstructor
+public class ReportScheduleManagementDao {
+
+    private final ReportScheduleManagementRepository reportScheduleManagementRepository;
+    private final ReportManagementDao reportManagementDao;
+
+    public void executeReportBySchedule() {
+        // Get the current execution window
+        Long scheduleStartTime = System.currentTimeMillis();
+        Long scheduleEndTime = scheduleStartTime + 30 * 60 * 1000; // Example: 30-minute execution window
+
+        // Fetch reports to be scheduled
+        List<ReportScheduleManagement> reportScheduleManagementList =
+                reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(
+                        ReportScheduledStatus.TO_BE_START, scheduleStartTime, scheduleEndTime);
+
+        // Update fetched reports and create new report entries
+        List<ReportManagement> reportManagementList = reportScheduleManagementList.stream().map(schedule -> {
+            schedule.setLastScheduleExecutionTime(System.currentTimeMillis());
+            return ReportManagement.builder()
+                    .reportId(schedule.getReportId())
+                    .status(ReportStatus.TO_BE_GENERATE)
+                    .build();
+        }).toList();
+
+        // Persist updated reports
+        reportScheduleManagementRepository.saveAll(reportScheduleManagementList);
+        reportManagementDao.saveAll(reportManagementList);
+    }
+}
+
+
