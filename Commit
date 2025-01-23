@@ -1,29 +1,9 @@
-@Configuration
-@EnableBatchProcessing
-@RequiredArgsConstructor
-public class BatchConfig {
-
-    private final JobRepository jobRepository;
-    private final PlatformTransactionManager transactionManager;
-
-    @Bean
-    public Job reportScheduleJob(Step reportScheduleStep) {
-        return new JobBuilder("reportScheduleJob", jobRepository)
-                .start(reportScheduleStep)
-                .build();
-    }
-
-    @Bean
-    public Step reportScheduleStep(ItemReader<ReportScheduleManagement> reader,
-                                   ItemProcessor<ReportScheduleManagement, ReportManagement> processor,
-                                   ItemWriter<ReportManagement> writer) {
-        return new StepBuilder("reportScheduleStep", jobRepository)
-                .<ReportScheduleManagement, ReportManagement>chunk(10, transactionManager)
-                .reader(reader)
-                .processor(processor)
-                .writer(writer)
-                .build();
-    }
-
-    // ItemReader, ItemProcessor, ItemWriter Beans go here
+@Bean
+public JpaPagingItemReader<ReportScheduleManagement> reader(EntityManagerFactory entityManagerFactory) {
+    return new JpaPagingItemReaderBuilder<ReportScheduleManagement>()
+            .name("reportScheduleReader")
+            .entityManagerFactory(entityManagerFactory)
+            .queryString("SELECT r FROM ReportScheduleManagement r WHERE r.status = 'TO_BE_START'")
+            .pageSize(10)
+            .build();
 }
