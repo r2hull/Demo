@@ -1,59 +1,93 @@
-@Component
-@RequiredArgsConstructor
-public class ReportScheduleManagementScheduler {
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.Step;
+import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
+import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.data.RepositoryItemReader;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.PlatformTransactionManager;
 
-    private final ReportScheduleManagementService reportScheduleManagementService;
+import java.util.HashMap;
+import java.util.Map;
 
-    @Scheduled(cron = "${scheduled.cron.time}")
-    @SchedulerLock(name = "Report_Scheduler", lockAtLeastFor = "PT30S", lockAtMostFor = "PT2M")
-    public void scheduleReportGeneration() {
-        reportScheduleManagementService.executeReportBySchedule();
-    }
-}
+@Configuration
+@EnableBatchProcessing
+public class ReportScheduleManagementJobConfig {
 
+    @Autowired
+    private ReportScheduleManagementService reportScheduleManagementService;
+    @Autowired
+    private ReportScheduleManagementRepository reportScheduleManagementRepository;
+    @Autowired
+    private ReportManagementDao reportManagementDao;
+    @Autowired
+    private JobRepository jobRepository;
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
-public class ReportScheduleManagementService {
-
-    public void executeReportBySchedule() {
-        reportScheduleManagementDao.executeReportBySchedule();
-    }
-}
-
-public class ReportScheduleManagementDao {
- public void executeReportBySchedule() {
-        Long scheduleStartTime = DateTimeUtils.getCurrentTimeInMills();
-        Long scheduleEndTime = DateTimeUtils.addMinutes(reportingConfig.getReportScheduleExecutionWindow());
-        List<ReportScheduleManagement> reportScheduleManagement = findByStatusAndNextScheduleExecutionTime(scheduleStartTime, scheduleEndTime);
-        List<ReportManagement> reportManagementList = reportScheduleManagement.stream().map(schedule -> {
-            schedule.setLastScheduleExecutionTime(DateTimeUtils.getCurrentTimeInMills());
-            return ReportManagement.builder().reportId(schedule.getReportId()).mId(schedule.getMId()).format(schedule.getFormat()).scheduledId(schedule.getId()).durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), scheduleEndTime)).durationToDate(scheduleStartTime).scheduledId(schedule.getId()).status(ReportStatus.TO_BE_GENERATE).build();
-        }).toList();
-        reportScheduleManagementRepository.saveAll(reportScheduleManagement);
-        reportManagementDao.saveAll(reportManagementList);
-    }
-
-}
-
-
-
-    private List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(long scheduleStartTime, long scheduleEndTime) {
-        // TODO : Spring Batch need to user here
-        return reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(ReportScheduledStatus.TO_BE_START, scheduleStartTime, scheduleEndTime);
+    @Bean
+    public Job reportScheduleJob() {
+        return new JobBuilder("reportScheduleJob", jobRepository)
+                .start(findAndScheduleReports())
+                .next(generateReports(reportReader(), reportProcessor(), reportWriter()))
+                .build();
     }
 
+    @Bean
+    public Step findAndScheduleReports() {
+        return new StepBuilder("findAndScheduleReports", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
+                    // Call your existing method to find reports based on schedule
+                    List<ReportScheduleManagement> reports = reportScheduleManagementService.findReportsToSchedule();
+                    // Set the reports on the chunkContext for access in the next step (if needed)
+                    chunkContext.setAttribute("scheduledReports", reports);
+                    return org.springframework.batch.repeat.RepeatStatus.FINISHED;
+                }, transactionManager)
+                .build();
+    }
 
-@Repository
-public interface ReportScheduleManagementRepository extends JpaRepository<ReportScheduleManagement, UUID> {
+    @Bean
+    public Step generateReports(ItemReader<ReportScheduleManagement> reader,
+                                ItemProcessor<ReportScheduleManagement, ReportManagement> processor,
+                                ItemWriter<ReportManagement> writer) {
 
-    @Query("SELECT r FROM ReportScheduleManagement r " +
-            "WHERE r.status = :status " +
-            "AND r.nextScheduleExecutionTime BETWEEN :currentTime AND :endTime ")
-    List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(
-            @Param("status") ReportScheduledStatus status,
-            @Param("currentTime") Long currentTime,
-            @Param("endTime") Long endTime
-    );
+        return new StepBuilder("generateReports", jobRepository)
+                .<ReportScheduleManagement, ReportManagement>chunk(10, transactionManager) //Chunk size and transaction manager
+                .reader(reader)
+                .processor(processor)
+                .writer(writer)
+                .build();
+    }
 
-    Page<ReportScheduleManagement> findAll(Specification<ReportScheduleManagement> specification, Pageable pageable);
+    @Bean
+    public RepositoryItemReader<ReportScheduleManagement> reportReader() {
+        RepositoryItemReader<ReportScheduleManagement> reader = new RepositoryItemReader<>();
+        reader.setRepository(reportScheduleManagementRepository);
+        reader.setMethodName("findByStatusAndNextScheduleExecutionTime");
+        Map<String, Object> queryParams = new HashMap<>();
+        queryParams.put("status", ReportScheduledStatus.TO_BE_START);
+        queryParams.put("currentTime", DateTimeUtils.getCurrentTimeInMills());
+        queryParams.put("endTime", DateTimeUtils.addMinutes(reportingConfig.getReportScheduleExecutionWindow()));
+        reader.setQueryMethodArguments(new Object[]{ReportScheduledStatus.TO_BE_START, DateTimeUtils.getCurrentTimeInMills(), DateTimeUtils.addMinutes(reportingConfig.getReportScheduleExecutionWindow())});
+        reader.setPageSize(10);
+        reader.setSort(Map.of("id", Sort.Direction.ASC));
+        return reader;
+    }
 
+    @Bean
+    public ItemProcessor<ReportScheduleManagement, ReportManagement> reportProcessor() {
+        return item -> ReportManagement.builder().reportId(item.getReportId()).mId(item.getMId()).format(item.getFormat()).scheduledId(item.getId()).durationFromDate(DateTimeUtils.calculateBackDateByFrequency(item.getFrequency(), DateTimeUtils.addMinutes(reportingConfig.getReportScheduleExecutionWindow()))).durationToDate(DateTimeUtils.getCurrentTimeInMills()).scheduledId(item.getId()).status(ReportStatus.TO_BE_GENERATE).build();
+
+    }
+
+    @Bean
+    public ItemWriter<ReportManagement> reportWriter() {
+        return items -> reportManagementDao.saveAll(items);
+    }
 }
