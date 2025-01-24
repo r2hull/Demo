@@ -1,55 +1,16 @@
-@Component
-public class CustomReader implements ItemReader<ReportScheduleManagement> {
+@@Component
+public class CustomWriter implements ItemWriter<ReportManagement> {
 
     @Autowired
-    private ReportScheduleManagementDao reportScheduleManagementDao;
-
-    @Autowired
-    private ReportingConfig reportingConfig;
-
-    private Iterator<ReportScheduleManagement> iterator;
+    private ReportManagementDao reportManagementDao;
 
     @Override
-    public ReportScheduleManagement read() {
-        if (iterator == null || !iterator.hasNext()) {
-            long startTime = System.currentTimeMillis();
-            long endTime = startTime + reportingConfig.getReportScheduleExecutionWindow();
-            List<ReportScheduleManagement> reports = reportScheduleManagementDao.fetchScheduledReports(startTime, endTime);
-            iterator = reports.iterator();
-        }
-        return iterator.hasNext() ? iterator.next() : null;
+    public void write(Chunk<? extends ReportManagement> chunk) throws Exception {
+        // Convert chunk into a List and save in DB
+        List<? extends ReportManagement> reportList = chunk.getItems();
+        reportManagementDao.saveAll(reportList); // saveAll() requires List, and chunk.getItems() is already a List.
     }
 }
-
-
-
-@Component
-public class CustomProcessor implements ItemProcessor<ReportScheduleManagement, ReportManagement> {
-
-    @Autowired
-    private ReportScheduleManagementDao reportScheduleManagementDao;
-
-    @Override
-    public ReportManagement process(ReportScheduleManagement schedule) {
-        long scheduleStartTime = System.currentTimeMillis();
-        long scheduleEndTime = scheduleStartTime + 60000;  // Example: Adding 1 min
-
-        schedule.setLastScheduleExecutionTime(scheduleStartTime);
-        reportScheduleManagementDao.updateLastExecutionTime(schedule);
-
-        return ReportManagement.builder()
-                .reportId(schedule.getReportId())
-                .mId(schedule.getMId())
-                .format(schedule.getFormat())
-                .scheduledId(schedule.getId())
-                .durationFromDate(scheduleStartTime)
-                .durationToDate(scheduleEndTime)
-                .status(ReportStatus.TO_BE_GENERATE)
-                .build();
-    }
-}
-
-
 
 
 
