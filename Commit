@@ -1,22 +1,21 @@
-@Configuration
-@EnableBatchProcessing
-public class BatchConf {
+@Component
+public class CustomProcessor implements ItemProcessor<ReportScheduleManagement, ReportManagement> {
 
-    @Bean
-    Job createJob(JobRepository jobRepository, PlatformTransactionManager transactionManager, Step step) {
-        return new JobBuilder("job", jobRepository)
-                .start(step)
-                .build();
-    }
+    @Override
+    public ReportManagement process(ReportScheduleManagement schedule) {
+        Long scheduleStartTime = DateTimeUtils.getCurrentTimeInMills();
+        Long scheduleEndTime = DateTimeUtils.addMinutes(15); // Adjust execution window
 
-    @Bean
-    Step createStep(JobRepository jobRepository, PlatformTransactionManager transactionManager,
-                    CustomReader reader, CustomProcessor processor, CustomWriter writer) {
-        return new StepBuilder("step", jobRepository)
-                .<ReportScheduleManagement, ReportManagement>chunk(3, transactionManager)
-                .reader(reader)
-                .processor(processor)
-                .writer(writer)
+        schedule.setLastScheduleExecutionTime(DateTimeUtils.getCurrentTimeInMills());
+
+        return ReportManagement.builder()
+                .reportId(schedule.getReportId())
+                .mId(schedule.getMId())
+                .format(schedule.getFormat())
+                .scheduledId(schedule.getId())
+                .durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), scheduleEndTime))
+                .durationToDate(scheduleStartTime)
+                .status(ReportStatus.TO_BE_GENERATE)
                 .build();
     }
 }
