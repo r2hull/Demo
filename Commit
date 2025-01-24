@@ -1,21 +1,11 @@
 @Component
-public class CustomProcessor implements ItemProcessor<ReportScheduleManagement, ReportManagement> {
+public class CustomWriter implements ItemWriter<ReportManagement> {
+
+    @Autowired
+    private ReportManagementDao reportManagementDao;
 
     @Override
-    public ReportManagement process(ReportScheduleManagement schedule) {
-        Long scheduleStartTime = DateTimeUtils.getCurrentTimeInMills();
-        Long scheduleEndTime = DateTimeUtils.addMinutes(15); // Adjust execution window
-
-        schedule.setLastScheduleExecutionTime(DateTimeUtils.getCurrentTimeInMills());
-
-        return ReportManagement.builder()
-                .reportId(schedule.getReportId())
-                .mId(schedule.getMId())
-                .format(schedule.getFormat())
-                .scheduledId(schedule.getId())
-                .durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), scheduleEndTime))
-                .durationToDate(scheduleStartTime)
-                .status(ReportStatus.TO_BE_GENERATE)
-                .build();
+    public void write(Chunk<? extends ReportManagement> chunk) {
+        reportManagementDao.saveAll(chunk.getItems()); // Save all processed items in batch
     }
 }
