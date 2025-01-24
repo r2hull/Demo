@@ -1,51 +1,59 @@
 @Component
 @RequiredArgsConstructor
-public class ReportScheduleManagementDao {
+public class ReportScheduleManagementScheduler {
 
-    private final ReportScheduleManagementRepository reportScheduleManagementRepository;
-    private final Logger log = LoggerFactory.getLogger(ReportScheduleManagementDao.class);
+    private final ReportScheduleManagementService reportScheduleManagementService;
 
-    @Transactional
+    @Scheduled(cron = "${scheduled.cron.time}")
+    @SchedulerLock(name = "Report_Scheduler", lockAtLeastFor = "PT30S", lockAtMostFor = "PT2M")
+    public void scheduleReportGeneration() {
+        reportScheduleManagementService.executeReportBySchedule();
+    }
+}
+
+
+public class ReportScheduleManagementService {
+
     public void executeReportBySchedule() {
+        reportScheduleManagementDao.executeReportBySchedule();
+    }
+}
+
+public class ReportScheduleManagementDao {
+ public void executeReportBySchedule() {
         Long scheduleStartTime = DateTimeUtils.getCurrentTimeInMills();
         Long scheduleEndTime = DateTimeUtils.addMinutes(reportingConfig.getReportScheduleExecutionWindow());
-        
-        // Fetch the reports to be processed within the scheduled time window
-        List<ReportScheduleManagement> reportScheduleManagementList = findByStatusAndNextScheduleExecutionTime(scheduleStartTime, scheduleEndTime);
-        
-        int totalSize = reportScheduleManagementList.size();
-        int batchSize = 400;  // This should match the batch size configured in application.yml
-        int processed = 0;
-
-        for (int i = 0; i < totalSize; i += batchSize) {
-            int end = Math.min(i + batchSize, totalSize);
-            List<ReportScheduleManagement> batch = reportScheduleManagementList.subList(i, end);
-            
-            // Perform the batch insert/update here
-            reportScheduleManagementRepository.saveAll(batch);
-            
-            processed += batch.size();
-            log.info("Processed {} of {} records", processed, totalSize);  // Log progress after each batch
-        }
-
-        // Other logic (e.g., saving associated ReportManagement entities) can go here
-        List<ReportManagement> reportManagementList = reportScheduleManagementList.stream().map(schedule -> {
+        List<ReportScheduleManagement> reportScheduleManagement = findByStatusAndNextScheduleExecutionTime(scheduleStartTime, scheduleEndTime);
+        List<ReportManagement> reportManagementList = reportScheduleManagement.stream().map(schedule -> {
             schedule.setLastScheduleExecutionTime(DateTimeUtils.getCurrentTimeInMills());
-            return ReportManagement.builder()
-                    .reportId(schedule.getReportId())
-                    .mId(schedule.getMId())
-                    .format(schedule.getFormat())
-                    .scheduledId(schedule.getId())
-                    .durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), scheduleEndTime))
-                    .durationToDate(scheduleStartTime)
-                    .status(ReportStatus.TO_BE_GENERATE)
-                    .build();
+            return ReportManagement.builder().reportId(schedule.getReportId()).mId(schedule.getMId()).format(schedule.getFormat()).scheduledId(schedule.getId()).durationFromDate(DateTimeUtils.calculateBackDateByFrequency(schedule.getFrequency(), scheduleEndTime)).durationToDate(scheduleStartTime).scheduledId(schedule.getId()).status(ReportStatus.TO_BE_GENERATE).build();
         }).toList();
-        
+        reportScheduleManagementRepository.saveAll(reportScheduleManagement);
         reportManagementDao.saveAll(reportManagementList);
     }
-    
+
+}
+
+
+
     private List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(long scheduleStartTime, long scheduleEndTime) {
+        // TODO : Spring Batch need to user here
         return reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(ReportScheduledStatus.TO_BE_START, scheduleStartTime, scheduleEndTime);
     }
+
+
+@Repository
+public interface ReportScheduleManagementRepository extends JpaRepository<ReportScheduleManagement, UUID> {
+
+    @Query("SELECT r FROM ReportScheduleManagement r " +
+            "WHERE r.status = :status " +
+            "AND r.nextScheduleExecutionTime BETWEEN :currentTime AND :endTime ")
+    List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(
+            @Param("status") ReportScheduledStatus status,
+            @Param("currentTime") Long currentTime,
+            @Param("endTime") Long endTime
+    );
+
+    Page<ReportScheduleManagement> findAll(Specification<ReportScheduleManagement> specification, Pageable pageable);
+
 }
