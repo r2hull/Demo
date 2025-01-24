@@ -2,16 +2,15 @@
 public class ReportScheduleManagementDao {
 
     @Autowired
-    private ReportScheduleManagementRepository reportScheduleManagementRepository;
+    private ReportScheduleManagementRepository repository;
 
-    public List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(long scheduleStartTime, long scheduleEndTime) {
-        return reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(
-                ReportScheduledStatus.TO_BE_START, scheduleStartTime, scheduleEndTime);
+    public List<ReportScheduleManagement> fetchScheduledReports(long startTime, long endTime) {
+        return repository.findByStatusAndNextScheduleExecutionTime(ReportScheduledStatus.TO_BE_START, startTime, endTime);
     }
 
-    public void updateScheduleExecutionTime(ReportScheduleManagement schedule) {
-        schedule.setLastScheduleExecutionTime(DateTimeUtils.getCurrentTimeInMills());
-        reportScheduleManagementRepository.save(schedule);
+    public void updateLastExecutionTime(ReportScheduleManagement schedule) {
+        schedule.setLastScheduleExecutionTime(System.currentTimeMillis());
+        repository.save(schedule);
     }
 }
 
@@ -22,11 +21,9 @@ public class ReportScheduleManagementDao {
 public class ReportManagementDao {
 
     @Autowired
-    private ReportManagementRepository reportManagementRepository;
+    private ReportManagementRepository repository;
 
-    public void saveAll(List<ReportManagement> reportManagementList) {
-        reportManagementRepository.saveAll(reportManagementList);
+    public void saveAll(List<ReportManagement> reports) {
+        repository.saveAll(reports);
     }
 }
-
-
