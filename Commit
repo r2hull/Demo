@@ -1,29 +1,129 @@
-@Repository
-public class ReportScheduleManagementDao {
+@Component
+public class CustomReader implements ItemReader<ReportScheduleManagement> {
 
     @Autowired
-    private ReportScheduleManagementRepository repository;
+    private ReportScheduleManagementDao reportScheduleManagementDao;
 
-    public List<ReportScheduleManagement> fetchScheduledReports(long startTime, long endTime) {
-        return repository.findByStatusAndNextScheduleExecutionTime(ReportScheduledStatus.TO_BE_START, startTime, endTime);
+    @Autowired
+    private ReportingConfig reportingConfig;
+
+    private Iterator<ReportScheduleManagement> iterator;
+
+    @Override
+    public ReportScheduleManagement read() {
+        if (iterator == null || !iterator.hasNext()) {
+            long startTime = System.currentTimeMillis();
+            long endTime = startTime + reportingConfig.getReportScheduleExecutionWindow();
+            List<ReportScheduleManagement> reports = reportScheduleManagementDao.fetchScheduledReports(startTime, endTime);
+            iterator = reports.iterator();
+        }
+        return iterator.hasNext() ? iterator.next() : null;
     }
+}
 
-    public void updateLastExecutionTime(ReportScheduleManagement schedule) {
-        schedule.setLastScheduleExecutionTime(System.currentTimeMillis());
-        repository.save(schedule);
+
+
+@Component
+public class CustomProcessor implements ItemProcessor<ReportScheduleManagement, ReportManagement> {
+
+    @Autowired
+    private ReportScheduleManagementDao reportScheduleManagementDao;
+
+    @Override
+    public ReportManagement process(ReportScheduleManagement schedule) {
+        long scheduleStartTime = System.currentTimeMillis();
+        long scheduleEndTime = scheduleStartTime + 60000;  // Example: Adding 1 min
+
+        schedule.setLastScheduleExecutionTime(scheduleStartTime);
+        reportScheduleManagementDao.updateLastExecutionTime(schedule);
+
+        return ReportManagement.builder()
+                .reportId(schedule.getReportId())
+                .mId(schedule.getMId())
+                .format(schedule.getFormat())
+                .scheduledId(schedule.getId())
+                .durationFromDate(scheduleStartTime)
+                .durationToDate(scheduleEndTime)
+                .status(ReportStatus.TO_BE_GENERATE)
+                .build();
     }
 }
 
 
 
 
-@Repository
-public class ReportManagementDao {
+
+@Component
+public class CustomWriter implements ItemWriter<ReportManagement> {
 
     @Autowired
-    private ReportManagementRepository repository;
+    private ReportManagementDao reportManagementDao;
 
-    public void saveAll(List<ReportManagement> reports) {
-        repository.saveAll(reports);
+    @Override
+    public void write(Chunk<? extends ReportManagement> chunk) {
+        reportManagementDao.saveAll(chunk.getItems());
     }
 }
+
+
+
+@Configuration
+@EnableBatchProcessing
+public class BatchConfig {
+
+    @Autowired
+    private JobRepository jobRepository;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+
+    @Autowired
+    private CustomReader reader;
+
+    @Autowired
+    private CustomProcessor processor;
+
+    @Autowired
+    private CustomWriter writer;
+
+    @Bean
+    public Job processJob() {
+        return new JobBuilder("reportJob", jobRepository)
+                .start(processStep())
+                .build();
+    }
+
+    @Bean
+    public Step processStep() {
+        return new StepBuilder("reportStep", jobRepository)
+                .<ReportScheduleManagement, ReportManagement>chunk(3, transactionManager)
+                .reader(reader)
+                .processor(processor)
+                .writer(writer)
+                .build();
+    }
+}
+
+
+
+
+@Component
+public class ReportScheduler {
+
+    @Autowired
+    private JobLauncher jobLauncher;
+
+    @Autowired
+    private Job processJob;
+
+    @Scheduled(cron = "${scheduled.cron.time}") // Define in application.properties
+    public void executeReportBySchedule() throws Exception {
+        JobParameters jobParameters = new JobParametersBuilder()
+                .addLong("time", System.currentTimeMillis())
+                .toJobParameters();
+
+        jobLauncher.run(processJob, jobParameters);
+    }
+}
+
+
