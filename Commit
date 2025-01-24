@@ -1,32 +1,22 @@
-@Component
-public class CustomReader implements ItemReader<ReportScheduleManagement> {
+@Configuration
+@EnableBatchProcessing
+public class BatchConf {
 
-    @Autowired
-    private ReportingConfig reportingConfig;
+    @Bean
+    Job createJob(JobRepository jobRepository, PlatformTransactionManager transactionManager, Step step) {
+        return new JobBuilder("job", jobRepository)
+                .start(step)
+                .build();
+    }
 
-    @Autowired
-    private ReportScheduleManagementRepository reportScheduleManagementRepository;
-
-    private List<ReportScheduleManagement> reportList;
-    private int nextIndex = 0;
-
-    @Override
-    public ReportScheduleManagement read() {
-        // Load data only once
-        if (reportList == null) {
-            Long scheduleStartTime = DateTimeUtils.getCurrentTimeInMills();
-            Long scheduleEndTime = DateTimeUtils.addMinutes(reportingConfig.getReportScheduleExecutionWindow());
-
-            reportList = reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(
-                    ReportScheduledStatus.TO_BE_START, scheduleStartTime, scheduleEndTime
-            );
-        }
-
-        // Return one item at a time
-        if (nextIndex < reportList.size()) {
-            return reportList.get(nextIndex++);
-        } else {
-            return null; // No more data, signals end of batch
-        }
+    @Bean
+    Step createStep(JobRepository jobRepository, PlatformTransactionManager transactionManager,
+                    CustomReader reader, CustomProcessor processor, CustomWriter writer) {
+        return new StepBuilder("step", jobRepository)
+                .<ReportScheduleManagement, ReportManagement>chunk(3, transactionManager)
+                .reader(reader)
+                .processor(processor)
+                .writer(writer)
+                .build();
     }
 }
