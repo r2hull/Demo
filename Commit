@@ -1,11 +1,32 @@
-@Component
-public class CustomWriter implements ItemWriter<ReportManagement> {
+@Repository
+public class ReportScheduleManagementDao {
 
     @Autowired
-    private ReportManagementDao reportManagementDao;
+    private ReportScheduleManagementRepository reportScheduleManagementRepository;
 
-    @Override
-    public void write(Chunk<? extends ReportManagement> chunk) {
-        reportManagementDao.saveAll(chunk.getItems()); // Save all processed items in batch
+    public List<ReportScheduleManagement> findByStatusAndNextScheduleExecutionTime(long scheduleStartTime, long scheduleEndTime) {
+        return reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(
+                ReportScheduledStatus.TO_BE_START, scheduleStartTime, scheduleEndTime);
+    }
+
+    public void updateScheduleExecutionTime(ReportScheduleManagement schedule) {
+        schedule.setLastScheduleExecutionTime(DateTimeUtils.getCurrentTimeInMills());
+        reportScheduleManagementRepository.save(schedule);
     }
 }
+
+
+
+
+@Repository
+public class ReportManagementDao {
+
+    @Autowired
+    private ReportManagementRepository reportManagementRepository;
+
+    public void saveAll(List<ReportManagement> reportManagementList) {
+        reportManagementRepository.saveAll(reportManagementList);
+    }
+}
+
+
