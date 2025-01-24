@@ -1,3 +1,13 @@
+
+Required type:
+List
+<ReportManagement>
+
+Provided:
+List
+<capture of ? extends ReportManagement>
+
+
 @@Component
 public class CustomWriter implements ItemWriter<ReportManagement> {
 
