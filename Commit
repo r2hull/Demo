@@ -1,237 +1,82 @@
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
 
-  @Test
-    void testSearchAndGetReportManagement(){
-        Pageable pageable = PageRequest.of(0, 10);
-        when(reportMasterDao.getReportIdByName(reportManagementRequest.getReport())).thenReturn(reportId);
-        Page<ReportManagementDto> result = reportManagementDao.searchAndGetReportManagement(reportManagementRequest, pageable);
-    }
-
-
-@Data
-@Builder
-@NoArgsConstructor
-public class ReportManagementRequest {
-    private Report report;
-    private String mId;
-    private Long durationFromDate;
-    private Long durationToDate;
-    private ReportFormat format;
-}
-
-   public UUID getReportIdByName(Report name){
-        ReportMaster reportMaster = reportMasterRepository.findByName(name).orElseThrow(() ->
-                new ReportingException(ErrorConstants.NOT_FOUND_ERROR_CODE, MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Report")));
-        return reportMaster.getId();
-    }
-
-package com.epay.reporting.specification;
-
-import com.epay.reporting.entity.ReportManagement;
-import com.epay.reporting.model.request.ReportManagementRequest;
-import com.epay.reporting.util.enums.ReportFormat;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
-import org.apache.commons.lang3.ObjectUtils;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.util.StringUtils;
-
-import java.util.UUID;
-
-public class ReportManagementSpecification {
-    public static Specification<ReportManagement> searchReportManagement(UUID reportId, ReportManagementRequest reportManagementRequest) {
-        return (root, query, criteriaBuilder) -> {
-            Predicate predicate = criteriaBuilder.conjunction();
-            if (ObjectUtils.isNotEmpty(reportManagementRequest.getReport())) {
-                predicate = criteriaBuilder.and(predicate, getReportIdPredicate(root, criteriaBuilder, reportId));
-            }
-
-            if (StringUtils.hasText(reportManagementRequest.getMId())) {
-                predicate = criteriaBuilder.and(predicate, getMIdPredicate(root, criteriaBuilder, reportManagementRequest.getMId()));
-            }
-
-            if (ObjectUtils.isNotEmpty(reportManagementRequest.getFormat())) {
-                predicate = criteriaBuilder.and(predicate, getFormatPredicate(root, criteriaBuilder, reportManagementRequest.getFormat()));
-            }
-
-            if (reportManagementRequest.getDurationFromDate() != null) {
-                predicate = criteriaBuilder.and(predicate, getDurationFromDatePredicate(root, criteriaBuilder, reportManagementRequest.getDurationFromDate()));
-            }
-
-            if (reportManagementRequest.getDurationToDate() != null) {
-                predicate = criteriaBuilder.and(predicate, getDurationToDatePredicate(root, criteriaBuilder, reportManagementRequest.getDurationToDate()));
-            }
-
-            return predicate;
-        };
-    }
-
-    private static Predicate getReportIdPredicate(Root<ReportManagement> root, CriteriaBuilder criteriaBuilder, UUID reportId) {
-        return criteriaBuilder.equal(root.get("reportId"), reportId);
-    }
-
-    private static Predicate getMIdPredicate(Root<ReportManagement> root, CriteriaBuilder criteriaBuilder, String mId) {
-        return criteriaBuilder.equal(root.get("mId"), mId);
-    }
-
-    private static Predicate getFormatPredicate(Root<ReportManagement> root, CriteriaBuilder criteriaBuilder, ReportFormat reportFormat ) {
-        return criteriaBuilder.equal(root.get("format"), reportFormat.name());
-    }
-
-    private static Predicate getDurationFromDatePredicate(Root<ReportManagement> root, CriteriaBuilder criteriaBuilder, Long durationFromDate) {
-        return criteriaBuilder.greaterThanOrEqualTo(root.get("durationFromDate"), durationFromDate);
-    }
-
-    private static Predicate getDurationToDatePredicate(Root<ReportManagement> root, CriteriaBuilder criteriaBuilder, Long durationToDate) {
-        return criteriaBuilder.lessThanOrEqualTo(root.get("durationToDate"), durationToDate);
-    }
-
-}
-
-
-
-
-
-
-package com.epay.reporting.dao;
-
+import com.epay.reporting.dao.ReportManagementDao;
 import com.epay.reporting.dto.ReportManagementDto;
 import com.epay.reporting.entity.ReportManagement;
-import com.epay.reporting.etl.producer.ReportGenerationProducer;
-import com.epay.reporting.exception.ReportingException;
-import com.epay.reporting.mapper.ReportManagementMapper;
 import com.epay.reporting.model.request.ReportManagementRequest;
 import com.epay.reporting.repository.ReportManagementRepository;
+import com.epay.reporting.mapper.ReportManagementMapper;
 import com.epay.reporting.specification.ReportManagementSpecification;
-import com.epay.reporting.util.ErrorConstants;
-import com.epay.reporting.util.enums.ReportStatus;
-import com.sbi.epay.logging.utility.LoggerFactoryUtility;
-import com.sbi.epay.logging.utility.LoggerUtility;
-import lombok.RequiredArgsConstructor;
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.ObjectUtils;
+import com.epay.reporting.util.enums.ReportFormat;
+import com.epay.reporting.exception.ReportingException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.*;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Component;
 
-import java.text.MessageFormat;
-import java.util.List;
 import java.util.UUID;
-/**
- * Class Name: ReportManagementDao
- * *
- * Description: Data base access layer logic for ReportManagement
- * *
- * Author: Bhoopendra Rajput
- * <p>
- * Copyright (c) 2024 [State Bank of India]
- * All rights reserved
- * *
- * Version:1.0
- */
-@Component
-@RequiredArgsConstructor
-public class ReportManagementDao {
-    private final LoggerUtility log = LoggerFactoryUtility.getLogger(this.getClass());
+import java.util.Optional;
 
-    private final ReportManagementRepository reportManagementRepository;
-    private final ReportManagementMapper mapper;
-    private final ReportMasterDao reportMasterDao;
-    private final ReportGenerationProducer reportGenerationProducer;
+class ReportManagementDaoTest {
 
-    public void saveReportManagement(ReportManagementDto reportManagementDto) {
-        UUID reportId = reportMasterDao.getReportIdByName(reportManagementDto.getReport());
-        reportManagementDto.setReportId(reportId);
-        reportManagementDto.setStatus(ReportStatus.TO_BE_GENERATE);
-        ReportManagement reportManagement = mapper.mapDtoToEntity(reportManagementDto);
-        UUID reportManagementId = reportManagementRepository.save(reportManagement).getId();
-        reportGenerationProducer.publish(reportManagementDto.getReport().getName()+"_"+reportManagementId, String.valueOf(reportManagementId));
-    }
-    public void saveAll(List<ReportManagement> reportManagementList){
-        List<ReportManagement> reportManagements = reportManagementRepository.saveAll(reportManagementList);
-        if (CollectionUtils.isNotEmpty(reportManagements)) {
-            reportManagements.forEach(reportManagement ->
-                    reportGenerationProducer.publish(reportMasterDao.getReportNameById(reportManagement.getReportId()).getName() + "_" + reportManagement.getId(), String.valueOf(reportManagement.getId()))
-            );
-        }
-    }
-    public Page<ReportManagementDto> searchAndGetReportManagement(ReportManagementRequest reportManagementRequest, Pageable pageable) {
-        UUID reportId = null;
-        if (ObjectUtils.isNotEmpty(reportManagementRequest.getReport())) {
-            reportId = reportMasterDao.getReportIdByName(reportManagementRequest.getReport());
-        }
-        Specification<ReportManagement> specification = ReportManagementSpecification.searchReportManagement(reportId, reportManagementRequest);
-        return reportManagementRepository.findAll(specification, pageable).map(this::convertEntityToDTO);
+    @Mock
+    private ReportManagementRepository reportManagementRepository;
+
+    @Mock
+    private ReportManagementMapper mapper;
+
+    @Mock
+    private ReportMasterDao reportMasterDao;
+
+    private ReportManagementDao reportManagementDao;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        reportManagementDao = new ReportManagementDao(reportManagementRepository, mapper, reportMasterDao, null);
     }
 
-    public ReportManagementDto updateReportStatus(UUID reportManagementId, ReportStatus reportStatus) {
-        ReportManagement reportManagement = getReportManagementByPastStatus(reportManagementId, reportStatus);
-        reportManagement.setStatus(reportStatus);
-        reportManagementRepository.save(reportManagement);
-        return getReportManagementDto(reportManagement);
-    }
+    @Test
+    void testSearchAndGetReportManagement() {
+        // Arrange
+        Pageable pageable = PageRequest.of(0, 10);
 
-    public void updateStatusAndFilePath(UUID reportManagementId, ReportStatus reportStatus, String fileName) {
-        try {
-            ReportManagement reportManagement = getReportManagementByPastStatus(reportManagementId, reportStatus);
-            reportManagement.setStatus(reportStatus);
-            reportManagement.setFilePath(fileName);
-            reportManagementRepository.save(reportManagement);
-        } catch (ReportingException e) {
-            log.error("Error in updateReportStatus of report {}, status : {}, error : {}", reportManagementId, reportStatus, e);
-        }
-    }
+        // Create a mock ReportManagementRequest
+        ReportManagementRequest reportManagementRequest = ReportManagementRequest.builder()
+                .report(Report.BILLING)  // assuming Report is an enum
+                .mId("123")
+                .durationFromDate(1633200000000L)  // example timestamp
+                .durationToDate(1633290000000L)  // example timestamp
+                .format(ReportFormat.PDF)
+                .build();
 
-    public void updateStatusAndRemarks(UUID reportManagementId, ReportStatus reportStatus, String remarks) {
-        try {
-            ReportManagement reportManagement = getReportManagementByPastStatus(reportManagementId, reportStatus);
-            reportManagement.setStatus(reportStatus);
-            reportManagement.setRemarks(remarks);
-            reportManagementRepository.save(reportManagement);
-        } catch (ReportingException e) {
-            log.error("Error in updateReportStatus of report {}, status : {}, error : {}", reportManagementId, reportStatus, e);
-        }
+        // Mock the behavior of reportMasterDao to return a reportId for the given report name
+        UUID reportId = UUID.randomUUID();
+        when(reportMasterDao.getReportIdByName(reportManagementRequest.getReport()))
+                .thenReturn(reportId);
 
-    }
+        // Create a mock ReportManagement entity
+        ReportManagement reportManagement = new ReportManagement();
+        reportManagement.setId(UUID.randomUUID());
 
-    protected ReportManagementDto convertEntityToDTO(ReportManagement reportManagement) {
-        return getReportManagementDto(reportManagement);
-    }
+        // Mock the behavior of the repository to return a page of ReportManagement
+        when(reportManagementRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(reportManagement)));
 
-    private ReportManagement getReportManagementByPastStatus(UUID reportId, ReportStatus reportStatus) {
-        List<ReportStatus> reportStatusCheckList = List.of();
-        if (ReportStatus.TO_BE_GENERATE.equals(reportStatus)) {
-            reportStatusCheckList = List.of(ReportStatus.GENERATED, ReportStatus.GENERATION_FAILED);
-        } else if (ReportStatus.GENERATION_STARTED.equals(reportStatus)) {
-            reportStatusCheckList = List.of(ReportStatus.TO_BE_GENERATE);
-        } else if (ReportStatus.GENERATED.equals(reportStatus) || ReportStatus.GENERATION_FAILED.equals(reportStatus)) {
-            reportStatusCheckList = List.of(ReportStatus.GENERATION_STARTED);
-        }
-        return reportManagementRepository.findByIdAndStatusIn(reportId, reportStatusCheckList).orElseThrow(() -> new ReportingException(ErrorConstants.NOT_FOUND_ERROR_CODE, MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Report")));
-    }
+        // Mock the mapper to convert the ReportManagement entity to DTO
+        ReportManagementDto reportManagementDto = new ReportManagementDto();
+        when(mapper.mapEntityToDto(reportManagement)).thenReturn(reportManagementDto);
 
-    private ReportManagementDto getReportManagementDto(ReportManagement reportManagement) {
-        ReportManagementDto reportManagementDto = mapper.mapEntityToDto(reportManagement);
-        reportManagementDto.setReport(reportMasterDao.getReportNameById(reportManagementDto.getReportId()));
-        return reportManagementDto;
-    }
+        // Act
+        Page<ReportManagementDto> result = reportManagementDao.searchAndGetReportManagement(reportManagementRequest, pageable);
 
-    /**
-     * @param filePath String
-     * @param reportStatus ReportStatus
-     * @return boolean
-     */
-    public boolean isReportExistsByMIdAndFilePathAndStatus(String mId, String filePath, ReportStatus reportStatus) {
-        return reportManagementRepository.existsBymIdAndFilePathAndStatus(mId, filePath, reportStatus);
-    }
-
-    /**
-     * @param filePath String
-     * @param reportStatus ReportStatus
-     * @return ReportManagementDto
-     */
-    public ReportManagementDto getReportManagement(String mId, String filePath, ReportStatus reportStatus) {
-        return mapper.mapEntityToDto(reportManagementRepository.findBymIdAndFilePathAndStatus(mId, filePath, reportStatus));
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());  // Assuming one report is returned
+        verify(reportMasterDao).getReportIdByName(reportManagementRequest.getReport());
+        verify(reportManagementRepository).findAll(any(Specification.class), eq(pageable));
     }
 }
