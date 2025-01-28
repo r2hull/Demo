@@ -1,37 +1,142 @@
-@Test
-void testSearchAndGetReportManagement() {
-    // Arrange
-    Pageable pageable = PageRequest.of(0, 10);
-    UUID reportId = UUID.randomUUID();
+package com.epay.reporting.dao;
 
-    ReportManagementRequest reportManagementRequest = new ReportManagementRequest();
-    reportManagementRequest.setReport("ORDER");
-    reportManagementRequest.setMId("MID001");
-    reportManagementRequest.setFormat(ReportFormat.CSV);
-    reportManagementRequest.setDurationFromDate(1640995200000L);
-    reportManagementRequest.setDurationToDate(1737225600000L);
+import com.epay.reporting.dto.ReportManagementDto;
+import com.epay.reporting.entity.ReportManagement;
+import com.epay.reporting.etl.producer.ReportGenerationProducer;
+import com.epay.reporting.exception.ReportingException;
+import com.epay.reporting.mapper.ReportManagementMapper;
+import com.epay.reporting.model.request.ReportManagementRequest;
+import com.epay.reporting.repository.ReportManagementRepository;
+import com.epay.reporting.specification.ReportManagementSpecification;
+import com.epay.reporting.util.ErrorConstants;
+import com.epay.reporting.util.enums.ReportStatus;
+import com.sbi.epay.logging.utility.LoggerFactoryUtility;
+import com.sbi.epay.logging.utility.LoggerUtility;
+import lombok.RequiredArgsConstructor;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.ObjectUtils;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Component;
 
-    ReportManagement reportManagement = new ReportManagement();
-    reportManagement.setId(UUID.randomUUID());
-    reportManagement.setMId("MID001");
-    reportManagement.setReportId(reportId);
-    reportManagement.setFormat(ReportFormat.CSV);
-    reportManagement.setDurationFromDate(1640995200000L);
-    reportManagement.setDurationToDate(1737225600000L);
+import java.text.MessageFormat;
+import java.util.List;
+import java.util.UUID;
+/**
+ * Class Name: ReportManagementDao
+ * *
+ * Description: Data base access layer logic for ReportManagement
+ * *
+ * Author: Bhoopendra Rajput
+ * <p>
+ * Copyright (c) 2024 [State Bank of India]
+ * All rights reserved
+ * *
+ * Version:1.0
+ */
+@Component
+@RequiredArgsConstructor
+public class ReportManagementDao {
+    private final LoggerUtility log = LoggerFactoryUtility.getLogger(this.getClass());
 
-    List<ReportManagement> reportManagementList = List.of(reportManagement);
-    Page<ReportManagement> reportManagementPage = new PageImpl<>(reportManagementList, pageable, reportManagementList.size());
+    private final ReportManagementRepository reportManagementRepository;
+    private final ReportManagementMapper mapper;
+    private final ReportMasterDao reportMasterDao;
+    private final ReportGenerationProducer reportGenerationProducer;
 
-    when(reportMasterDao.getReportIdByName(reportManagementRequest.getReport())).thenReturn(reportId);
-    when(reportManagementRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(reportManagementPage);
-    when(reportService.convertEntityToDTO(any())).thenReturn(new ReportManagementDto());
+    public void saveReportManagement(ReportManagementDto reportManagementDto) {
+        UUID reportId = reportMasterDao.getReportIdByName(reportManagementDto.getReport());
+        reportManagementDto.setReportId(reportId);
+        reportManagementDto.setStatus(ReportStatus.TO_BE_GENERATE);
+        ReportManagement reportManagement = mapper.mapDtoToEntity(reportManagementDto);
+        UUID reportManagementId = reportManagementRepository.save(reportManagement).getId();
+        reportGenerationProducer.publish(reportManagementDto.getReport().getName()+"_"+reportManagementId, String.valueOf(reportManagementId));
+    }
+    public void saveAll(List<ReportManagement> reportManagementList){
+        List<ReportManagement> reportManagements = reportManagementRepository.saveAll(reportManagementList);
+        if (CollectionUtils.isNotEmpty(reportManagements)) {
+            reportManagements.forEach(reportManagement ->
+                    reportGenerationProducer.publish(reportMasterDao.getReportNameById(reportManagement.getReportId()).getName() + "_" + reportManagement.getId(), String.valueOf(reportManagement.getId()))
+            );
+        }
+    }
+    public Page<ReportManagementDto> searchAndGetReportManagement(ReportManagementRequest reportManagementRequest, Pageable pageable) {
+        UUID reportId = null;
+        if (ObjectUtils.isNotEmpty(reportManagementRequest.getReport())) {
+            reportId = reportMasterDao.getReportIdByName(reportManagementRequest.getReport());
+        }
+        Specification<ReportManagement> specification = ReportManagementSpecification.searchReportManagement(reportId, reportManagementRequest);
+        return reportManagementRepository.findAll(specification, pageable).map(this::convertEntityToDTO);
+    }
 
-    // Act
-    Page<ReportManagementDto> result = reportService.searchAndGetReportManagement(reportManagementRequest, pageable);
+    public ReportManagementDto updateReportStatus(UUID reportManagementId, ReportStatus reportStatus) {
+        ReportManagement reportManagement = getReportManagementByPastStatus(reportManagementId, reportStatus);
+        reportManagement.setStatus(reportStatus);
+        reportManagementRepository.save(reportManagement);
+        return getReportManagementDto(reportManagement);
+    }
 
-    // Assert
-    assertNotNull(result);
-    assertEquals(1, result.getContent().size());
-    verify(reportMasterDao).getReportIdByName(reportManagementRequest.getReport());
-    verify(reportManagementRepository).findAll(any(Specification.class), eq(pageable));
+    public void updateStatusAndFilePath(UUID reportManagementId, ReportStatus reportStatus, String fileName) {
+        try {
+            ReportManagement reportManagement = getReportManagementByPastStatus(reportManagementId, reportStatus);
+            reportManagement.setStatus(reportStatus);
+            reportManagement.setFilePath(fileName);
+            reportManagementRepository.save(reportManagement);
+        } catch (ReportingException e) {
+            log.error("Error in updateReportStatus of report {}, status : {}, error : {}", reportManagementId, reportStatus, e);
+        }
+    }
+
+    public void updateStatusAndRemarks(UUID reportManagementId, ReportStatus reportStatus, String remarks) {
+        try {
+            ReportManagement reportManagement = getReportManagementByPastStatus(reportManagementId, reportStatus);
+            reportManagement.setStatus(reportStatus);
+            reportManagement.setRemarks(remarks);
+            reportManagementRepository.save(reportManagement);
+        } catch (ReportingException e) {
+            log.error("Error in updateReportStatus of report {}, status : {}, error : {}", reportManagementId, reportStatus, e);
+        }
+
+    }
+
+    protected ReportManagementDto convertEntityToDTO(ReportManagement reportManagement) {
+        return getReportManagementDto(reportManagement);
+    }
+
+    private ReportManagement getReportManagementByPastStatus(UUID reportId, ReportStatus reportStatus) {
+        List<ReportStatus> reportStatusCheckList = List.of();
+        if (ReportStatus.TO_BE_GENERATE.equals(reportStatus)) {
+            reportStatusCheckList = List.of(ReportStatus.GENERATED, ReportStatus.GENERATION_FAILED);
+        } else if (ReportStatus.GENERATION_STARTED.equals(reportStatus)) {
+            reportStatusCheckList = List.of(ReportStatus.TO_BE_GENERATE);
+        } else if (ReportStatus.GENERATED.equals(reportStatus) || ReportStatus.GENERATION_FAILED.equals(reportStatus)) {
+            reportStatusCheckList = List.of(ReportStatus.GENERATION_STARTED);
+        }
+        return reportManagementRepository.findByIdAndStatusIn(reportId, reportStatusCheckList).orElseThrow(() -> new ReportingException(ErrorConstants.NOT_FOUND_ERROR_CODE, MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Report")));
+    }
+
+    private ReportManagementDto getReportManagementDto(ReportManagement reportManagement) {
+        ReportManagementDto reportManagementDto = mapper.mapEntityToDto(reportManagement);
+        reportManagementDto.setReport(reportMasterDao.getReportNameById(reportManagementDto.getReportId()));
+        return reportManagementDto;
+    }
+
+    /**
+     * @param filePath String
+     * @param reportStatus ReportStatus
+     * @return boolean
+     */
+    public boolean isReportExistsByMIdAndFilePathAndStatus(String mId, String filePath, ReportStatus reportStatus) {
+        return reportManagementRepository.existsBymIdAndFilePathAndStatus(mId, filePath, reportStatus);
+    }
+
+    /**
+     * @param filePath String
+     * @param reportStatus ReportStatus
+     * @return ReportManagementDto
+     */
+    public ReportManagementDto getReportManagement(String mId, String filePath, ReportStatus reportStatus) {
+        return mapper.mapEntityToDto(reportManagementRepository.findBymIdAndFilePathAndStatus(mId, filePath, reportStatus));
+    }
 }
