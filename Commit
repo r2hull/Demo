@@ -35,37 +35,37 @@ class ReportManagementDaoTest {
     }
 
     @Test
-    void testUpdateStatusAndRemarks() {
+    void testUpdateStatusAndFilePath() {
         // Arrange
         UUID reportManagementId = UUID.randomUUID();
         ReportStatus newStatus = ReportStatus.GENERATED;
-        String newRemarks = "Generation successful";
+        String newFilePath = "path/to/generated/report";
 
-        // Create a mock ReportManagement entity with an initial status
+        // Create a mock ReportManagement entity with an initial status and file path
         ReportManagement reportManagement = new ReportManagement();
         reportManagement.setId(reportManagementId);
         reportManagement.setStatus(ReportStatus.TO_BE_GENERATE);  // Initial status
-        reportManagement.setRemarks("Initial remarks");
+        reportManagement.setFilePath("path/to/old/report");
 
         // Mock the behavior of the repository to return the report management entity
         when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
                 .thenReturn(Optional.of(reportManagement));
 
         // Act
-        reportManagementDao.updateStatusAndRemarks(reportManagementId, newStatus, newRemarks);
+        reportManagementDao.updateStatusAndFilePath(reportManagementId, newStatus, newFilePath);
 
         // Assert
         assertEquals(newStatus, reportManagement.getStatus());  // Ensure the status is updated
-        assertEquals(newRemarks, reportManagement.getRemarks());  // Ensure the remarks are updated
+        assertEquals(newFilePath, reportManagement.getFilePath());  // Ensure the file path is updated
         verify(reportManagementRepository).save(reportManagement);  // Verify that save is called
     }
 
     @Test
-    void testUpdateStatusAndRemarks_ThrowsException_WhenReportNotFound() {
+    void testUpdateStatusAndFilePath_ThrowsException_WhenReportNotFound() {
         // Arrange
         UUID reportManagementId = UUID.randomUUID();
         ReportStatus newStatus = ReportStatus.GENERATED;
-        String newRemarks = "Generation failed";
+        String newFilePath = "path/to/generated/report";
 
         // Mock the behavior of the repository to return an empty Optional (i.e., report not found)
         when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
@@ -73,9 +73,35 @@ class ReportManagementDaoTest {
 
         // Act & Assert
         ReportingException thrown = assertThrows(ReportingException.class, () -> {
-            reportManagementDao.updateStatusAndRemarks(reportManagementId, newStatus, newRemarks);
+            reportManagementDao.updateStatusAndFilePath(reportManagementId, newStatus, newFilePath);
         });
 
         assertEquals("Report not found", thrown.getMessage());  // Adjust this message based on your exception handling
+    }
+
+    @Test
+    void testUpdateStatusAndFilePath_HandlesException() {
+        // Arrange
+        UUID reportManagementId = UUID.randomUUID();
+        ReportStatus newStatus = ReportStatus.GENERATED;
+        String newFilePath = "path/to/generated/report";
+
+        // Create a mock ReportManagement entity
+        ReportManagement reportManagement = new ReportManagement();
+        reportManagement.setId(reportManagementId);
+        reportManagement.setStatus(ReportStatus.TO_BE_GENERATE);
+
+        // Simulate an exception when trying to save the entity
+        when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
+                .thenReturn(Optional.of(reportManagement));
+
+        doThrow(new ReportingException("Test exception")).when(reportManagementRepository).save(any(ReportManagement.class));
+
+        // Act & Assert
+        ReportingException thrown = assertThrows(ReportingException.class, () -> {
+            reportManagementDao.updateStatusAndFilePath(reportManagementId, newStatus, newFilePath);
+        });
+
+        assertEquals("Test exception", thrown.getMessage());  // Ensure the correct exception message is thrown
     }
 }
