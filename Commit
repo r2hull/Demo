@@ -1,9 +1,17 @@
 spring:
   profiles:
     active: dev
-  application.name: epay_reporting_service
-  # Db connectivity
+  application:
+    name: epay_reporting_service
+
+  datasource:
+    url: jdbc:oracle:thin:@10.177.134.124:1590:epaydbdev1
+    username: your_username
+    password: your_password
+    driver-class-name: oracle.jdbc.OracleDriver
+
   jpa:
+    show-sql: true
     properties:
       hibernate:
         jdbc:
@@ -12,10 +20,4 @@ spring:
         order_inserts: true
         batch_versioned_data: true
         generate_statistics: true
-        show-sql: true
-    show-sql: true
-  datasource:
-    url: jdbc:oracle:thin:@10.177.134.124:1590:epaydbdev1
-    username:
-    password:
-    driver-class-name: oracle.jdbc.OracleDriver
+        show_sql: true
