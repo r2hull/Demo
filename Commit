@@ -4,21 +4,17 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.epay.reporting.dao.ReportManagementDao;
 import com.epay.reporting.dto.ReportManagementDto;
 import com.epay.reporting.entity.ReportManagement;
-import com.epay.reporting.model.request.ReportManagementRequest;
+import com.epay.reporting.util.enums.ReportStatus;
+import com.epay.reporting.exception.ReportingException;
 import com.epay.reporting.repository.ReportManagementRepository;
 import com.epay.reporting.mapper.ReportManagementMapper;
-import com.epay.reporting.specification.ReportManagementSpecification;
-import com.epay.reporting.util.enums.ReportFormat;
-import com.epay.reporting.exception.ReportingException;
+import com.epay.reporting.model.request.ReportManagementRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 
-import java.util.UUID;
 import java.util.Optional;
+import java.util.UUID;
 
 class ReportManagementDaoTest {
 
@@ -40,43 +36,48 @@ class ReportManagementDaoTest {
     }
 
     @Test
-    void testSearchAndGetReportManagement() {
+    void testUpdateReportStatus() {
         // Arrange
-        Pageable pageable = PageRequest.of(0, 10);
+        UUID reportManagementId = UUID.randomUUID();
+        ReportStatus newStatus = ReportStatus.GENERATED;
 
-        // Create a mock ReportManagementRequest
-        ReportManagementRequest reportManagementRequest = ReportManagementRequest.builder()
-                .report(Report.BILLING)  // assuming Report is an enum
-                .mId("123")
-                .durationFromDate(1633200000000L)  // example timestamp
-                .durationToDate(1633290000000L)  // example timestamp
-                .format(ReportFormat.PDF)
-                .build();
-
-        // Mock the behavior of reportMasterDao to return a reportId for the given report name
-        UUID reportId = UUID.randomUUID();
-        when(reportMasterDao.getReportIdByName(reportManagementRequest.getReport()))
-                .thenReturn(reportId);
-
-        // Create a mock ReportManagement entity
+        // Create a mock ReportManagement entity with an initial status
         ReportManagement reportManagement = new ReportManagement();
-        reportManagement.setId(UUID.randomUUID());
+        reportManagement.setId(reportManagementId);
+        reportManagement.setStatus(ReportStatus.TO_BE_GENERATE);  // Initial status
 
-        // Mock the behavior of the repository to return a page of ReportManagement
-        when(reportManagementRepository.findAll(any(Specification.class), eq(pageable)))
-                .thenReturn(new PageImpl<>(List.of(reportManagement)));
+        // Mock the behavior of the repository to return the report management entity
+        when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
+                .thenReturn(Optional.of(reportManagement));
 
-        // Mock the mapper to convert the ReportManagement entity to DTO
+        // Mock the mapper to return the DTO when the entity is converted
         ReportManagementDto reportManagementDto = new ReportManagementDto();
         when(mapper.mapEntityToDto(reportManagement)).thenReturn(reportManagementDto);
 
         // Act
-        Page<ReportManagementDto> result = reportManagementDao.searchAndGetReportManagement(reportManagementRequest, pageable);
+        ReportManagementDto result = reportManagementDao.updateReportStatus(reportManagementId, newStatus);
 
         // Assert
         assertNotNull(result);
-        assertEquals(1, result.getTotalElements());  // Assuming one report is returned
-        verify(reportMasterDao).getReportIdByName(reportManagementRequest.getReport());
-        verify(reportManagementRepository).findAll(any(Specification.class), eq(pageable));
+        assertEquals(newStatus, reportManagement.getStatus());  // Ensure the status is updated
+        verify(reportManagementRepository).save(reportManagement);  // Verify that save is called
+    }
+
+    @Test
+    void testUpdateReportStatus_ThrowsException_WhenReportNotFound() {
+        // Arrange
+        UUID reportManagementId = UUID.randomUUID();
+        ReportStatus newStatus = ReportStatus.GENERATED;
+
+        // Mock the behavior of the repository to return an empty Optional (i.e., report not found)
+        when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
+                .thenReturn(Optional.empty());
+
+        // Act & Assert
+        ReportingException thrown = assertThrows(ReportingException.class, () -> {
+            reportManagementDao.updateReportStatus(reportManagementId, newStatus);
+        });
+
+        assertEquals("Report not found", thrown.getMessage());  // Adjust this message based on your exception handling
     }
 }
