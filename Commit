@@ -1,43 +1,37 @@
+@Test
+void testSearchAndGetReportManagement() {
+    // Arrange
+    Pageable pageable = PageRequest.of(0, 10);
+    UUID reportId = UUID.randomUUID();
 
-   void testSearchAndGetReportManagement(){
-        Pageable pageable = PageRequest.of(0, 10);
-        when(reportMasterDao.getReportIdByName(reportManagementRequest.getReport())).thenReturn(reportId);
-        Specification<ReportManagement> specification=Specification.
-    }
+    ReportManagementRequest reportManagementRequest = new ReportManagementRequest();
+    reportManagementRequest.setReport("ORDER");
+    reportManagementRequest.setMId("MID001");
+    reportManagementRequest.setFormat(ReportFormat.CSV);
+    reportManagementRequest.setDurationFromDate(1640995200000L);
+    reportManagementRequest.setDurationToDate(1737225600000L);
 
-public Page<ReportManagementDto> searchAndGetReportManagement(ReportManagementRequest reportManagementRequest, Pageable pageable) {
-        UUID reportId = null;
-        if (ObjectUtils.isNotEmpty(reportManagementRequest.getReport())) {
-            reportId = reportMasterDao.getReportIdByName(reportManagementRequest.getReport());
-        }
-        Specification<ReportManagement> specification = ReportManagementSpecification.searchReportManagement(reportId, reportManagementRequest);
-        return reportManagementRepository.findAll(specification, pageable).map(this::convertEntityToDTO);
-    }
+    ReportManagement reportManagement = new ReportManagement();
+    reportManagement.setId(UUID.randomUUID());
+    reportManagement.setMId("MID001");
+    reportManagement.setReportId(reportId);
+    reportManagement.setFormat(ReportFormat.CSV);
+    reportManagement.setDurationFromDate(1640995200000L);
+    reportManagement.setDurationToDate(1737225600000L);
 
-public class ReportManagementSpecification {
-    public static Specification<ReportManagement> searchReportManagement(UUID reportId, ReportManagementRequest reportManagementRequest) {
-        return (root, query, criteriaBuilder) -> {
-            Predicate predicate = criteriaBuilder.conjunction();
-            if (ObjectUtils.isNotEmpty(reportManagementRequest.getReport())) {
-                predicate = criteriaBuilder.and(predicate, getReportIdPredicate(root, criteriaBuilder, reportId));
-            }
+    List<ReportManagement> reportManagementList = List.of(reportManagement);
+    Page<ReportManagement> reportManagementPage = new PageImpl<>(reportManagementList, pageable, reportManagementList.size());
 
-            if (StringUtils.hasText(reportManagementRequest.getMId())) {
-                predicate = criteriaBuilder.and(predicate, getMIdPredicate(root, criteriaBuilder, reportManagementRequest.getMId()));
-            }
+    when(reportMasterDao.getReportIdByName(reportManagementRequest.getReport())).thenReturn(reportId);
+    when(reportManagementRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(reportManagementPage);
+    when(reportService.convertEntityToDTO(any())).thenReturn(new ReportManagementDto());
 
-            if (ObjectUtils.isNotEmpty(reportManagementRequest.getFormat())) {
-                predicate = criteriaBuilder.and(predicate, getFormatPredicate(root, criteriaBuilder, reportManagementRequest.getFormat()));
-            }
+    // Act
+    Page<ReportManagementDto> result = reportService.searchAndGetReportManagement(reportManagementRequest, pageable);
 
-            if (reportManagementRequest.getDurationFromDate() != null) {
-                predicate = criteriaBuilder.and(predicate, getDurationFromDatePredicate(root, criteriaBuilder, reportManagementRequest.getDurationFromDate()));
-            }
-
-            if (reportManagementRequest.getDurationToDate() != null) {
-                predicate = criteriaBuilder.and(predicate, getDurationToDatePredicate(root, criteriaBuilder, reportManagementRequest.getDurationToDate()));
-            }
-
-            return predicate;
-        };
-    }
+    // Assert
+    assertNotNull(result);
+    assertEquals(1, result.getContent().size());
+    verify(reportMasterDao).getReportIdByName(reportManagementRequest.getReport());
+    verify(reportManagementRepository).findAll(any(Specification.class), eq(pageable));
+}
