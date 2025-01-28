@@ -1,14 +1,90 @@
+Git Issue Description for MR
 
- 2025-01-27 19:27:54.013 INFO | org.hibernate.engine.internal.StatisticalLoggingSessionEventListener:280 | principal=  | scenario= | operation= | correlation= | end | Session Metrics {
-    18261000 nanoseconds spent acquiring 1 JDBC connections;
-    0 nanoseconds spent releasing 0 JDBC connections;
+Title: Enable Hibernate Batch Processing for Optimized Performance
+
+Description:
+Implemented Hibernate batch processing by configuring batch size and related optimizations in application.yml. This change is aimed at improving database interaction efficiency by reducing the number of individual queries and leveraging batch inserts/updates.
+
+Key Changes:
+
+Added Hibernate batch properties in application.yml:
+
+hibernate.jdbc.batch_size=100
+
+hibernate.order_updates=true
+
+hibernate.order_inserts=true
+
+hibernate.batch_versioned_data=true
+
+hibernate.generate_statistics=true
+
+
+Enabled SQL logging for better debugging and monitoring.
+
+
+Performance Metrics Observed:
+
+2025-01-27 19:27:54.013 INFO | org.hibernate.engine.internal.StatisticalLoggingSessionEventListener:280 | 
+Session Metrics {
+    18261000 nanoseconds spent acquiring 1 JDBC connection;
     322997100 nanoseconds spent preparing 1011 JDBC statements;
     18811242900 nanoseconds spent executing 1010 JDBC statements;
     259003100 nanoseconds spent executing 11 JDBC batches;
-    0 nanoseconds spent performing 0 L2C puts;
-    0 nanoseconds spent performing 0 L2C hits;
-    0 nanoseconds spent performing 0 L2C misses;
-    1441504700 nanoseconds spent executing 1 flushes (flushing a total of 1010 entities and 0 collections);
-    0 nanoseconds spent executing 0 pre-partial-flushes;
-    0 nanoseconds spent executing 0 partial-flushes (flushing a total of 0 entities and 0 collections)
+    1441504700 nanoseconds spent executing 1 flush (flushing 1010 entities);
 }
+
+Impact:
+
+Reduces database load by executing queries in batches.
+
+Improves application performance by minimizing network round trips.
+
+Provides better insight into query execution through logging.
+
+
+This MR ensures that Hibernate batch processing is correctly configured and monitored for enhanced efficiency.
+
+
+
+
+
+
+
+MR Description
+
+Title: Enable Hibernate Batch Processing
+
+Description:
+Configured Hibernate batch processing in application.yml to optimize database operations.
+
+Changes:
+
+Set hibernate.jdbc.batch_size=100 and related optimizations.
+
+Enabled SQL logging for better monitoring.
+
+
+Performance Metrics:
+
+2025-01-27 19:27:54.013 INFO | Session Metrics {
+    18261000 ns spent acquiring 1 JDBC connection;
+    322997100 ns spent preparing 1011 JDBC statements;
+    18811242900 ns spent executing 1010 JDBC statements;
+    259003100 ns spent executing 11 JDBC batches;
+    1441504700 ns spent executing 1 flush (1010 entities);
+}
+
+Impact:
+
+Reduces database load with batch execution.
+
+Improves performance by minimizing queries.
+
+Enhances logging for monitoring.
+
+
+
+
+
+
