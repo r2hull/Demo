@@ -1,3 +1,98 @@
+
+  @Test
+    void testSearchAndGetReportManagement(){
+        Pageable pageable = PageRequest.of(0, 10);
+        when(reportMasterDao.getReportIdByName(reportManagementRequest.getReport())).thenReturn(reportId);
+        Page<ReportManagementDto> result = reportManagementDao.searchAndGetReportManagement(reportManagementRequest, pageable);
+    }
+
+
+@Data
+@Builder
+@NoArgsConstructor
+public class ReportManagementRequest {
+    private Report report;
+    private String mId;
+    private Long durationFromDate;
+    private Long durationToDate;
+    private ReportFormat format;
+}
+
+   public UUID getReportIdByName(Report name){
+        ReportMaster reportMaster = reportMasterRepository.findByName(name).orElseThrow(() ->
+                new ReportingException(ErrorConstants.NOT_FOUND_ERROR_CODE, MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Report")));
+        return reportMaster.getId();
+    }
+
+package com.epay.reporting.specification;
+
+import com.epay.reporting.entity.ReportManagement;
+import com.epay.reporting.model.request.ReportManagementRequest;
+import com.epay.reporting.util.enums.ReportFormat;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import org.apache.commons.lang3.ObjectUtils;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.util.StringUtils;
+
+import java.util.UUID;
+
+public class ReportManagementSpecification {
+    public static Specification<ReportManagement> searchReportManagement(UUID reportId, ReportManagementRequest reportManagementRequest) {
+        return (root, query, criteriaBuilder) -> {
+            Predicate predicate = criteriaBuilder.conjunction();
+            if (ObjectUtils.isNotEmpty(reportManagementRequest.getReport())) {
+                predicate = criteriaBuilder.and(predicate, getReportIdPredicate(root, criteriaBuilder, reportId));
+            }
+
+            if (StringUtils.hasText(reportManagementRequest.getMId())) {
+                predicate = criteriaBuilder.and(predicate, getMIdPredicate(root, criteriaBuilder, reportManagementRequest.getMId()));
+            }
+
+            if (ObjectUtils.isNotEmpty(reportManagementRequest.getFormat())) {
+                predicate = criteriaBuilder.and(predicate, getFormatPredicate(root, criteriaBuilder, reportManagementRequest.getFormat()));
+            }
+
+            if (reportManagementRequest.getDurationFromDate() != null) {
+                predicate = criteriaBuilder.and(predicate, getDurationFromDatePredicate(root, criteriaBuilder, reportManagementRequest.getDurationFromDate()));
+            }
+
+            if (reportManagementRequest.getDurationToDate() != null) {
+                predicate = criteriaBuilder.and(predicate, getDurationToDatePredicate(root, criteriaBuilder, reportManagementRequest.getDurationToDate()));
+            }
+
+            return predicate;
+        };
+    }
+
+    private static Predicate getReportIdPredicate(Root<ReportManagement> root, CriteriaBuilder criteriaBuilder, UUID reportId) {
+        return criteriaBuilder.equal(root.get("reportId"), reportId);
+    }
+
+    private static Predicate getMIdPredicate(Root<ReportManagement> root, CriteriaBuilder criteriaBuilder, String mId) {
+        return criteriaBuilder.equal(root.get("mId"), mId);
+    }
+
+    private static Predicate getFormatPredicate(Root<ReportManagement> root, CriteriaBuilder criteriaBuilder, ReportFormat reportFormat ) {
+        return criteriaBuilder.equal(root.get("format"), reportFormat.name());
+    }
+
+    private static Predicate getDurationFromDatePredicate(Root<ReportManagement> root, CriteriaBuilder criteriaBuilder, Long durationFromDate) {
+        return criteriaBuilder.greaterThanOrEqualTo(root.get("durationFromDate"), durationFromDate);
+    }
+
+    private static Predicate getDurationToDatePredicate(Root<ReportManagement> root, CriteriaBuilder criteriaBuilder, Long durationToDate) {
+        return criteriaBuilder.lessThanOrEqualTo(root.get("durationToDate"), durationToDate);
+    }
+
+}
+
+
+
+
+
+
 package com.epay.reporting.dao;
 
 import com.epay.reporting.dto.ReportManagementDto;
