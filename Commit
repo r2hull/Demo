@@ -1,30 +1,33 @@
-2025-01-28 17:02:54.236 ERROR | com.epay.reporting.dao.ReportManagementDao:87 | principal=  | scenario= | operation= | correlation= | updateStatusAndFilePath | Error in updateReportStatus of report 5094bbcd-e02e-4393-9b9b-0e49bcd5d16c, status : GENERATED, error : {}
-com.epay.reporting.exception.ReportingException: Report is not found.
+@Test
+void testUpdateStatusAndFilePath_ThrowsException_WhenReportNotFound() {
+    UUID reportManagementId = UUID.randomUUID();
+    ReportStatus status = ReportStatus.GENERATED;
+    String filePath = "test/path/report.pdf";
+
+    // Mock repository to return empty (report not found)
+    when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
+        .thenReturn(Optional.empty());
+
+    // Assert that ReportingException is thrown
+    assertThrows(ReportingException.class, () -> 
+        reportManagementDao.updateStatusAndFilePath(reportManagementId, status, filePath)
+    );
+}
 
 
-Expected com.epay.reporting.exception.ReportingException to be thrown, but nothing was thrown.
-org.opentest4j.AssertionFailedError: Expected com.epay.reporting.exception.ReportingException to be thrown, but nothing was thrown.
-	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:152)
-	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:73)
-	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35)
-	at org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3115)
-	at com.epay.reporting.dao.ReportManagementDaoTest.testUpdateStatusAndFilePath_ThrowsException_WhenReportNotFound(ReportManagementDaoTest.java:239)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
 
+@Test
+void testUpdateStatusAndRemarks_ThrowsException_WhenReportNotFound() {
+    UUID reportManagementId = UUID.randomUUID();
+    ReportStatus status = ReportStatus.GENERATED;
+    String remarks = "Test remarks";
 
+    // Mock repository to return empty (report not found)
+    when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
+        .thenReturn(Optional.empty());
 
-2025-01-28 17:02:54.320 ERROR | com.epay.reporting.dao.ReportManagementDao:98 | principal=  | scenario= | operation= | correlation= | updateStatusAndRemarks | Error in updateReportStatus of report 9533d71f-bd31-49d4-a8bb-0800f5df0e75, status : GENERATED, error : {}
-com.epay.reporting.exception.ReportingException: Report is not found.
-
-
-Expected com.epay.reporting.exception.ReportingException to be thrown, but nothing was thrown.
-org.opentest4j.AssertionFailedError: Expected com.epay.reporting.exception.ReportingException to be thrown, but nothing was thrown.
-	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:152)
-	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:73)
-	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35)
-	at org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3115)
-	at com.epay.reporting.dao.ReportManagementDaoTest.testUpdateStatusAndRemarks_ThrowsException_WhenReportNotFound(ReportManagementDaoTest.java:191)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+    // Assert that ReportingException is thrown
+    assertThrows(ReportingException.class, () -> 
+        reportManagementDao.updateStatusAndRemarks(reportManagementId, status, remarks)
+    );
+}
