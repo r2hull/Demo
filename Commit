@@ -1,90 +1,43 @@
-Git Issue Description for MR
 
-Title: Enable Hibernate Batch Processing for Optimized Performance
+   void testSearchAndGetReportManagement(){
+        Pageable pageable = PageRequest.of(0, 10);
+        when(reportMasterDao.getReportIdByName(reportManagementRequest.getReport())).thenReturn(reportId);
+        Specification<ReportManagement> specification=Specification.
+    }
 
-Description:
-Implemented Hibernate batch processing by configuring batch size and related optimizations in application.yml. This change is aimed at improving database interaction efficiency by reducing the number of individual queries and leveraging batch inserts/updates.
+public Page<ReportManagementDto> searchAndGetReportManagement(ReportManagementRequest reportManagementRequest, Pageable pageable) {
+        UUID reportId = null;
+        if (ObjectUtils.isNotEmpty(reportManagementRequest.getReport())) {
+            reportId = reportMasterDao.getReportIdByName(reportManagementRequest.getReport());
+        }
+        Specification<ReportManagement> specification = ReportManagementSpecification.searchReportManagement(reportId, reportManagementRequest);
+        return reportManagementRepository.findAll(specification, pageable).map(this::convertEntityToDTO);
+    }
 
-Key Changes:
+public class ReportManagementSpecification {
+    public static Specification<ReportManagement> searchReportManagement(UUID reportId, ReportManagementRequest reportManagementRequest) {
+        return (root, query, criteriaBuilder) -> {
+            Predicate predicate = criteriaBuilder.conjunction();
+            if (ObjectUtils.isNotEmpty(reportManagementRequest.getReport())) {
+                predicate = criteriaBuilder.and(predicate, getReportIdPredicate(root, criteriaBuilder, reportId));
+            }
 
-Added Hibernate batch properties in application.yml:
+            if (StringUtils.hasText(reportManagementRequest.getMId())) {
+                predicate = criteriaBuilder.and(predicate, getMIdPredicate(root, criteriaBuilder, reportManagementRequest.getMId()));
+            }
 
-hibernate.jdbc.batch_size=100
+            if (ObjectUtils.isNotEmpty(reportManagementRequest.getFormat())) {
+                predicate = criteriaBuilder.and(predicate, getFormatPredicate(root, criteriaBuilder, reportManagementRequest.getFormat()));
+            }
 
-hibernate.order_updates=true
+            if (reportManagementRequest.getDurationFromDate() != null) {
+                predicate = criteriaBuilder.and(predicate, getDurationFromDatePredicate(root, criteriaBuilder, reportManagementRequest.getDurationFromDate()));
+            }
 
-hibernate.order_inserts=true
+            if (reportManagementRequest.getDurationToDate() != null) {
+                predicate = criteriaBuilder.and(predicate, getDurationToDatePredicate(root, criteriaBuilder, reportManagementRequest.getDurationToDate()));
+            }
 
-hibernate.batch_versioned_data=true
-
-hibernate.generate_statistics=true
-
-
-Enabled SQL logging for better debugging and monitoring.
-
-
-Performance Metrics Observed:
-
-2025-01-27 19:27:54.013 INFO | org.hibernate.engine.internal.StatisticalLoggingSessionEventListener:280 | 
-Session Metrics {
-    18261000 nanoseconds spent acquiring 1 JDBC connection;
-    322997100 nanoseconds spent preparing 1011 JDBC statements;
-    18811242900 nanoseconds spent executing 1010 JDBC statements;
-    259003100 nanoseconds spent executing 11 JDBC batches;
-    1441504700 nanoseconds spent executing 1 flush (flushing 1010 entities);
-}
-
-Impact:
-
-Reduces database load by executing queries in batches.
-
-Improves application performance by minimizing network round trips.
-
-Provides better insight into query execution through logging.
-
-
-This MR ensures that Hibernate batch processing is correctly configured and monitored for enhanced efficiency.
-
-
-
-
-
-
-
-MR Description
-
-Title: Enable Hibernate Batch Processing
-
-Description:
-Configured Hibernate batch processing in application.yml to optimize database operations.
-
-Changes:
-
-Set hibernate.jdbc.batch_size=100 and related optimizations.
-
-Enabled SQL logging for better monitoring.
-
-
-Performance Metrics:
-
-2025-01-27 19:27:54.013 INFO | Session Metrics {
-    18261000 ns spent acquiring 1 JDBC connection;
-    322997100 ns spent preparing 1011 JDBC statements;
-    18811242900 ns spent executing 1010 JDBC statements;
-    259003100 ns spent executing 11 JDBC batches;
-    1441504700 ns spent executing 1 flush (1010 entities);
-}
-
-Impact:
-
-Reduces database load with batch execution.
-
-Improves performance by minimizing queries.
-
-Enhances logging for monitoring.
-
-
-
-
-
-
+            return predicate;
+        };
+    }
