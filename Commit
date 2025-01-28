@@ -8,7 +8,6 @@ import com.epay.reporting.util.enums.ReportStatus;
 import com.epay.reporting.exception.ReportingException;
 import com.epay.reporting.repository.ReportManagementRepository;
 import com.epay.reporting.mapper.ReportManagementMapper;
-import com.epay.reporting.model.request.ReportManagementRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
@@ -36,38 +35,37 @@ class ReportManagementDaoTest {
     }
 
     @Test
-    void testUpdateReportStatus() {
+    void testUpdateStatusAndRemarks() {
         // Arrange
         UUID reportManagementId = UUID.randomUUID();
         ReportStatus newStatus = ReportStatus.GENERATED;
+        String newRemarks = "Generation successful";
 
         // Create a mock ReportManagement entity with an initial status
         ReportManagement reportManagement = new ReportManagement();
         reportManagement.setId(reportManagementId);
         reportManagement.setStatus(ReportStatus.TO_BE_GENERATE);  // Initial status
+        reportManagement.setRemarks("Initial remarks");
 
         // Mock the behavior of the repository to return the report management entity
         when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
                 .thenReturn(Optional.of(reportManagement));
 
-        // Mock the mapper to return the DTO when the entity is converted
-        ReportManagementDto reportManagementDto = new ReportManagementDto();
-        when(mapper.mapEntityToDto(reportManagement)).thenReturn(reportManagementDto);
-
         // Act
-        ReportManagementDto result = reportManagementDao.updateReportStatus(reportManagementId, newStatus);
+        reportManagementDao.updateStatusAndRemarks(reportManagementId, newStatus, newRemarks);
 
         // Assert
-        assertNotNull(result);
         assertEquals(newStatus, reportManagement.getStatus());  // Ensure the status is updated
+        assertEquals(newRemarks, reportManagement.getRemarks());  // Ensure the remarks are updated
         verify(reportManagementRepository).save(reportManagement);  // Verify that save is called
     }
 
     @Test
-    void testUpdateReportStatus_ThrowsException_WhenReportNotFound() {
+    void testUpdateStatusAndRemarks_ThrowsException_WhenReportNotFound() {
         // Arrange
         UUID reportManagementId = UUID.randomUUID();
         ReportStatus newStatus = ReportStatus.GENERATED;
+        String newRemarks = "Generation failed";
 
         // Mock the behavior of the repository to return an empty Optional (i.e., report not found)
         when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
@@ -75,7 +73,7 @@ class ReportManagementDaoTest {
 
         // Act & Assert
         ReportingException thrown = assertThrows(ReportingException.class, () -> {
-            reportManagementDao.updateReportStatus(reportManagementId, newStatus);
+            reportManagementDao.updateStatusAndRemarks(reportManagementId, newStatus, newRemarks);
         });
 
         assertEquals("Report not found", thrown.getMessage());  // Adjust this message based on your exception handling
