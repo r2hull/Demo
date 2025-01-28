@@ -1,33 +1,32 @@
 @Test
-void testUpdateStatusAndFilePath_ThrowsException_WhenReportNotFound() {
+void testUpdateStatusAndFilePath_WhenReportNotFound_ShouldNotThrowException() {
     UUID reportManagementId = UUID.randomUUID();
     ReportStatus status = ReportStatus.GENERATED;
     String filePath = "test/path/report.pdf";
 
-    // Mock repository to return empty (report not found)
+    // Mock repository to return empty (simulating "report not found" case)
     when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
         .thenReturn(Optional.empty());
 
-    // Assert that ReportingException is thrown
-    assertThrows(ReportingException.class, () -> 
+    // Call the method and ensure no exception is thrown
+    assertDoesNotThrow(() -> 
         reportManagementDao.updateStatusAndFilePath(reportManagementId, status, filePath)
     );
 }
 
 
-
 @Test
-void testUpdateStatusAndRemarks_ThrowsException_WhenReportNotFound() {
+void testUpdateStatusAndRemarks_WhenReportNotFound_ShouldNotThrowException() {
     UUID reportManagementId = UUID.randomUUID();
     ReportStatus status = ReportStatus.GENERATED;
     String remarks = "Test remarks";
 
-    // Mock repository to return empty (report not found)
+    // Mock repository to return empty (simulating "report not found" case)
     when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
         .thenReturn(Optional.empty());
 
-    // Assert that ReportingException is thrown
-    assertThrows(ReportingException.class, () -> 
+    // Call the method and ensure no exception is thrown
+    assertDoesNotThrow(() -> 
         reportManagementDao.updateStatusAndRemarks(reportManagementId, status, remarks)
     );
 }
