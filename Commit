@@ -1,32 +1,257 @@
-@Test
-void testUpdateStatusAndFilePath_WhenReportNotFound_ShouldNotThrowException() {
-    UUID reportManagementId = UUID.randomUUID();
-    ReportStatus status = ReportStatus.GENERATED;
-    String filePath = "test/path/report.pdf";
+package com.epay.reporting.dao;
 
-    // Mock repository to return empty (simulating "report not found" case)
-    when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
-        .thenReturn(Optional.empty());
+import com.epay.reporting.dto.ReportManagementDto;
+import com.epay.reporting.entity.ReportManagement;
+import com.epay.reporting.etl.producer.ReportGenerationProducer;
+import com.epay.reporting.exception.ReportingException;
+import com.epay.reporting.mapper.ReportManagementMapper;
+import com.epay.reporting.model.request.ReportManagementRequest;
+import com.epay.reporting.repository.ReportManagementRepository;
+import com.epay.reporting.util.enums.Report;
+import com.epay.reporting.util.enums.ReportFormat;
+import com.epay.reporting.util.enums.ReportStatus;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
-    // Call the method and ensure no exception is thrown
-    assertDoesNotThrow(() -> 
-        reportManagementDao.updateStatusAndFilePath(reportManagementId, status, filePath)
-    );
-}
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+public class ReportManagementDaoTest {
+    @InjectMocks
+    ReportManagementDao reportManagementDao;
+
+    @Mock
+    private ReportManagementRepository reportManagementRepository;
+    @Mock
+    private ReportManagementMapper mapper;
+    @Mock
+    private ReportMasterDao reportMasterDao;
+    @Mock
+    private ReportGenerationProducer reportGenerationProducer;
+    UUID reportId;
+    ReportManagement reportManagement;
+
+    ReportManagementRequest reportManagementRequest;
+    ReportManagementDto reportManagementDto;
+
+    @BeforeEach
+    void setUp(){
+        reportId=UUID.randomUUID();
+        reportManagement= ReportManagement.builder().id(reportId).reportId(reportId).mId("mid").build();
+        reportManagementRequest=ReportManagementRequest.builder().report(Report.REFUNDS).mId("mid").build();
+        reportManagementDto = ReportManagementDto.builder().report(Report.REFUNDS).reportId(reportId).status(ReportStatus.TO_BE_GENERATE).mId("mid").build();
+
+    }
+
+    @Test
+    void testSaveReportManagement(){
+        when(reportMasterDao.getReportIdByName(reportManagementDto.getReport())).thenReturn(reportId);
+
+        when(mapper.mapDtoToEntity(reportManagementDto)).thenReturn(reportManagement);
+        when(reportManagementRepository.save(reportManagement)).thenReturn(reportManagement);
+
+        reportManagementDao.saveReportManagement(reportManagementDto);
+
+        verify(reportManagementRepository,times(1)).save(reportManagement);
+    }
+
+    @Test
+    void testSaveAll(){
+
+        List<ReportManagement> reportManagementList = Arrays.asList(reportManagement,reportManagement);
+        when(reportManagementRepository.saveAll(reportManagementList)).thenReturn(reportManagementList);
+        when(reportMasterDao.getReportNameById(reportManagement.getReportId())).thenReturn(Report.REFUNDS);
+        reportManagementDao.saveAll(reportManagementList);
+        verify(reportManagementRepository,times(1)).saveAll(reportManagementList);
+
+    }
 
 
-@Test
-void testUpdateStatusAndRemarks_WhenReportNotFound_ShouldNotThrowException() {
-    UUID reportManagementId = UUID.randomUUID();
-    ReportStatus status = ReportStatus.GENERATED;
-    String remarks = "Test remarks";
+    @Test
+    void testSearchAndGetReportManagement() {
 
-    // Mock repository to return empty (simulating "report not found" case)
-    when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
-        .thenReturn(Optional.empty());
+        Pageable pageable = PageRequest.of(0, 10);
 
-    // Call the method and ensure no exception is thrown
-    assertDoesNotThrow(() -> 
-        reportManagementDao.updateStatusAndRemarks(reportManagementId, status, remarks)
-    );
+
+        ReportManagementRequest reportManagementRequest = ReportManagementRequest.builder()
+                .report(Report.ORDER)
+                .mId("123")
+                .durationFromDate(1633200000000L)
+                .durationToDate(1633290000000L)
+                .format(ReportFormat.PDF)
+                .build();
+
+        UUID reportId = UUID.randomUUID();
+        when(reportMasterDao.getReportIdByName(reportManagementRequest.getReport()))
+                .thenReturn(reportId);
+
+        ReportManagement reportManagement = new ReportManagement();
+        reportManagement.setId(UUID.randomUUID());
+
+        when(reportManagementRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(reportManagement)));
+
+        ReportManagementDto reportManagementDto = new ReportManagementDto();
+        when(mapper.mapEntityToDto(reportManagement)).thenReturn(reportManagementDto);
+
+        Page<ReportManagementDto> result = reportManagementDao.searchAndGetReportManagement(reportManagementRequest, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());  // Assuming one report is returned
+        verify(reportMasterDao).getReportIdByName(reportManagementRequest.getReport());
+        verify(reportManagementRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void testUpdateReportStatus() {
+        UUID reportManagementId = UUID.randomUUID();
+        ReportStatus newStatus = ReportStatus.GENERATED;
+
+        ReportManagement reportManagement = new ReportManagement();
+        reportManagement.setId(reportManagementId);
+        reportManagement.setStatus(ReportStatus.TO_BE_GENERATE);
+
+        when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
+                .thenReturn(Optional.of(reportManagement));
+
+        ReportManagementDto reportManagementDto = new ReportManagementDto();
+        when(mapper.mapEntityToDto(reportManagement)).thenReturn(reportManagementDto);
+
+        ReportManagementDto result = reportManagementDao.updateReportStatus(reportManagementId, newStatus);
+
+        assertNotNull(result);
+        assertEquals(newStatus, reportManagement.getStatus());
+        verify(reportManagementRepository).save(reportManagement);
+    }
+
+
+    @Test
+    void testUpdateReportStatus_ThrowsException_WhenReportNotFound() {
+        UUID reportManagementId = UUID.randomUUID();
+        ReportStatus newStatus = ReportStatus.GENERATED;
+
+        when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
+                .thenReturn(Optional.empty());
+
+        ReportingException thrown = assertThrows(ReportingException.class, () -> {
+            reportManagementDao.updateReportStatus(reportManagementId, newStatus);
+        });
+
+        assertEquals("Report is not found.", thrown.getMessage());
+    }
+    @Test
+    void testUpdateStatusAndRemarks() {
+
+        UUID reportManagementId = UUID.randomUUID();
+        ReportStatus newStatus = ReportStatus.GENERATED;
+        String newRemarks = "Generation successful";
+
+        ReportManagement reportManagement = new ReportManagement();
+        reportManagement.setId(reportManagementId);
+        reportManagement.setStatus(ReportStatus.TO_BE_GENERATE);
+        reportManagement.setRemarks("Initial remarks");
+
+        when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
+                .thenReturn(Optional.of(reportManagement));
+
+        reportManagementDao.updateStatusAndRemarks(reportManagementId, newStatus, newRemarks);
+
+        assertEquals(newStatus, reportManagement.getStatus());
+        assertEquals(newRemarks, reportManagement.getRemarks());
+        verify(reportManagementRepository).save(reportManagement);
+    }
+
+
+
+    @Test
+    void testUpdateStatusAndFilePath() {
+        UUID reportManagementId = UUID.randomUUID();
+        ReportStatus newStatus = ReportStatus.GENERATED;
+        String newFilePath = "path/to/generated/report";
+
+        ReportManagement reportManagement = new ReportManagement();
+        reportManagement.setId(reportManagementId);
+        reportManagement.setStatus(ReportStatus.TO_BE_GENERATE);
+        reportManagement.setFilePath("path/to/old/report");
+
+        when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
+                .thenReturn(Optional.of(reportManagement));
+
+        reportManagementDao.updateStatusAndFilePath(reportManagementId, newStatus, newFilePath);
+
+        assertEquals(newStatus, reportManagement.getStatus());
+        assertEquals(newFilePath, reportManagement.getFilePath());
+        verify(reportManagementRepository).save(reportManagement);
+    }
+
+
+    @Test
+    void testIsReportExistsByMIdAndFilePathAndStatus(){
+        when(reportManagementRepository.existsBymIdAndFilePathAndStatus("mid", "filePath", ReportStatus.GENERATION_STARTED)).thenReturn(true);
+        boolean existsByMIdAndFilePathAndStatus = reportManagementDao.isReportExistsByMIdAndFilePathAndStatus("mid", "filePath", ReportStatus.GENERATION_STARTED);
+        assertTrue(existsByMIdAndFilePathAndStatus);
+    }
+
+    @Test
+    void testGetReportManagement(){
+        when(reportManagementRepository.findBymIdAndFilePathAndStatus("mId", "filePath", ReportStatus.GENERATION_STARTED)).thenReturn(reportManagement);
+
+        when(mapper.mapEntityToDto(reportManagement)).thenReturn(reportManagementDto);
+
+        ReportManagementDto management = reportManagementDao.getReportManagement("mId", "filePath", ReportStatus.GENERATION_STARTED);
+
+        assertEquals("mid",management.getMId());
+    }
+
+
+
+    @Test
+    void testUpdateStatusAndFilePath_WhenReportNotFound_ShouldNotThrowException() {
+        UUID reportManagementId = UUID.randomUUID();
+        ReportStatus status = ReportStatus.GENERATED;
+        String filePath = "test/path/report.pdf";
+
+
+        when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
+                .thenReturn(Optional.empty());
+
+
+        assertDoesNotThrow(() ->
+                reportManagementDao.updateStatusAndFilePath(reportManagementId, status, filePath)
+        );
+    }
+
+
+
+    @Test
+    void testUpdateStatusAndRemarks_WhenReportNotFound_ShouldNotThrowException() {
+        UUID reportManagementId = UUID.randomUUID();
+        ReportStatus status = ReportStatus.GENERATED;
+        String remarks = "Test remarks";
+
+
+        when(reportManagementRepository.findByIdAndStatusIn(eq(reportManagementId), anyList()))
+                .thenReturn(Optional.empty());
+
+
+        assertDoesNotThrow(() ->
+                reportManagementDao.updateStatusAndRemarks(reportManagementId, status, remarks)
+        );
+    }
+
+
 }
