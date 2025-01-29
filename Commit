@@ -1,5 +1,64 @@
-    public Report getReportNameById(UUID reportId){
-        ReportMaster reportMaster = reportMasterRepository.findById(reportId).orElseThrow(() ->
-                new ReportingException(ErrorConstants.NOT_FOUND_ERROR_CODE, MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Report")));
-        return reportMaster.getName();
+import com.epay.reporting.entity.ReportMaster;
+import com.epay.reporting.exception.ReportingException;
+import com.epay.reporting.repository.ReportMasterRepository;
+import com.epay.reporting.util.enums.Report;
+import com.epay.reporting.util.constants.ErrorConstants;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.text.MessageFormat;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+public class ReportMasterDaoTest {
+
+    @InjectMocks
+    private ReportMasterDao reportMasterDao;
+
+    @Mock
+    private ReportMasterRepository reportMasterRepository;
+
+    private UUID reportId;
+    private ReportMaster reportMaster;
+
+    @BeforeEach
+    void setUp() {
+        reportId = UUID.randomUUID();
+        reportMaster = new ReportMaster();
+        reportMaster.setId(reportId);
+        reportMaster.setName(Report.REFUNDS);
     }
+
+    @Test
+    void testGetReportNameById_Success() {
+        when(reportMasterRepository.findById(reportId)).thenReturn(Optional.of(reportMaster));
+
+        Report result = reportMasterDao.getReportNameById(reportId);
+
+        assertNotNull(result);
+        assertEquals(Report.REFUNDS, result);
+        verify(reportMasterRepository, times(1)).findById(reportId);
+    }
+
+    @Test
+    void testGetReportNameById_ThrowsException_WhenNotFound() {
+        when(reportMasterRepository.findById(reportId)).thenReturn(Optional.empty());
+
+        ReportingException thrown = assertThrows(ReportingException.class, () -> {
+            reportMasterDao.getReportNameById(reportId);
+        });
+
+        assertEquals(ErrorConstants.NOT_FOUND_ERROR_CODE, thrown.getErrorCode());
+        assertEquals(MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Report"), thrown.getMessage());
+
+        verify(reportMasterRepository, times(1)).findById(reportId);
+    }
+}
