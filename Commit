@@ -1,10 +1,11 @@
-@Test
-void testSave() {
-    when(reportMasterDao.getReportIdByName(any())).thenReturn(reportId);
-    when(DateTimeUtils.calculateDateByFrequency(any(), any())).thenReturn(1672531200000L); // Mocking a fixed timestamp
-    when(mapper.mapDtoToEntity(any())).thenReturn(reportScheduleManagement);
 
-    reportScheduleManagementDao.save(reportScheduleManagementDto);
-
-    verify(reportScheduleManagementRepository, times(1)).save(any());
-}
+Cannot invoke "java.lang.CharSequence.length()" because "<parameter2>" is null
+java.lang.NullPointerException: Cannot invoke "java.lang.CharSequence.length()" because "<parameter2>" is null
+	at org.joda.time.format.DateTimeFormatterBuilder$NumberFormatter.parseInto(DateTimeFormatterBuilder.java:1312)
+	at org.joda.time.format.DateTimeFormatterBuilder$Composite.parseInto(DateTimeFormatterBuilder.java:2523)
+	at org.joda.time.format.DateTimeFormatter.parseDateTime(DateTimeFormatter.java:933)
+	at com.epay.reporting.util.DateTimeUtils.calculateDateByFrequency(DateTimeUtils.java:49)
+	at com.epay.reporting.dao.ReportScheduleManagementDaoTest.testSave(ReportScheduleManagementDaoTest.java:109)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
