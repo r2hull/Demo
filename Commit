@@ -1,7 +1,108 @@
-@BeforeEach
-void setUp() {
-    reportScheduleManagementDto = new ReportScheduleManagementDto();
-    reportScheduleManagementDto.setReport("Test Report");
-    reportScheduleManagementDto.setFrequency(Frequency.DAILY);
-    reportScheduleManagementDto.setScheduleExecutionTime("10:30 AM"); // Ensure this is set
+package com.epay.reporting.service;
+
+import com.epay.reporting.dao.InvoiceDao;
+import com.epay.reporting.dto.InvoiceReportDetailDto;
+import com.epay.reporting.exception.ReportingException;
+import com.epay.reporting.exception.ValidationException;
+import com.epay.reporting.model.request.InvoiceSearchRequest;
+import com.epay.reporting.model.response.ReportingResponse;
+import com.epay.reporting.util.ErrorConstants;
+import com.epay.reporting.util.ReportingConstant;
+import com.epay.reporting.util.enums.Report;
+import com.epay.reporting.util.enums.ReportFormat;
+import com.epay.reporting.util.file.model.FileModel;
+import com.epay.reporting.util.file.model.PdfFileModel;
+import com.epay.reporting.validator.MIdValidator;
+import com.sbi.epay.logging.utility.LoggerFactoryUtility;
+import com.sbi.epay.logging.utility.LoggerUtility;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.apache.commons.collections4.CollectionUtils;
+import org.springframework.stereotype.Service;
+
+import java.text.MessageFormat;
+import java.time.YearMonth;
+import java.util.*;
+
+/**
+ * Class Name: InvoiceService
+ * *
+ * Description: To define business logic for all the Invoice request.
+ * *
+ * Author: Bhoopendra Rajput
+ * <p>
+ * Copyright (c) 2024 [State Bank of India]
+ * All rights reserved
+ * *
+ * Version:1.0
+ */
+@Service
+@RequiredArgsConstructor
+public class InvoiceService {
+    private static final LoggerUtility log = LoggerFactoryUtility.getLogger(InvoiceService.class);
+    private final InvoiceDao invoiceDao;
+    private final FileGeneratorService fileGeneratorService;
+    private final MIdValidator mIdValidator;
+
+    /**
+     * Search Invoice report for given MID
+     *
+     * @param mId                  String
+     * @param invoiceSearchRequest InvoiceSearchRequest
+     * @return ReportingResponse
+     */
+    public ReportingResponse<InvoiceReportDetailDto> searchInvoice(String mId, InvoiceSearchRequest invoiceSearchRequest) {
+        mIdValidator.validatedMId(mId);
+        List<InvoiceReportDetailDto> reports = new ArrayList<>();
+        //TODO: Get report from DB.
+        for (YearMonth month : invoiceSearchRequest.getMonths()) {
+            reports.add(InvoiceReportDetailDto.builder().id(UUID.randomUUID()).yearMonth(month).isAvailable(true).build());
+        }
+        return ReportingResponse.<InvoiceReportDetailDto>builder().data(reports).total((long) reports.size()).build();
+    }
+
+    /**
+     * Validate the request, generate pdf file content and set it for downloading.
+     *
+     * @param mId        String
+     * @param reportDate String
+     * @param response   HttpServletResponse
+     */
+    public ReportingResponse<String> generateMerchantFeesInvoice(String mId, List<String> reportDate, HttpServletResponse response) {
+        try {
+            log.info("Received Fees invoice generation for mId {}, reportDate {}", mId, reportDate);
+            mIdValidator.validatedActiveMId(mId);
+            List<Map<String, Object>> feesInvoiceData = invoiceDao.getFeesInvoiceData(mId, reportDate);
+            if(CollectionUtils.isNotEmpty(feesInvoiceData)) {
+                if (feesInvoiceData.size() > 1) {
+                    List<FileModel> fileModels = getFileModels(feesInvoiceData);
+                    fileGeneratorService.zipFileGenerator(response, ReportFormat.PDF, Report.FEES_INVOICE, mId, fileModels);
+                } else {
+                    FileModel fileModel = PdfFileModel.builder().fileData(feesInvoiceData.getFirst()).build();
+                    fileGeneratorService.downloadFile(response, ReportFormat.PDF, Report.FEES_INVOICE, mId, fileModel);
+                }
+            }
+            return ReportingResponse.<String>builder().data(List.of("No Data Found")).status(ReportingConstant.RESPONSE_SUCCESS).build();
+        } catch (ValidationException e){
+            log.error("Failed to generate PDF for MID {} and Report: {} during Validation. Error : {}", mId, reportDate, e.getErrorMessages());
+            throw e;
+        } catch (ReportingException e){
+            log.error("Failed to generate PDF for MID {} and Report: {}, at file generation. Error : {}", mId, reportDate, e.getErrorMessages());
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to generate PDF for MID {} and Report: {}. Error : {}", mId, reportDate, e.getMessage());
+            throw new ReportingException(ErrorConstants.GENERATION_ERROR_CODE, MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, reportDate));
+        }
+    }
+
+    private static List<FileModel> getFileModels(List<Map<String, Object>> feesInvoiceData) {
+        List<FileModel> fileModels = new ArrayList<>();
+        for (Map<String, Object> feesData : feesInvoiceData) {
+            FileModel fileModel = PdfFileModel.builder().fileData(feesInvoiceData.getFirst()).build();
+            fileModel.setReportMonth((String) feesData.get("report"));
+            fileModels.add(fileModel);
+        }
+        return fileModels;
+    }
+
 }
