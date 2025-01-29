@@ -3,106 +3,134 @@ package com.epay.reporting.service;
 import com.epay.reporting.dao.InvoiceDao;
 import com.epay.reporting.dto.InvoiceReportDetailDto;
 import com.epay.reporting.exception.ReportingException;
-import com.epay.reporting.exception.ValidationException;
 import com.epay.reporting.model.request.InvoiceSearchRequest;
 import com.epay.reporting.model.response.ReportingResponse;
-import com.epay.reporting.util.ErrorConstants;
-import com.epay.reporting.util.ReportingConstant;
 import com.epay.reporting.util.enums.Report;
 import com.epay.reporting.util.enums.ReportFormat;
 import com.epay.reporting.util.file.model.FileModel;
-import com.epay.reporting.util.file.model.PdfFileModel;
 import com.epay.reporting.validator.MIdValidator;
-import com.sbi.epay.logging.utility.LoggerFactoryUtility;
-import com.sbi.epay.logging.utility.LoggerUtility;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
-import org.springframework.stereotype.Service;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
-import java.text.MessageFormat;
 import java.time.YearMonth;
 import java.util.*;
 
-/**
- * Class Name: InvoiceService
- * *
- * Description: To define business logic for all the Invoice request.
- * *
- * Author: Bhoopendra Rajput
- * <p>
- * Copyright (c) 2024 [State Bank of India]
- * All rights reserved
- * *
- * Version:1.0
- */
-@Service
-@RequiredArgsConstructor
-public class InvoiceService {
-    private static final LoggerUtility log = LoggerFactoryUtility.getLogger(InvoiceService.class);
-    private final InvoiceDao invoiceDao;
-    private final FileGeneratorService fileGeneratorService;
-    private final MIdValidator mIdValidator;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-    /**
-     * Search Invoice report for given MID
-     *
-     * @param mId                  String
-     * @param invoiceSearchRequest InvoiceSearchRequest
-     * @return ReportingResponse
-     */
-    public ReportingResponse<InvoiceReportDetailDto> searchInvoice(String mId, InvoiceSearchRequest invoiceSearchRequest) {
-        mIdValidator.validatedMId(mId);
-        List<InvoiceReportDetailDto> reports = new ArrayList<>();
-        //TODO: Get report from DB.
-        for (YearMonth month : invoiceSearchRequest.getMonths()) {
-            reports.add(InvoiceReportDetailDto.builder().id(UUID.randomUUID()).yearMonth(month).isAvailable(true).build());
-        }
-        return ReportingResponse.<InvoiceReportDetailDto>builder().data(reports).total((long) reports.size()).build();
+class InvoiceServiceTest {
+
+    @InjectMocks
+    private InvoiceService invoiceService;
+
+    @Mock
+    private InvoiceDao invoiceDao;
+
+    @Mock
+    private FileGeneratorService fileGeneratorService;
+
+    @Mock
+    private MIdValidator mIdValidator;
+
+    @Mock
+    private HttpServletResponse response;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
     }
 
-    /**
-     * Validate the request, generate pdf file content and set it for downloading.
-     *
-     * @param mId        String
-     * @param reportDate String
-     * @param response   HttpServletResponse
-     */
-    public ReportingResponse<String> generateMerchantFeesInvoice(String mId, List<String> reportDate, HttpServletResponse response) {
-        try {
-            log.info("Received Fees invoice generation for mId {}, reportDate {}", mId, reportDate);
-            mIdValidator.validatedActiveMId(mId);
-            List<Map<String, Object>> feesInvoiceData = invoiceDao.getFeesInvoiceData(mId, reportDate);
-            if(CollectionUtils.isNotEmpty(feesInvoiceData)) {
-                if (feesInvoiceData.size() > 1) {
-                    List<FileModel> fileModels = getFileModels(feesInvoiceData);
-                    fileGeneratorService.zipFileGenerator(response, ReportFormat.PDF, Report.FEES_INVOICE, mId, fileModels);
-                } else {
-                    FileModel fileModel = PdfFileModel.builder().fileData(feesInvoiceData.getFirst()).build();
-                    fileGeneratorService.downloadFile(response, ReportFormat.PDF, Report.FEES_INVOICE, mId, fileModel);
-                }
-            }
-            return ReportingResponse.<String>builder().data(List.of("No Data Found")).status(ReportingConstant.RESPONSE_SUCCESS).build();
-        } catch (ValidationException e){
-            log.error("Failed to generate PDF for MID {} and Report: {} during Validation. Error : {}", mId, reportDate, e.getErrorMessages());
-            throw e;
-        } catch (ReportingException e){
-            log.error("Failed to generate PDF for MID {} and Report: {}, at file generation. Error : {}", mId, reportDate, e.getErrorMessages());
-            throw e;
-        } catch (Exception e) {
-            log.error("Failed to generate PDF for MID {} and Report: {}. Error : {}", mId, reportDate, e.getMessage());
-            throw new ReportingException(ErrorConstants.GENERATION_ERROR_CODE, MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, reportDate));
-        }
+    @Test
+    void testSearchInvoice_Success() {
+        // Given
+        String mId = "12345";
+        InvoiceSearchRequest searchRequest = new InvoiceSearchRequest();
+        searchRequest.setMonths(List.of(YearMonth.of(2024, 1), YearMonth.of(2024, 2)));
+
+        // When
+        ReportingResponse<InvoiceReportDetailDto> response = invoiceService.searchInvoice(mId, searchRequest);
+
+        // Then
+        assertNotNull(response);
+        assertEquals(2, response.getData().size());
+        assertTrue(response.getData().get(0).isAvailable());
+        verify(mIdValidator, times(1)).validatedMId(mId);
     }
 
-    private static List<FileModel> getFileModels(List<Map<String, Object>> feesInvoiceData) {
-        List<FileModel> fileModels = new ArrayList<>();
-        for (Map<String, Object> feesData : feesInvoiceData) {
-            FileModel fileModel = PdfFileModel.builder().fileData(feesInvoiceData.getFirst()).build();
-            fileModel.setReportMonth((String) feesData.get("report"));
-            fileModels.add(fileModel);
-        }
-        return fileModels;
+    @Test
+    void testGenerateMerchantFeesInvoice_Success_SingleFile() {
+        // Given
+        String mId = "12345";
+        List<String> reportDates = List.of("2024-01");
+
+        Map<String, Object> feesInvoiceData = new HashMap<>();
+        feesInvoiceData.put("report", "2024-01");
+
+        when(invoiceDao.getFeesInvoiceData(mId, reportDates)).thenReturn(List.of(feesInvoiceData));
+
+        // When
+        ReportingResponse<String> response = invoiceService.generateMerchantFeesInvoice(mId, reportDates, this.response);
+
+        // Then
+        assertNotNull(response);
+        assertEquals("Success", response.getStatus());
+        verify(mIdValidator, times(1)).validatedActiveMId(mId);
+        verify(fileGeneratorService, times(1)).downloadFile(any(), eq(ReportFormat.PDF), eq(Report.FEES_INVOICE), eq(mId), any(FileModel.class));
     }
 
+    @Test
+    void testGenerateMerchantFeesInvoice_Success_ZipFile() {
+        // Given
+        String mId = "12345";
+        List<String> reportDates = List.of("2024-01", "2024-02");
+
+        Map<String, Object> feesInvoiceData1 = new HashMap<>();
+        feesInvoiceData1.put("report", "2024-01");
+
+        Map<String, Object> feesInvoiceData2 = new HashMap<>();
+        feesInvoiceData2.put("report", "2024-02");
+
+        when(invoiceDao.getFeesInvoiceData(mId, reportDates)).thenReturn(List.of(feesInvoiceData1, feesInvoiceData2));
+
+        // When
+        ReportingResponse<String> response = invoiceService.generateMerchantFeesInvoice(mId, reportDates, this.response);
+
+        // Then
+        assertNotNull(response);
+        verify(fileGeneratorService, times(1)).zipFileGenerator(any(), eq(ReportFormat.PDF), eq(Report.FEES_INVOICE), eq(mId), anyList());
+    }
+
+    @Test
+    void testGenerateMerchantFeesInvoice_NoDataFound() {
+        // Given
+        String mId = "12345";
+        List<String> reportDates = List.of("2024-01");
+
+        when(invoiceDao.getFeesInvoiceData(mId, reportDates)).thenReturn(Collections.emptyList());
+
+        // When
+        ReportingResponse<String> response = invoiceService.generateMerchantFeesInvoice(mId, reportDates, this.response);
+
+        // Then
+        assertNotNull(response);
+        assertEquals("Success", response.getStatus());
+        assertEquals(List.of("No Data Found"), response.getData());
+    }
+
+    @Test
+    void testGenerateMerchantFeesInvoice_ValidationException() {
+        // Given
+        String mId = "12345";
+        List<String> reportDates = List.of("2024-01");
+
+        doThrow(new ReportingException("VALIDATION_ERROR", "Invalid MID")).when(mIdValidator).validatedActiveMId(mId);
+
+        // When & Then
+        assertThrows(ReportingException.class, () -> invoiceService.generateMerchantFeesInvoice(mId, reportDates, this.response));
+    }
 }
