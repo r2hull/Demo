@@ -1,11 +1,7 @@
-
-Cannot invoke "java.lang.CharSequence.length()" because "<parameter2>" is null
-java.lang.NullPointerException: Cannot invoke "java.lang.CharSequence.length()" because "<parameter2>" is null
-	at org.joda.time.format.DateTimeFormatterBuilder$NumberFormatter.parseInto(DateTimeFormatterBuilder.java:1312)
-	at org.joda.time.format.DateTimeFormatterBuilder$Composite.parseInto(DateTimeFormatterBuilder.java:2523)
-	at org.joda.time.format.DateTimeFormatter.parseDateTime(DateTimeFormatter.java:933)
-	at com.epay.reporting.util.DateTimeUtils.calculateDateByFrequency(DateTimeUtils.java:49)
-	at com.epay.reporting.dao.ReportScheduleManagementDaoTest.testSave(ReportScheduleManagementDaoTest.java:109)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+@BeforeEach
+void setUp() {
+    reportScheduleManagementDto = new ReportScheduleManagementDto();
+    reportScheduleManagementDto.setReport("Test Report");
+    reportScheduleManagementDto.setFrequency(Frequency.DAILY);
+    reportScheduleManagementDto.setScheduleExecutionTime("10:30 AM"); // Ensure this is set
+}
