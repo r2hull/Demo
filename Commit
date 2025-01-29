@@ -1,16 +1,10 @@
-public static Long calculateDateByFrequency(Frequency frequency, String time) {
-        DateTime currentDateTime = DateTime.now();
-        DateTimeFormatter timeFormatter = DateTimeFormat.forPattern("h:mm a");
-        DateTime parsedTime = timeFormatter.parseDateTime(time);
-        // Combine the date from the current time with the parsed time
-        DateTime nextOccurrence = currentDateTime.withHourOfDay(parsedTime.getHourOfDay()).withMinuteOfHour(parsedTime.getMinuteOfHour()).withSecondOfMinute(0).withMillisOfSecond(0);
+@Test
+void testSave() {
+    when(reportMasterDao.getReportIdByName(any())).thenReturn(reportId);
+    when(DateTimeUtils.calculateDateByFrequency(any(), any())).thenReturn(1672531200000L); // Mocking a fixed timestamp
+    when(mapper.mapDtoToEntity(any())).thenReturn(reportScheduleManagement);
 
-        // Calculate the next occurrence based on frequency
-        switch (frequency) {
-            case Frequency.DAILY -> nextOccurrence = nextOccurrence.plusDays(1);
-            case Frequency.MONTHLY -> nextOccurrence = nextOccurrence.plusMonths(1);
-            case Frequency.YEARLY -> nextOccurrence = nextOccurrence.plusYears(1);
-            default -> throw new IllegalArgumentException("Invalid Frequency :" + frequency);
-        }
-        return nextOccurrence.getMillis();
-    }
+    reportScheduleManagementDao.save(reportScheduleManagementDto);
+
+    verify(reportScheduleManagementRepository, times(1)).save(any());
+}
