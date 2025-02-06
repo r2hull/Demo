@@ -1,23 +1,22 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+plugins {
+    java
+}
 
-    <groupId>org.example</groupId>
-    <artifactId>TextToSpeech</artifactId>
-    <version>1.0-SNAPSHOT</version>
+group = "org.example"
+version = "1.0-SNAPSHOT"
 
-    <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-    <dependencies>
-        <dependency>
-            <groupId>net.sf.sociaal</groupId>
-            <artifactId>freetts</artifactId>
-            <version>1.2.2</version>
-        </dependency>
-    </dependencies>
-</project>
+java {
+    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("net.sf.sociaal:freetts:1.2.2")
+}
+
+tasks.withType<JavaCompile> {
+    options.encoding = "UTF-8"
+}
