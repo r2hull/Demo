@@ -1,40 +1,10 @@
-  public byte[] saveCaptcha1() throws MessagingException, IOException {
-        //Step 2 : Generate Captcha Text
-        String captchaText = captchaProducer.createText();
-        //Step 3 : Generate Captcha Image and convert into Base 64
-        String base64Image = generateCaptchaImage(captchaText);
+import com.fasterxml.jackson.databind.ObjectMapper;
 
-        byte[] audioBytes = VoiceCaptchaUtil.speakToByteArray(captchaText);
-        ByteArrayResource fileResource = new ByteArrayResource(audioBytes);
+// Step 1: Convert CaptchaResponse to JSON String
+ObjectMapper objectMapper = new ObjectMapper();
+String jsonResponse = objectMapper.writeValueAsString(captchaResponse);
 
-        //Step 3 : Save the Captcha into DB
-        // CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry);
-        CaptchaDto captchaDto=new CaptchaDto();
-        CaptchaResponse captchaResponse = captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image);
-        // Create Multipart Response
-        MimeMultipart mimeMultipart = new MimeMultipart("mixed");
-
-        // Add body part
-        MimeBodyPart jsonPart = new MimeBodyPart();
-        jsonPart.setContent(captchaResponse, "application/json");
-        mimeMultipart.addBodyPart(jsonPart);
-
-        // Add file part
-        MimeBodyPart filePart = new MimeBodyPart();
-        filePart.setContent(fileResource.getInputStream(), "audio/wav");
-        filePart.setFileName("speech_.wav");
-        mimeMultipart.addBodyPart(filePart);
-
-        // Convert MimeMultipart to ByteArray
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        mimeMultipart.writeTo(outputStream);
-        byte[] responseBytes = outputStream.toByteArray();
-
-        return responseBytes;
-//        //Step 4 : Build the Merchant Response
-//        logger.info("generate captcha completed for RequestId: {}", captchaRequest.getRequestId());
-//        return MerchantResponse.<CaptchaResponse>builder().data(List.of(captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image))).status(RESPONSE_SUCCESS).build();
-    }
-
-
-"no object DCH for MIME type application/json"
+// Step 2: Set JSON as String in MimeBodyPart
+MimeBodyPart jsonPart = new MimeBodyPart();
+jsonPart.setContent(jsonResponse, "application/json; charset=UTF-8");
+mimeMultipart.addBodyPart(jsonPart);
