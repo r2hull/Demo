@@ -4,6 +4,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.PostMapping;
 
 @Service
 @RequiredArgsConstructor
@@ -12,16 +14,16 @@ public class CaptchaService {
     // Other dependencies...
 
     public ResponseEntity<MultiValueMap<String, Object>> regenerateCaptcha(CaptchaRequest captchaRequest) {
-        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
+        logger.info("Generate captcha for RequestId: {}", captchaRequest.getRequestId());
 
         // Validate the Captcha Request
         captchaValidator.regenerateValidator(captchaRequest);
 
-        // Generate Captcha and Audio
-        return saveCaptchaAsMultipart(captchaRequest, true);
+        // Generate Captcha and Audio as attachments
+        return saveCaptchaAsAttachments(captchaRequest, true);
     }
 
-    private ResponseEntity<MultiValueMap<String, Object>> saveCaptchaAsMultipart(CaptchaRequest captchaRequest, boolean retry) {
+    private ResponseEntity<MultiValueMap<String, Object>> saveCaptchaAsAttachments(CaptchaRequest captchaRequest, boolean retry) {
         RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
 
         // Step 1: Generate Captcha Text
@@ -50,17 +52,18 @@ public class CaptchaService {
         // Step 4: Save the Captcha into DB
         CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry);
 
-        // Step 5: Build the Multipart Response
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("image", imageResource);  // Add image part to multipart
-        body.add("audio", audioResource);  // Add audio part to multipart
-
-        // Response headers
+        // Set the headers for attachment
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=captchaFiles.zip");
 
+        // Return the image and audio as attachment
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("image", imageResource);  // Add image part
+        body.add("audio", audioResource);  // Add audio part
+
+        // Return the response with headers and attachments
         return ResponseEntity.ok()
                 .headers(headers)
-                .body(body);  // Return the response with multipart body
+                .body(body);  // Return the response with multipart body as attachment
     }
 }
