@@ -1,26 +1,27 @@
- public static void main(String[] args) {
-        String text="x 8 n G T";
-        System.setProperty("freetts.voices", "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory");
-        TalkResource resource = new TalkResource();
-        resource.speak(text);
-        System.out.print(text);
-    }
+package com.epay.merchant.util;
 
-
-    package com.epay.merchant.util;
 import com.sun.speech.freetts.Voice;
 import com.sun.speech.freetts.VoiceManager;
 
 public class TalkResource {
-
-    private static final String VOICENAME_kevin = "kevin16";
-
+    private static final String VOICENAME_KEVIN = "kevin16";
 
     public void speak(String text) {
-        Voice voice;
         VoiceManager voiceManager = VoiceManager.getInstance();
-        voice = voiceManager.getVoice(VOICENAME_kevin);
+        Voice voice = voiceManager.getVoice(VOICENAME_KEVIN);
+
+        if (voice == null) {
+            System.err.println("Voice not found.");
+            return;
+        }
+
         voice.allocate();
+        
+        // **Set properties for slower speech**
+        voice.setRate(100);  // Default ~150, lower is slower
+        voice.setPitch(90);  // Default ~100, lower is deeper
+        voice.setVolume(1.0f);  // Max volume (0.0 to 1.0)
+
         voice.speak(text);
         voice.deallocate();
     }
