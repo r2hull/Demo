@@ -1,83 +1,25 @@
-   @PostMapping
-    @Operation(summary = "Create Captcha API.", description = "Create Captcha creation API for given Request Type")
-    public ResponseEntity<byte[]>  generateCaptcha(@RequestBody CaptchaRequest captchaRequest) throws JsonProcessingException {
+@RestController
+@RequestMapping("/captcha")
+@RequiredArgsConstructor
+public class CaptchaController {
+
+    private final CaptchaService captchaService;
+    private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
+
+    @PostMapping
+    @Operation(summary = "Create Captcha API.", description = "Generates a captcha based on the given request type.")
+    public ResponseEntity<byte[]> generateCaptcha(@RequestBody CaptchaRequest captchaRequest) {
         logger.info("Received request to generate captcha with requestId: {}", captchaRequest.getRequestId());
-        MimeMultipart mimeMultipart = captchaService.generateCaptcha(captchaRequest);
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        try {
-            mimeMultipart.writeTo(outputStream);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (MessagingException e) {
-            throw new RuntimeException(e);
-        }
-        byte[] responseBytes = outputStream.toByteArray();
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.MULTIPART_MIXED);
-        headers.setContentLength(responseBytes.length);
-
-        return new ResponseEntity<>(responseBytes, headers, HttpStatus.OK);
+        return captchaService.generateCaptchaResponse(captchaRequest);
     }
-package com.epay.merchant.service;
-
-import com.epay.merchant.dao.CaptchaDao;
-import com.epay.merchant.dto.CaptchaDto;
-import com.epay.merchant.exception.MerchantException;
-import com.epay.merchant.mapper.CaptchaMapper;
-import com.epay.merchant.model.request.CaptchaRequest;
-import com.epay.merchant.model.response.CaptchaResponse;
-import com.epay.merchant.model.response.MerchantResponse;
-import com.epay.merchant.util.ErrorConstants;
-import com.epay.merchant.util.MerchantUtil;
-import com.epay.merchant.util.VoiceCaptchaUtil;
-import com.epay.merchant.util.enums.RequestType;
-import com.epay.merchant.validator.CaptchaValidator;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.sbi.epay.captcha.impl.DefaultKaptcha;
-import com.sbi.epay.logging.utility.LoggerFactoryUtility;
-import com.sbi.epay.logging.utility.LoggerUtility;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeBodyPart;
-import jakarta.mail.internet.MimeMultipart;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.text.MessageFormat;
-import java.util.Base64;
-import java.util.List;
-
-import static com.epay.merchant.util.MerchantConstant.RESPONSE_SUCCESS;
-
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import jakarta.activation.DataHandler;
-import jakarta.activation.DataSource;
-import jakarta.mail.util.ByteArrayDataSource;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
+}
 
 
 
-/**
- * Class Name: CaptchaService
- * *
- * Description:
- * *
- * Author: Subhra Goswami
- * <p>
- * Copyright (c) 2024 [State Bank of India]
- * All rights reserved
- * *
- * Version:1.0
- */
+
+
+
 @Service
 @RequiredArgsConstructor
 public class CaptchaService {
@@ -86,97 +28,72 @@ public class CaptchaService {
     private final DefaultKaptcha captchaProducer;
     private final CaptchaValidator captchaValidator;
     private final CaptchaMapper captchaMapper;
-
     private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
 
-    /**
-     * Generates a captcha and save it to the DB and returns a response.
-     *
-     * @param captchaRequest CaptchaRequest
-     * @return merchantResponse containing CaptchaResponse
-     */
-    public MimeMultipart generateCaptcha(CaptchaRequest captchaRequest) {
-        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
-        //Step 1 : Validate Captcha Request
+    public ResponseEntity<byte[]> generateCaptchaResponse(CaptchaRequest captchaRequest) {
+        logger.info("Generating captcha for RequestId: {}", captchaRequest.getRequestId());
+
         captchaValidator.requestValidator(captchaRequest);
-        return saveCaptcha(captchaRequest, false);
+        MimeMultipart mimeMultipart = processCaptcha(captchaRequest, false);
+        byte[] responseBytes = convertMimeMultipartToByteArray(mimeMultipart);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_MIXED);
+        headers.setContentLength(responseBytes.length);
+
+        return ResponseEntity.ok().headers(headers).body(responseBytes);
     }
 
-
-    /**
-     * ReGenerates a captcha and save it to the DB and returns a response.
-     *
-     * @param captchaRequest CaptchaRequest
-     * @return merchantResponse containing CaptchaResponse
-     */
-    public MimeMultipart regenerateCaptcha(CaptchaRequest captchaRequest) {
-        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
-        //Step 1 : Validate Captcha Request
-        captchaValidator.regenerateValidator(captchaRequest);
-        return saveCaptcha(captchaRequest, true);
+    private MimeMultipart processCaptcha(CaptchaRequest captchaRequest, boolean retry) {
+        RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
+        String captchaText = captchaProducer.createText();
+        String base64Image = generateCaptchaImage(captchaText);
+        byte[] audioBytes = generateAudioCaptcha(captchaText);
+        
+        CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry);
+        CaptchaResponse captchaResponse = captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image);
+        
+        return buildMimeMultipartResponse(captchaResponse, audioBytes);
     }
 
-    /**
-     * Generates the captcha image and encodes it in Base64
-     *
-     * @param captchaText String
-     * @return Captcha
-     */
-    public String generateCaptchaImage(String captchaText) {
-        logger.info("generated captcha text: {}", captchaText);
+    private String generateCaptchaImage(String captchaText) {
+        logger.info("Generated captcha text: {}", captchaText);
         BufferedImage image = captchaProducer.createImage(captchaText);
         return MerchantUtil.convertImageToBase64(image, "Captcha");
     }
 
-    private MimeMultipart saveCaptcha(CaptchaRequest captchaRequest, boolean retry) {
-        RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
-        //Step 2 : Generate Captcha Text
-        String captchaText = captchaProducer.createText();
-        //Step 3 : Generate Captcha Image and convert into Base 64
-        String base64Image = generateCaptchaImage(captchaText);
-
-        byte[] audioBytes = VoiceCaptchaUtil.speakToByteArray(captchaText);
-        DataSource dataSource = new ByteArrayDataSource(audioBytes, "audio/wav");
-
-        //Step 3 : Save the Captcha into DB
-        CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry);
-
-        CaptchaResponse captchaResponse = captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image);
-
-        // Convert CaptchaResponse to JSON String
-        ObjectMapper objectMapper = new ObjectMapper();
-        String jsonResponse;
-        try {
-             jsonResponse = objectMapper.writeValueAsString(captchaResponse);
-
-        } catch (JsonProcessingException e) {
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE, MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, type.name() + "Key"));
-        }
-        // Create Multipart Response
-        MimeMultipart mimeMultipart = new MimeMultipart("mixed");
-
-        // JSON Part
-        MimeBodyPart jsonPart = new MimeBodyPart();
-        try {
-            jsonPart.setContent(jsonResponse, "application/json; charset=UTF-8");
-            mimeMultipart.addBodyPart(jsonPart);
-        } catch (MessagingException e) {
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE, MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, type.name() + "Key"));
-        }
-
-        // File Part
-        MimeBodyPart filePart = new MimeBodyPart();
-        try {
-            filePart.setDataHandler(new DataHandler(dataSource));
-            filePart.setFileName("speech.wav");
-            mimeMultipart.addBodyPart(filePart);
-        } catch (MessagingException e) {
-            throw new RuntimeException(e);
-        }
-
-        //Step 4 : Build the Merchant Response
-        logger.info("generate captcha completed for RequestId: {}", captchaRequest.getRequestId());
-        return mimeMultipart;
+    private byte[] generateAudioCaptcha(String captchaText) {
+        return VoiceCaptchaUtil.speakToByteArray(captchaText);
     }
 
+    private MimeMultipart buildMimeMultipartResponse(CaptchaResponse captchaResponse, byte[] audioBytes) {
+        try {
+            MimeMultipart mimeMultipart = new MimeMultipart("mixed");
+
+            // JSON Response Part
+            MimeBodyPart jsonPart = new MimeBodyPart();
+            jsonPart.setContent(new ObjectMapper().writeValueAsString(captchaResponse), "application/json; charset=UTF-8");
+            mimeMultipart.addBodyPart(jsonPart);
+
+            // Audio File Part
+            MimeBodyPart filePart = new MimeBodyPart();
+            filePart.setDataHandler(new DataHandler(new ByteArrayDataSource(audioBytes, "audio/wav")));
+            filePart.setFileName("captcha_audio.wav");
+            mimeMultipart.addBodyPart(filePart);
+
+            return mimeMultipart;
+        } catch (MessagingException | JsonProcessingException e) {
+            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE, 
+                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, "CaptchaKey"));
+        }
+    }
+
+    private byte[] convertMimeMultipartToByteArray(MimeMultipart mimeMultipart) {
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            mimeMultipart.writeTo(outputStream);
+            return outputStream.toByteArray();
+        } catch (IOException | MessagingException e) {
+            throw new RuntimeException("Error processing captcha response", e);
+        }
+    }
 }
