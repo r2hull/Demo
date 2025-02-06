@@ -1,66 +1,53 @@
-public MerchantResponse <byte[]> saveCaptcha1() throws MessagingException, IOException {
-        //Step 2 : Generate Captcha Text
-        String captchaText = captchaProducer.createText();
-        //Step 3 : Generate Captcha Image and convert into Base 64
-        String base64Image = generateCaptchaImage(captchaText);
-
-        byte[] audioBytes = VoiceCaptchaUtil.speakToByteArray(captchaText);
-        ByteArrayResource fileResource = new ByteArrayResource(audioBytes);
-        // Convert byte array to DataSource
-        DataSource dataSource = new ByteArrayDataSource(audioBytes, "audio/wav");
-
-        //Step 3 : Save the Captcha into DB
-        // CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry);
-        CaptchaDto captchaDto=new CaptchaDto();
-        captchaDto.setCaptchaImage("abc");
-        captchaDto.setCaptchaText("=fhhf=");
-
-
-        CaptchaResponse captchaResponse = captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image);
-        captchaResponse.setCaptchaImage("abc");
-        // Step 1: Convert CaptchaResponse to JSON String
-        ObjectMapper objectMapper = new ObjectMapper();
-        String jsonResponse = objectMapper.writeValueAsString(captchaResponse);
-
-        // Create Multipart Response
-        MimeMultipart mimeMultipart = new MimeMultipart("mixed");
-
-        // Add body part
-        MimeBodyPart jsonPart = new MimeBodyPart();
-        jsonPart.setContent(jsonResponse, "application/json; charset=UTF-8");
-        mimeMultipart.addBodyPart(jsonPart);
-
-        // Add file part
-        MimeBodyPart filePart = new MimeBodyPart();
-        filePart.setDataHandler(new DataHandler(dataSource));
-        filePart.setFileName("speech.wav");
-        mimeMultipart.addBodyPart(filePart);
-
-
-        // Convert MimeMultipart to ByteArray
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        mimeMultipart.writeTo(outputStream);
-        byte[] responseBytes = outputStream.toByteArray();
-
-
-        //Step 4 : Build the Merchant Response
-        return MerchantResponse.<byte[]>builder().data(List.of(responseBytes)).status(RESPONSE_SUCCESS).build();
-    }
-
-
 @GetMapping(value = "/mixed-response", produces = MediaType.MULTIPART_MIXED_VALUE)
-    public ResponseEntity < MerchantResponse  <byte[]>>  generateCaptcha() throws MessagingException, IOException {
-        MerchantResponse <byte[]> responseBytes = captchaService.saveCaptcha1();
-        // Set headers
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.MULTIPART_MIXED);
-        headers.setContentLength(responseBytes.getData().getFirst().length);
-        return new ResponseEntity<>(responseBytes, headers, HttpStatus.OK);
-    }
+public ResponseEntity<byte[]> generateCaptcha() throws MessagingException, IOException {
+    MimeMultipart mimeMultipart = captchaService.saveCaptcha1();
+
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    mimeMultipart.writeTo(outputStream);
+    byte[] responseBytes = outputStream.toByteArray();
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.MULTIPART_MIXED);
+    headers.setContentLength(responseBytes.length);
+
+    return new ResponseEntity<>(responseBytes, headers, HttpStatus.OK);
+}
 
 
- "errors": [
-        {
-            "errorCode": "500",
-            "errorMessage": "No converter for [class com.epay.merchant.model.response.MerchantResponse] with preset Content-Type 'multipart/mixed'"
-        }
+
+
+public MimeMultipart saveCaptcha1() throws MessagingException, IOException {
+    // Step 2 : Generate Captcha Text
+    String captchaText = captchaProducer.createText();
+    // Step 3 : Generate Captcha Image and convert into Base 64
+    String base64Image = generateCaptchaImage(captchaText);
+
+    byte[] audioBytes = VoiceCaptchaUtil.speakToByteArray(captchaText);
+    DataSource dataSource = new ByteArrayDataSource(audioBytes, "audio/wav");
+
+    CaptchaDto captchaDto = new CaptchaDto();
+    captchaDto.setCaptchaImage("abc");
+    captchaDto.setCaptchaText("=fhhf=");
+
+    CaptchaResponse captchaResponse = captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image);
+
+    // Convert CaptchaResponse to JSON String
+    ObjectMapper objectMapper = new ObjectMapper();
+    String jsonResponse = objectMapper.writeValueAsString(captchaResponse);
+
+    // Create Multipart Response
+    MimeMultipart mimeMultipart = new MimeMultipart("mixed");
+
+    // JSON Part
+    MimeBodyPart jsonPart = new MimeBodyPart();
+    jsonPart.setContent(jsonResponse, "application/json; charset=UTF-8");
+    mimeMultipart.addBodyPart(jsonPart);
+
+    // File Part
+    MimeBodyPart filePart = new MimeBodyPart();
+    filePart.setDataHandler(new DataHandler(dataSource));
+    filePart.setFileName("speech.wav");
+    mimeMultipart.addBodyPart(filePart);
+
+    return mimeMultipart;
+}
