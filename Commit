@@ -3,14 +3,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 
 import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMultipart;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Base64;
 
 @Service
 public class CaptchaService {
@@ -52,13 +51,13 @@ public class CaptchaService {
 
         // Add image part
         MimeBodyPart imagePart = new MimeBodyPart();
-        imagePart.setContent(imageResource.getInputStream(), "application/octet-stream");
+        imagePart.setContent(imageResource.getInputStream(), "image/jpeg"); // Correct MIME type for image
         imagePart.setFileName("captchaImage.jpg");
         mimeMultipart.addBodyPart(imagePart);
 
         // Add audio part
         MimeBodyPart audioPart = new MimeBodyPart();
-        audioPart.setContent(audioResource.getInputStream(), "audio/wav");
+        audioPart.setContent(audioResource.getInputStream(), "audio/wav"); // Correct MIME type for audio
         audioPart.setFileName("captchaAudio.wav");
         mimeMultipart.addBodyPart(audioPart);
 
