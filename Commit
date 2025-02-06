@@ -1,22 +1,27 @@
-plugins {
-    java
-}
+ public static void main(String[] args) {
+        String text="x 8 n G T";
+        System.setProperty("freetts.voices", "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory");
+        TalkResource resource = new TalkResource();
+        resource.speak(text);
+        System.out.print(text);
+    }
 
-group = "org.example"
-version = "1.0-SNAPSHOT"
 
-java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
-}
+    package com.epay.merchant.util;
+import com.sun.speech.freetts.Voice;
+import com.sun.speech.freetts.VoiceManager;
 
-repositories {
-    mavenCentral()
-}
+public class TalkResource {
 
-dependencies {
-    implementation("net.sf.sociaal:freetts:1.2.2")
-}
+    private static final String VOICENAME_kevin = "kevin16";
 
-tasks.withType<JavaCompile> {
-    options.encoding = "UTF-8"
+
+    public void speak(String text) {
+        Voice voice;
+        VoiceManager voiceManager = VoiceManager.getInstance();
+        voice = voiceManager.getVoice(VOICENAME_kevin);
+        voice.allocate();
+        voice.speak(text);
+        voice.deallocate();
+    }
 }
