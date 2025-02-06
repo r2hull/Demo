@@ -57,3 +57,10 @@ public MerchantResponse <byte[]> saveCaptcha1() throws MessagingException, IOExc
         headers.setContentLength(responseBytes.getData().getFirst().length);
         return new ResponseEntity<>(responseBytes, headers, HttpStatus.OK);
     }
+
+
+ "errors": [
+        {
+            "errorCode": "500",
+            "errorMessage": "No converter for [class com.epay.merchant.model.response.MerchantResponse] with preset Content-Type 'multipart/mixed'"
+        }
