@@ -1,10 +1,10 @@
-import com.fasterxml.jackson.databind.ObjectMapper;
+import javax.activation.DataHandler;
+import javax.activation.DataSource;
+import javax.mail.util.ByteArrayDataSource;
 
-// Step 1: Convert CaptchaResponse to JSON String
-ObjectMapper objectMapper = new ObjectMapper();
-String jsonResponse = objectMapper.writeValueAsString(captchaResponse);
+// Convert byte array to DataSource
+DataSource dataSource = new ByteArrayDataSource(audioBytes, "audio/wav");
 
-// Step 2: Set JSON as String in MimeBodyPart
-MimeBodyPart jsonPart = new MimeBodyPart();
-jsonPart.setContent(jsonResponse, "application/json; charset=UTF-8");
-mimeMultipart.addBodyPart(jsonPart);
+// Use DataHandler to set content
+filePart.setDataHandler(new DataHandler(dataSource));
+filePart.setFileName("speech.wav");
