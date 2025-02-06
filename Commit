@@ -1,77 +1,28 @@
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
+// Change voice (options: kevin, kevin16, alan, mbrola_us1, etc.)
+    private static final String VOICENAME_kevin = "kevin16";
 
-import javax.mail.internet.MimeBodyPart;
-import javax.mail.internet.MimeMultipart;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.Base64;
 
-@Service
-public class CaptchaService {
+    public void speak(String text) {
+        VoiceManager voiceManager = VoiceManager.getInstance();
+        Voice voice = voiceManager.getVoice(VOICENAME_kevin);
 
-    // Other service dependencies...
+        if (voice == null) {
+            System.err.println("Voice not found.");
+            return;
+        }
 
-    @GetMapping(value = "/mixed-response", produces = MediaType.MULTIPART_MIXED_VALUE)
-    public ResponseEntity<byte[]> getMixedResponse() throws Exception {
-        // Part 1: JSON Content - Here, you can include captcha data
-        String jsonContent = "{\"requestId\": \"12345\", \"captchaImage\": \"image-data-in-base64\", \"captchaAudio\": \"audio-data-in-base64\"}";
+        voice.allocate();
+        
+        voice.setRate(90);      // Default is 150, lower is slower
+        voice.setPitch(75);     // Default is 100, lower is deeper
+        //voice.setVolume(0.9f);  // 0.0 to 1.0
 
-        // Part 2: File Content (Image)
-        String imageData = "image-data-in-base64"; // Get actual image data here
-        byte[] imageBytes = Base64.getDecoder().decode(imageData);
-        ByteArrayResource imageResource = new ByteArrayResource(imageBytes) {
-            @Override
-            public String getFilename() {
-                return "captchaImage.jpg"; // File name for image
-            }
-        };
-
-        // Part 3: File Content (Audio)
-        String audioData = "audio-data-in-base64"; // Get actual audio data here
-        byte[] audioBytes = Base64.getDecoder().decode(audioData);
-        ByteArrayResource audioResource = new ByteArrayResource(audioBytes) {
-            @Override
-            public String getFilename() {
-                return "captchaAudio.wav"; // File name for audio
-            }
-        };
-
-        // Create Multipart Response MimeMultipart
-        MimeMultipart mimeMultipart = new MimeMultipart("mixed");
-
-        // Add JSON part
-        MimeBodyPart jsonPart = new MimeBodyPart();
-        jsonPart.setContent(jsonContent, "application/json");
-        mimeMultipart.addBodyPart(jsonPart);
-
-        // Add image part
-        MimeBodyPart imagePart = new MimeBodyPart();
-        imagePart.setContent(imageResource.getInputStream(), "image/jpeg"); // Correct MIME type for image
-        imagePart.setFileName("captchaImage.jpg");
-        mimeMultipart.addBodyPart(imagePart);
-
-        // Add audio part
-        MimeBodyPart audioPart = new MimeBodyPart();
-        audioPart.setContent(audioResource.getInputStream(), "audio/wav"); // Correct MIME type for audio
-        audioPart.setFileName("captchaAudio.wav");
-        mimeMultipart.addBodyPart(audioPart);
-
-        // Convert MimeMultipart to ByteArray
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        mimeMultipart.writeTo(outputStream);
-        byte[] responseBytes = outputStream.toByteArray();
-
-        // Set headers
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.MULTIPART_MIXED);
-        headers.setContentLength(responseBytes.length);
-
-        // Return the response
-        return new ResponseEntity<>(responseBytes, headers, HttpStatus.OK);
+        voice.speak(text);
+        voice.deallocate();
     }
-}
+
+
+String text="x8nGT";
+        System.setProperty("freetts.voices", "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory");
+        TalkResource resource = new TalkResource();
+        resource.speak(text);
