@@ -1,3 +1,43 @@
-dependencies {
-    implementation 'de.dfki.mary:marytts:5.2'
+package com.epay.merchant.util;
+
+import com.sun.speech.freetts.Voice;
+import com.sun.speech.freetts.VoiceManager;
+
+public class TalkResource {
+    
+    // Change voice here (options: kevin, kevin16, alan, mbrola_us1, etc.)
+    private static final String VOICENAME_KEVIN = "kevin";  
+
+    public void speak(String text) {
+        VoiceManager voiceManager = VoiceManager.getInstance();
+        Voice voice = voiceManager.getVoice(VOICENAME_KEVIN);
+
+        if (voice == null) {
+            System.err.println("Voice not found.");
+            return;
+        }
+
+        voice.allocate();
+        
+        // **Adjust speed, pitch, and volume**
+        voice.setRate(90);      // Default is 150, lower is slower
+        voice.setPitch(75);     // Default is 100, lower is deeper
+        voice.setVolume(0.9f);  // 0.0 to 1.0 (adjust as needed)
+
+        voice.speak(text);
+        voice.deallocate();
+    }
+}
+
+
+public class Main {
+    public static void main(String[] args) {
+        String text = "Hello, how are you? I am speaking slowly now.";
+        System.setProperty("freetts.voices", "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory");
+
+        TalkResource resource = new TalkResource();
+        resource.speak(text);
+        
+        System.out.print(text);
+    }
 }
