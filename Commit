@@ -35,3 +35,6 @@
 //        logger.info("generate captcha completed for RequestId: {}", captchaRequest.getRequestId());
 //        return MerchantResponse.<CaptchaResponse>builder().data(List.of(captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image))).status(RESPONSE_SUCCESS).build();
     }
+
+
+"no object DCH for MIME type application/json"
