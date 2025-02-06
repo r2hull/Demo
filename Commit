@@ -1,69 +1,78 @@
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+
+import javax.mail.internet.MimeBodyPart;
+import javax.mail.internet.MimeMultipart;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
 @Service
-@RequiredArgsConstructor
 public class CaptchaService {
 
-    // Other dependencies...
+    // Other service dependencies...
 
-    public ResponseEntity<MultiValueMap<String, Object>> regenerateCaptcha(CaptchaRequest captchaRequest) {
-        logger.info("Generate captcha for RequestId: {}", captchaRequest.getRequestId());
+    @GetMapping(value = "/mixed-response", produces = MediaType.MULTIPART_MIXED_VALUE)
+    public ResponseEntity<byte[]> getMixedResponse() throws Exception {
+        // Part 1: JSON Content - Here, you can include captcha data
+        String jsonContent = "{\"requestId\": \"12345\", \"captchaImage\": \"image-data-in-base64\", \"captchaAudio\": \"audio-data-in-base64\"}";
 
-        // Validate the Captcha Request
-        captchaValidator.regenerateValidator(captchaRequest);
-
-        // Generate Captcha and Audio as attachments
-        return saveCaptchaAsAttachments(captchaRequest, true);
-    }
-
-    private ResponseEntity<MultiValueMap<String, Object>> saveCaptchaAsAttachments(CaptchaRequest captchaRequest, boolean retry) {
-        RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
-
-        // Step 1: Generate Captcha Text
-        String captchaText = captchaProducer.createText();
-
-        // Step 2: Generate Captcha Image and convert into Base64
-        String base64Image = generateCaptchaImage(captchaText);
-        byte[] imageBytes = Base64.getDecoder().decode(base64Image);
+        // Part 2: File Content (Image)
+        String imageData = "image-data-in-base64"; // Get actual image data here
+        byte[] imageBytes = Base64.getDecoder().decode(imageData);
         ByteArrayResource imageResource = new ByteArrayResource(imageBytes) {
             @Override
             public String getFilename() {
-                return "captchaImage.jpg";  // Provide a file name for the image
+                return "captchaImage.jpg"; // File name for image
             }
         };
 
-        // Step 3: Generate Captcha Audio and convert into Base64
-        String base64Audio = VoiceCaptchaUtil.generateAudioCaptcha(captchaText);
-        byte[] audioBytes = Base64.getDecoder().decode(base64Audio);
+        // Part 3: File Content (Audio)
+        String audioData = "audio-data-in-base64"; // Get actual audio data here
+        byte[] audioBytes = Base64.getDecoder().decode(audioData);
         ByteArrayResource audioResource = new ByteArrayResource(audioBytes) {
             @Override
             public String getFilename() {
-                return "captchaAudio.wav";  // Provide a file name for the audio
+                return "captchaAudio.wav"; // File name for audio
             }
         };
 
-        // Step 4: Save the Captcha into DB
-        CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry);
+        // Create Multipart Response MimeMultipart
+        MimeMultipart mimeMultipart = new MimeMultipart("mixed");
 
-        // Set the headers for attachment
+        // Add JSON part
+        MimeBodyPart jsonPart = new MimeBodyPart();
+        jsonPart.setContent(jsonContent, "application/json");
+        mimeMultipart.addBodyPart(jsonPart);
+
+        // Add image part
+        MimeBodyPart imagePart = new MimeBodyPart();
+        imagePart.setContent(imageResource.getInputStream(), "application/octet-stream");
+        imagePart.setFileName("captchaImage.jpg");
+        mimeMultipart.addBodyPart(imagePart);
+
+        // Add audio part
+        MimeBodyPart audioPart = new MimeBodyPart();
+        audioPart.setContent(audioResource.getInputStream(), "audio/wav");
+        audioPart.setFileName("captchaAudio.wav");
+        mimeMultipart.addBodyPart(audioPart);
+
+        // Convert MimeMultipart to ByteArray
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        mimeMultipart.writeTo(outputStream);
+        byte[] responseBytes = outputStream.toByteArray();
+
+        // Set headers
         HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=captchaFiles.zip");
+        headers.setContentType(MediaType.MULTIPART_MIXED);
+        headers.setContentLength(responseBytes.length);
 
-        // Return the image and audio as attachment
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("image", imageResource);  // Add image part
-        body.add("audio", audioResource);  // Add audio part
-
-        // Return the response with headers and attachments
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(body);  // Return the response with multipart body as attachment
+        // Return the response
+        return new ResponseEntity<>(responseBytes, headers, HttpStatus.OK);
     }
 }
