@@ -1,129 +1,91 @@
-@PostMapping
-    @Operation(summary = "Create Captcha API.", description = "Create Captcha creation API for given Request Type")
-    public MerchantResponse<CaptchaResponse> generateCaptcha(@RequestBody CaptchaRequest captchaRequest) {
-        logger.info("Received request to generate captcha with requestId: {}", captchaRequest.getRequestId());
-        return captchaService.generateCaptcha(captchaRequest);
-    }
+package com.epay.merchant.util;
 
+import com.sun.speech.freetts.Voice;
+import com.sun.speech.freetts.VoiceManager;
 
- package com.epay.merchant.service;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.SourceDataLine;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
-import com.epay.merchant.dao.CaptchaDao;
-import com.epay.merchant.dto.CaptchaDto;
-import com.epay.merchant.mapper.CaptchaMapper;
-import com.epay.merchant.model.request.CaptchaRequest;
-import com.epay.merchant.model.response.CaptchaResponse;
-import com.epay.merchant.model.response.MerchantResponse;
-import com.epay.merchant.util.MerchantUtil;
-import com.epay.merchant.util.enums.RequestType;
-import com.epay.merchant.validator.CaptchaValidator;
-import com.sbi.epay.captcha.impl.DefaultKaptcha;
-import com.sbi.epay.logging.utility.LoggerFactoryUtility;
-import com.sbi.epay.logging.utility.LoggerUtility;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
+public class TalkResource {
 
-import java.awt.image.BufferedImage;
-import java.util.List;
+    private static final String VOICENAME = "kevin16";  // Use "kevin16" for better quality
 
-import static com.epay.merchant.util.MerchantConstant.RESPONSE_SUCCESS;
+    public byte[] generateAudio(String text) {
+        VoiceManager voiceManager = VoiceManager.getInstance();
+        Voice voice = voiceManager.getVoice(VOICENAME);
 
-/**
- * Class Name: CaptchaService
- * *
- * Description:
- * *
- * Author: Subhra Goswami
- * <p>
- * Copyright (c) 2024 [State Bank of India]
- * All rights reserved
- * *
- * Version:1.0
- */
-@Service
-@RequiredArgsConstructor
-public class CaptchaService {
+        if (voice == null) {
+            System.err.println("Voice not found.");
+            return new byte[0];
+        }
 
-    private final CaptchaDao captchaDao;
-    private final DefaultKaptcha captchaProducer;
-    private final CaptchaValidator captchaValidator;
-    private final CaptchaMapper captchaMapper;
+        voice.allocate();
 
-    private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
+        // **Adjust speech properties**
+        voice.setRate(100);      // Slower speech
+        voice.setPitch(80);      // Adjust pitch
+        voice.setVolume(1.0f);   // Adjust volume
 
-    /**
-     * Generates a captcha and save it to the DB and returns a response.
-     *
-     * @param captchaRequest CaptchaRequest
-     * @return merchantResponse containing CaptchaResponse
-     */
-    public MerchantResponse<CaptchaResponse> generateCaptcha(CaptchaRequest captchaRequest) {
-        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
-        //Step 1 : Validate Captcha Request
-        captchaValidator.requestValidator(captchaRequest);
-        return saveCaptcha(captchaRequest, false);
-    }
-
-
-    /**
-     * ReGenerates a captcha and save it to the DB and returns a response.
-     *
-     * @param captchaRequest CaptchaRequest
-     * @return merchantResponse containing CaptchaResponse
-     */
-    public MerchantResponse<CaptchaResponse> regenerateCaptcha(CaptchaRequest captchaRequest) {
-        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
-        //Step 1 : Validate Captcha Request
-        captchaValidator.regenerateValidator(captchaRequest);
-        return saveCaptcha(captchaRequest, true);
-    }
-
-    /**
-     * Generates the captcha image and encodes it in Base64
-     *
-     * @param captchaText String
-     * @return Captcha
-     */
-    private String generateCaptchaImage(String captchaText) {
-        logger.info("generated captcha text: {}", captchaText);
-        BufferedImage image = captchaProducer.createImage(captchaText);
-        return MerchantUtil.convertImageToBase64(image, "Captcha");
-    }
-
-    private MerchantResponse<CaptchaResponse> saveCaptcha(CaptchaRequest captchaRequest, boolean retry) {
-        RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
-        //Step 2 : Generate Captcha Text
-        String captchaText = captchaProducer.createText();
-        //Step 3 : Generate Captcha Image and convert into Base 64
-        String base64Image = generateCaptchaImage(captchaText);
-        //Step 3 : Save the Captcha into DB
-        CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry);
-        //Step 4 : Build the Merchant Response
-        logger.info("generate captcha completed for RequestId: {}", captchaRequest.getRequestId());
-        return MerchantResponse.<CaptchaResponse>builder().data(List.of(captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image))).status(RESPONSE_SUCCESS).build();
+        // **Capture the generated speech as an audio stream**
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            voice.speak(text);
+            byte[] audioBytes = outputStream.toByteArray();
+            voice.deallocate();
+            return audioBytes;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return new byte[0];
+        }
     }
 }
 
 
 
- public static String convertImageToBase64(BufferedImage image, String imageType) {
-        try {
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            ImageIO.write(image, JPG, outputStream);
-            return Base64.getEncoder().encodeToString(outputStream.toByteArray());
-        } catch (IOException e) {
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE, MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, imageType));
-        }
-    }
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.ByteArrayResource;
+
+private final TalkResource talkResource = new TalkResource();
+
+public ResponseEntity<?> saveCaptcha(CaptchaRequest captchaRequest, boolean retry) {
+    RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
+
+    // **Step 1: Generate Captcha Text**
+    String captchaText = captchaProducer.createText();
+
+    // **Step 2: Generate Captcha Image and convert into Base 64**
+    String base64Image = generateCaptchaImage(captchaText);
+
+    // **Step 3: Generate CAPTCHA Audio as byte array**
+    byte[] audioBytes = talkResource.generateAudio(captchaText);
+
+    // **Step 4: Save the CAPTCHA into DB**
+    CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry);
+
+    // **Step 5: Create Multipart Response**
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+    ByteArrayResource audioResource = new ByteArrayResource(audioBytes);
+
+    return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"captcha_audio.wav\"")
+            .contentType(MediaType.APPLICATION_OCTET_STREAM)
+            .body(audioResource);
+}
 
 
-   @Transactional
-    public CaptchaDto save(String captchaText, UUID requestId, RequestType requestType, boolean retry) {
-        if (retry) {
-            CaptchaManagement captcha = getActiveCaptchaByRequestId(requestId);
-            captcha.setExpiryTime(System.currentTimeMillis());
-            captchaManagementRepository.save(captcha);
-        }
-        CaptchaManagement captcha = captchaManagementRepository.save(CaptchaManagement.builder().id(String.valueOf(Generators.timeBasedGenerator().generate())).verified(false).captchaText(EncryptionDecryptionUtil.hashValue(captchaText)).expiryTime(DateTimeUtils.addMinutes(merchantConfig.getExpiryTime())).requestId(requestId.toString()).requestType(requestType).createdAt(DateTimeUtils.getCurrentTimeInMills()).build());
-        return captchaMapper.mapCaptchaEntityToCaptchaDto(captcha);
-    }
+
+@PostMapping(value = "/generate-captcha", produces = MediaType.MULTIPART_FORM_DATA_VALUE)
+@Operation(summary = "Create Captcha API.", description = "Create Captcha API with text, image, and audio.")
+public ResponseEntity<?> generateCaptcha(@RequestBody CaptchaRequest captchaRequest) {
+    logger.info("Received request to generate captcha with requestId: {}", captchaRequest.getRequestId());
+    return captchaService.generateCaptcha(captchaRequest);
+}
