@@ -1,50 +1,62 @@
 private MimeMultipart saveCaptcha(CaptchaRequest captchaRequest, boolean retry) {
-        RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
-        //Step 2 : Generate Captcha Text
-        String captchaText = captchaProducer.createText();
-        //Step 3 : Generate Captcha Image and convert into Base 64
-        String base64Image = generateCaptchaImage(captchaText);
+    RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
 
-        byte[] audioBytes = VoiceCaptchaUtil.speakToByteArray(captchaText);
-        DataSource dataSource = new ByteArrayDataSource(audioBytes, "audio/wav");
+    // Generate Captcha and its Base64 Image
+    String captchaText = captchaProducer.createText();
+    String base64Image = generateCaptchaImage(captchaText);
 
-        //Step 3 : Save the Captcha into DB
-        CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry);
+    // Generate Audio Captcha
+    DataSource audioDataSource = generateAudioCaptcha(captchaText);
 
-        CaptchaResponse captchaResponse = captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image);
+    // Save Captcha and Map to Response
+    CaptchaResponse captchaResponse = saveAndMapCaptchaResponse(captchaText, captchaRequest, requestType, retry, base64Image);
 
-        // Convert CaptchaResponse to JSON String
-        ObjectMapper objectMapper = new ObjectMapper();
-        String jsonResponse;
-        try {
-             jsonResponse = objectMapper.writeValueAsString(captchaResponse);
+    // Create MimeMultipart Response
+    return createMultipartResponse(captchaResponse, audioDataSource, requestType);
+}
 
-        } catch (JsonProcessingException e) {
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE, MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestType.name() + "Key"));
-        }
-        // Create Multipart Response
-        MimeMultipart mimeMultipart = new MimeMultipart("mixed");
+// Generate audio captcha
+private DataSource generateAudioCaptcha(String captchaText) {
+    byte[] audioBytes = VoiceCaptchaUtil.speakToByteArray(captchaText);
+    return new ByteArrayDataSource(audioBytes, "audio/wav");
+}
 
-        // JSON Part
-        MimeBodyPart jsonPart = new MimeBodyPart();
-        try {
-            jsonPart.setContent(jsonResponse, "application/json; charset=UTF-8");
-            mimeMultipart.addBodyPart(jsonPart);
-        } catch (MessagingException e) {
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE, MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestType.name() + "Key"));
-        }
+// Save Captcha and Map to Response
+private CaptchaResponse saveAndMapCaptchaResponse(String captchaText, CaptchaRequest captchaRequest, RequestType requestType, boolean retry, String base64Image) {
+    CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry);
+    return captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image);
+}
 
-        // File Part
-        MimeBodyPart filePart = new MimeBodyPart();
-        try {
-            filePart.setDataHandler(new DataHandler(dataSource));
-            filePart.setFileName("speech.wav");
-            mimeMultipart.addBodyPart(filePart);
-        } catch (MessagingException e) {
-            throw new RuntimeException(e);
-        }
-
-        //Step 4 : Build the Merchant Response
-        logger.info("generate captcha completed for RequestId: {}", captchaRequest.getRequestId());
-        return mimeMultipart;
+// Convert CaptchaResponse to JSON String
+private String convertToJson(CaptchaResponse captchaResponse, RequestType requestType) {
+    try {
+        return new ObjectMapper().writeValueAsString(captchaResponse);
+    } catch (JsonProcessingException e) {
+        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestType.name() + "Key"));
     }
+}
+
+// Create multipart response
+private MimeMultipart createMultipartResponse(CaptchaResponse captchaResponse, DataSource audioDataSource, RequestType requestType) {
+    MimeMultipart mimeMultipart = new MimeMultipart("mixed");
+
+    try {
+        // Add JSON Part
+        MimeBodyPart jsonPart = new MimeBodyPart();
+        jsonPart.setContent(convertToJson(captchaResponse, requestType), "application/json; charset=UTF-8");
+        mimeMultipart.addBodyPart(jsonPart);
+
+        // Add Audio File Part
+        MimeBodyPart filePart = new MimeBodyPart();
+        filePart.setDataHandler(new DataHandler(audioDataSource));
+        filePart.setFileName("speech.wav");
+        mimeMultipart.addBodyPart(filePart);
+    } catch (MessagingException e) {
+        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestType.name() + "Key"));
+    }
+
+    logger.info("Captcha generation completed for RequestId: {}", captchaResponse.getRequestId());
+    return mimeMultipart;
+}
