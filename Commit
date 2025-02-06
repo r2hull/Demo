@@ -1,28 +1,78 @@
-// Change voice (options: kevin, kevin16, alan, mbrola_us1, etc.)
-    private static final String VOICENAME_kevin = "kevin16";
+import com.sun.speech.freetts.Voice;
+import com.sun.speech.freetts.VoiceManager;
+import com.sun.speech.freetts.audio.AudioPlayer;
+import com.sun.speech.freetts.audio.SingleFileAudioPlayer;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import javax.sound.sampled.*;
 
-    public void speak(String text) {
-        VoiceManager voiceManager = VoiceManager.getInstance();
-        Voice voice = voiceManager.getVoice(VOICENAME_kevin);
+public class TextToSpeechToByteArray {
+    private static final String VOICENAME = "kevin16";
 
-        if (voice == null) {
-            System.err.println("Voice not found.");
-            return;
+    public byte[] speakToByteArray(String text) {
+        try {
+            // Create a temporary WAV file
+            File tempFile = File.createTempFile("speech_", ".wav");
+            tempFile.deleteOnExit();
+
+            // Set up FreeTTS to save output as a WAV file
+            VoiceManager voiceManager = VoiceManager.getInstance();
+            Voice voice = voiceManager.getVoice(VOICENAME);
+
+            if (voice == null) {
+                System.err.println("Voice not found.");
+                return null;
+            }
+
+            // Allocate the voice
+            voice.allocate();
+
+            // Set audio output to a file
+            AudioPlayer audioPlayer = new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""), 
+                                        javax.sound.sampled.AudioFileFormat.Type.WAVE);
+            voice.setAudioPlayer(audioPlayer);
+
+            // Speak the text
+            voice.speak(text);
+            voice.deallocate();
+            audioPlayer.close();
+
+            // Read the generated WAV file into a byte array
+            return fileToByteArray(tempFile);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-        voice.allocate();
-        
-        voice.setRate(90);      // Default is 150, lower is slower
-        voice.setPitch(75);     // Default is 100, lower is deeper
-        //voice.setVolume(0.9f);  // 0.0 to 1.0
-
-        voice.speak(text);
-        voice.deallocate();
+        return null;
     }
 
+    private byte[] fileToByteArray(File file) {
+        try {
+            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(file);
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            byte[] buffer = new byte[1024];
+            int bytesRead;
 
-String text="x8nGT";
-        System.setProperty("freetts.voices", "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory");
-        TalkResource resource = new TalkResource();
-        resource.speak(text);
+            while ((bytesRead = audioInputStream.read(buffer)) != -1) {
+                byteArrayOutputStream.write(buffer, 0, bytesRead);
+            }
+
+            audioInputStream.close();
+            return byteArrayOutputStream.toByteArray();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static void main(String[] args) {
+        TextToSpeechToByteArray tts = new TextToSpeechToByteArray();
+        byte[] audioBytes = tts.speakToByteArray("x8nGT");
+
+        if (audioBytes != null) {
+            System.out.println("Audio byte array length: " + audioBytes.length);
+        } else {
+            System.out.println("Failed to generate audio.");
+        }
+    }
+}
