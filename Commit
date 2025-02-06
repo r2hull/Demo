@@ -4,3 +4,63 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+
+@Service
+@RequiredArgsConstructor
+public class CaptchaService {
+
+    // Other dependencies...
+
+    public ResponseEntity<MultiValueMap<String, Object>> regenerateCaptcha(CaptchaRequest captchaRequest) {
+        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
+
+        // Validate the Captcha Request
+        captchaValidator.regenerateValidator(captchaRequest);
+
+        // Generate Captcha and Audio
+        return saveCaptchaAsMultipart(captchaRequest, true);
+    }
+
+    private ResponseEntity<MultiValueMap<String, Object>> saveCaptchaAsMultipart(CaptchaRequest captchaRequest, boolean retry) {
+        RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
+
+        // Step 1: Generate Captcha Text
+        String captchaText = captchaProducer.createText();
+
+        // Step 2: Generate Captcha Image and convert into Base64
+        String base64Image = generateCaptchaImage(captchaText);
+        byte[] imageBytes = Base64.getDecoder().decode(base64Image);
+        ByteArrayResource imageResource = new ByteArrayResource(imageBytes) {
+            @Override
+            public String getFilename() {
+                return "captchaImage.jpg";  // Provide a file name for the image
+            }
+        };
+
+        // Step 3: Generate Captcha Audio and convert into Base64
+        String base64Audio = VoiceCaptchaUtil.generateAudioCaptcha(captchaText);
+        byte[] audioBytes = Base64.getDecoder().decode(base64Audio);
+        ByteArrayResource audioResource = new ByteArrayResource(audioBytes) {
+            @Override
+            public String getFilename() {
+                return "captchaAudio.wav";  // Provide a file name for the audio
+            }
+        };
+
+        // Step 4: Save the Captcha into DB
+        CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry);
+
+        // Step 5: Build the Multipart Response
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("image", imageResource);  // Add image part to multipart
+        body.add("audio", audioResource);  // Add audio part to multipart
+
+        // Response headers
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(body);  // Return the response with multipart body
+    }
+}
