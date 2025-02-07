@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -36,10 +36,14 @@
             padding: 8px;
             text-align: left;
         }
+        .amount {
+            text-align: left;
+        }
         .footer {
             margin-top: 20px;
             font-size: 14px;
             border: 1px solid black;
+            vertical-align: top;
         }
         .signature {
             margin-top: 40px;
@@ -50,29 +54,22 @@
 </head>
 <body>
     <div class="invoice-container">
-        <!-- Header Section -->
         <div class="header">
-            <img th:src="@{/images/logo.png}" alt="Company Logo">
-            <h2 th:text="${companyName}">Company Name</h2>
-            <p th:text="${companyAddress}">Company Address</p>
+            <img class="img-center" alt="SBI ePay" th:src="@{data:image/png;base64,{imageData}(imageData='BASE64_ENCODED_IMAGE_DATA')}">
         </div>
-
-        <!-- Invoice Title -->
         <div class="title">
-            <h3>Invoice</h3>
+            <h2>Invoice</h2>
         </div>
 
-        <!-- Invoice Details -->
-        <p><strong>Invoice Number:</strong> <span th:text="${invoiceNumber}"></span></p>
-        <p><strong>Date:</strong> <span th:text="${invoiceDate}"></span></p>
-        <p><strong>Customer Name:</strong> <span th:text="${customerName}"></span></p>
-        <p><strong>Customer Address:</strong> <span th:text="${customerAddress}"></span></p>
+        <div class="invoice-details">
+            <p><strong>Invoice Number:</strong> <span th:text="'INVOICE_NUMBER'"></span></p>
+            <p><strong>Invoice Date:</strong> <span th:text="'INVOICE_DATE'"></span></p>
+            <p><strong>Due Date:</strong> <span th:text="'DUE_DATE'"></span></p>
+        </div>
 
-        <!-- Invoice Items -->
         <table>
             <thead>
                 <tr>
-                    <th>#</th>
                     <th>Description</th>
                     <th>Quantity</th>
                     <th>Price</th>
@@ -80,27 +77,23 @@
                 </tr>
             </thead>
             <tbody>
-                <tr th:each="item, iterStat : ${items}">
-                    <td th:text="${iterStat.count}"></td>
-                    <td th:text="${item.description}"></td>
-                    <td th:text="${item.quantity}"></td>
-                    <td th:text="${item.price}"></td>
-                    <td th:text="${item.total}"></td>
+                <tr>
+                    <td th:text="'ITEM_DESCRIPTION'"></td>
+                    <td th:text="'ITEM_QUANTITY'"></td>
+                    <td th:text="'ITEM_PRICE'"></td>
+                    <td class="amount" th:text="'ITEM_TOTAL'"></td>
                 </tr>
             </tbody>
         </table>
 
-        <!-- Invoice Summary -->
-        <h3>Total Amount: <span th:text="${totalAmount}"></span></h3>
-
-        <!-- Footer Section -->
         <div class="footer">
-            <p>Thank you for your business!</p>
+            <p><strong>Subtotal:</strong> <span th:text="'SUBTOTAL'"></span></p>
+            <p><strong>Tax (TAX_RATE%):</strong> <span th:text="'TAX_AMOUNT'"></span></p>
+            <p><strong>Total Amount:</strong> <span th:text="'TOTAL_AMOUNT'"></span></p>
         </div>
 
-        <!-- Signature Section -->
         <div class="signature">
-            <p><strong>Authorized Signature</strong></p>
+            <p>Authorized Signature</p>
         </div>
     </div>
 </body>
