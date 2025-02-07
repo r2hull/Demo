@@ -1,22 +1,27 @@
-public  ResponseEntity<byte[]> generateCaptcha(CaptchaRequest captchaRequest) {
-        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
-        //Step 1 : Validate Captcha Request
-        captchaValidator.requestValidator(captchaRequest);
-        MimeMultipart mimeMultipart = saveCaptcha(captchaRequest, false);
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        try {
-            mimeMultipart.writeTo(outputStream);
-        } catch (IOException e) {
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, captchaRequest.getRequestType() + "Key"));
-        } catch (MessagingException e) {
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, captchaRequest.getRequestType() + "Key"));
-        }
-        byte[] responseBytes = outputStream.toByteArray();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.MULTIPART_MIXED);
-        headers.setContentLength(responseBytes.length);
-        ResponseEntity<byte[]> responseEntity = new ResponseEntity<>(responseBytes, headers, HttpStatus.OK);
-        return responseEntity;
+public ResponseEntity<byte[]> generateCaptcha(CaptchaRequest captchaRequest) {
+    logger.info("Generating captcha for RequestId: {}", captchaRequest.getRequestId());
+
+    captchaValidator.requestValidator(captchaRequest);
+    
+    byte[] captchaBytes = createCaptchaResponse(captchaRequest);
+    HttpHeaders headers = createHeaders(captchaBytes.length);
+
+    return ResponseEntity.ok().headers(headers).body(captchaBytes);
+}
+
+private byte[] createCaptchaResponse(CaptchaRequest captchaRequest) {
+    try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+        saveCaptcha(captchaRequest, false).writeTo(outputStream);
+        return outputStream.toByteArray();
+    } catch (IOException | MessagingException e) {
+        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, captchaRequest.getRequestType() + "Key"));
     }
+}
+
+private HttpHeaders createHeaders(int contentLength) {
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.MULTIPART_MIXED);
+    headers.setContentLength(contentLength);
+    return headers;
+}
