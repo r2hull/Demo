@@ -1,4 +1,43 @@
-   public List<MerchantFeesReport> getMerchantFeesInvoice(String mId, List<String> reportDates) {
-        SqlParameterSource parameters = new MapSqlParameterSource(Map.of("mId", mId, "reportDate", reportDates));
-        return namedParameterJdbcTemplate.query(InvoiceQueries.JDBC_TXN_INVOICE, parameters, new BeanPropertyRowMapper<>(MerchantFeesReport.class));
-    }
+package com.epay.reporting.entity.view;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+/**
+ * Class Name: MerchantFeesReport
+ * *
+ * Description: This class is used to hold and represent the merchant fees data for generating reports.
+ * It contains information related to the fees charged to merchants, which may include fee amounts, transaction details,
+ * and other related attributes for reporting purposes. It serves as a data transfer object (DTO) used in the processing
+ * and presentation of merchant fee data within the system.
+ * Author: Bhoopendra Rajput
+ * Copyright (c) 2024 [State Bank of India]
+ * All rights reserved
+ * Version:1.0
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class MerchantFeesReport {
+    private String transactionDate;
+    private Integer transactionCount;
+    private String payMode;
+    private BigDecimal merchantFeeAmount;
+    private BigDecimal merchantServiceTaxAmount;
+    private BigDecimal merchantTotalCommission;
+    private String merchantName;
+    private String gstNumber;
+    private String address1;
+    private String address2;
+    private String state;
+    private String city;
+    private String country;
+    private String pincode;
+}
+
+
+List<MerchantFeesReport> merchantFeesData = invoiceRepository.getMerchantFeesInvoice(mId, reportDates);
