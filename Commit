@@ -1,3 +1,21 @@
+private MimeMultipart saveCaptcha(CaptchaRequest captchaRequest, boolean retry) {
+        RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
+
+        // Generate Captcha and its Base64 Image
+        String captchaText = captchaProducer.createText();
+        String base64Image = generateCaptchaImage(captchaText);
+
+        // Generate Audio Captcha
+        DataSource audioDataSource = generateAudioCaptcha(captchaText);
+
+        // Save Captcha and Map to Response
+        CaptchaResponse captchaResponse = saveAndMapCaptchaResponse(captchaText, captchaRequest, requestType, retry, base64Image);
+
+        // Create MimeMultipart Response
+        return createMultipartResponse(captchaResponse, audioDataSource, requestType);
+    }
+
+
  @PostMapping
     @Operation(summary = "Create Captcha API.", description = "Create Captcha creation API for given Request Type")
     public ResponseEntity<byte[]>  generateCaptcha(@RequestBody CaptchaRequest captchaRequest) throws JsonProcessingException {
@@ -18,4 +36,12 @@
         headers.setContentLength(responseBytes.length);
 
         return new ResponseEntity<>(responseBytes, headers, HttpStatus.OK);
+    }
+
+
+public MimeMultipart generateCaptcha(CaptchaRequest captchaRequest) {
+        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
+        //Step 1 : Validate Captcha Request
+        captchaValidator.requestValidator(captchaRequest);
+        return saveCaptcha(captchaRequest, false);
     }
