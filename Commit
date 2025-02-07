@@ -1,96 +1,184 @@
-package com.epay.merchant.util;
+package com.epay.merchant.service;
 
+import com.epay.merchant.dao.CaptchaDao;
+import com.epay.merchant.dto.CaptchaDto;
 import com.epay.merchant.exception.MerchantException;
-import com.sun.speech.freetts.Voice;
-import com.sun.speech.freetts.VoiceManager;
-import com.sun.speech.freetts.audio.AudioPlayer;
-import com.sun.speech.freetts.audio.SingleFileAudioPlayer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.epay.merchant.mapper.CaptchaMapper;
+import com.epay.merchant.model.request.CaptchaRequest;
+import com.epay.merchant.model.response.CaptchaResponse;
+import com.epay.merchant.util.ErrorConstants;
+import com.epay.merchant.util.MerchantUtil;
+import com.epay.merchant.util.VoiceCaptchaUtil;
+import com.epay.merchant.util.enums.RequestType;
+import com.epay.merchant.validator.CaptchaValidator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sbi.epay.captcha.impl.DefaultKaptcha;
+import com.sbi.epay.logging.utility.LoggerFactoryUtility;
+import com.sbi.epay.logging.utility.LoggerUtility;
+import jakarta.activation.DataHandler;
+import jakarta.activation.DataSource;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeBodyPart;
+import jakarta.mail.internet.MimeMultipart;
+import jakarta.mail.util.ByteArrayDataSource;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
 
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.text.MessageFormat;
 
-/**
- * Utility class for generating voice captcha audio files.
- */
-public class VoiceCaptchaUtil {
 
-    private static final Logger logger = LoggerFactory.getLogger(VoiceCaptchaUtil.class);
-    private static final String VOICENAME = "kevin16";
+
+/**
+ * Class Name: CaptchaService
+ * *
+ * Description:
+ * *
+ * Author: Subhra Goswami
+ * <p>
+ * Copyright (c) 2024 [State Bank of India]
+ * All rights reserved
+ * *
+ * Version:1.0
+ */
+@Service
+@RequiredArgsConstructor
+public class CaptchaService {
+
+    private final CaptchaDao captchaDao;
+    private final DefaultKaptcha captchaProducer;
+    private final CaptchaValidator captchaValidator;
+    private final CaptchaMapper captchaMapper;
+
+    private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
 
     /**
-     * Converts the given text to speech and returns the audio as a byte array.
+     * Generates a captcha and save it to the DB and returns a response.
      *
-     * @param text the text to convert to speech.
-     * @return a byte array containing the speech audio, or null if an error occurs.
+     * @param captchaRequest CaptchaRequest
+     * @return merchantResponse containing CaptchaResponse
      */
-    public static byte[] speakToByteArray(String text) {
-        System.setProperty("freetts.voices", "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory");
-        File tempFile = null;
+    public ResponseEntity<byte[]> generateCaptcha(CaptchaRequest captchaRequest) {
+        logger.info("Generating captcha for RequestId: {}", captchaRequest.getRequestId());
+        //Step 1 : Validate Captcha Request
+        captchaValidator.requestValidator(captchaRequest);
+
+        byte[] captchaBytes = createCaptchaResponse(captchaRequest);
+        HttpHeaders headers = createHeaders(captchaBytes.length);
+
+        return ResponseEntity.ok().headers(headers).body(captchaBytes);
+    }
+
+    private byte[] createCaptchaResponse(CaptchaRequest captchaRequest) {
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            saveCaptcha(captchaRequest).writeTo(outputStream);
+            return outputStream.toByteArray();
+        } catch (IOException | MessagingException e) {
+            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, captchaRequest.getRequestType() + "Key"));
+        }
+    }
+
+    private HttpHeaders createHeaders(int contentLength) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_MIXED);
+        headers.setContentLength(contentLength);
+        return headers;
+    }
+
+    /**
+     * ReGenerates a captcha and save it to the DB and returns a response.
+     *
+     * @param captchaRequest CaptchaRequest
+     * @return merchantResponse containing CaptchaResponse
+     */
+    public ResponseEntity<byte[]> regenerateCaptcha(CaptchaRequest captchaRequest) {
+        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
+        //Step 1 : Validate Captcha Request
+        captchaValidator.regenerateValidator(captchaRequest);
+        byte[] captchaBytes = createCaptchaResponse(captchaRequest);
+        HttpHeaders headers = createHeaders(captchaBytes.length);
+        return ResponseEntity.ok().headers(headers).body(captchaBytes);
+    }
+
+    /**
+     * Generates the captcha image and encodes it in Base64
+     *
+     * @param captchaText String
+     * @return Captcha
+     */
+    public String generateCaptchaImage(String captchaText) {
+        logger.info("generated captcha text: {}", captchaText);
+        BufferedImage image = captchaProducer.createImage(captchaText);
+        return MerchantUtil.convertImageToBase64(image, "Captcha");
+    }
+
+    private MimeMultipart saveCaptcha(CaptchaRequest captchaRequest) {
+        RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
+
+        // Generate Captcha and its Base64 Image
+        String captchaText = captchaProducer.createText();
+        String base64Image = generateCaptchaImage(captchaText);
+
+        // Generate Audio Captcha
+        DataSource audioDataSource = generateAudioCaptcha(captchaText);
+
+        // Save Captcha and Map to Response
+        CaptchaResponse captchaResponse = saveAndMapCaptchaResponse(captchaText, captchaRequest, requestType, base64Image);
+
+        // Create MimeMultipart Response
+        return createMultipartResponse(captchaResponse, audioDataSource, requestType);
+    }
+
+    // Generate audio captcha
+    private DataSource generateAudioCaptcha(String captchaText) {
+        byte[] audioBytes = VoiceCaptchaUtil.speakToByteArray(captchaText);
+        return new ByteArrayDataSource(audioBytes, "audio/wav");
+    }
+
+    // Save Captcha and Map to Response
+    private CaptchaResponse saveAndMapCaptchaResponse(String captchaText, CaptchaRequest captchaRequest, RequestType requestType, String base64Image) {
+        CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, false);
+        return captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image);
+    }
+
+    // Convert CaptchaResponse to JSON String
+    private String convertToJson(CaptchaResponse captchaResponse, RequestType requestType) {
+        try {
+            return new ObjectMapper().writeValueAsString(captchaResponse);
+        } catch (JsonProcessingException e) {
+            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestType.name()));
+        }
+    }
+
+    // Create multipart response
+    private MimeMultipart createMultipartResponse(CaptchaResponse captchaResponse, DataSource audioDataSource, RequestType requestType) {
+        MimeMultipart mimeMultipart = new MimeMultipart("mixed");
 
         try {
-            tempFile = File.createTempFile("speech_", ".wav");
-            tempFile.deleteOnExit();
+            // Add JSON Part
+            MimeBodyPart jsonPart = new MimeBodyPart();
+            jsonPart.setContent(convertToJson(captchaResponse, requestType), "application/json; charset=UTF-8");
+            mimeMultipart.addBodyPart(jsonPart);
 
-            Voice voice = VoiceManager.getInstance().getVoice(VOICENAME);
-            if (voice == null) {
-                logger.error("Voice {} not found.", VOICENAME);
-                throw new MerchantException("Voice not found");
-            }
-
-            voice.allocate();
-
-            AudioPlayer audioPlayer = new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""), 
-                    javax.sound.sampled.AudioFileFormat.Type.WAVE);
-            voice.setAudioPlayer(audioPlayer);
-
-            logger.info("Converting text to speech...");
-            voice.speak(text);
-            voice.deallocate();
-            audioPlayer.close();
-
-            return fileToByteArray(tempFile);
-
-        } catch (Exception e) {
-            logger.error("Error occurred while generating speech audio", e);
-            return null;
-
-        } finally {
-            if (tempFile != null && tempFile.exists()) {
-                tempFile.delete();
-            }
+            // Add Audio File Part
+            MimeBodyPart filePart = new MimeBodyPart();
+            filePart.setDataHandler(new DataHandler(audioDataSource));
+            filePart.setFileName("speech.wav");
+            mimeMultipart.addBodyPart(filePart);
+        } catch (MessagingException e) {
+            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestType.name()));
         }
+        logger.info("Captcha generation completed for RequestId: {}", captchaResponse.getRequestId());
+        return mimeMultipart;
     }
 
-    /**
-     * Reads a file and converts it to a byte array.
-     *
-     * @param file the file to convert.
-     * @return a byte array representing the file’s contents.
-     * @throws MerchantException if an error occurs during file reading.
-     */
-    private static byte[] fileToByteArray(File file) {
-        try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(file);
-             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-
-            while ((bytesRead = audioInputStream.read(buffer)) != -1) {
-                byteArrayOutputStream.write(buffer, 0, bytesRead);
-            }
-
-            return byteArrayOutputStream.toByteArray();
-
-        } catch (IOException e) {
-            logger.error("Error reading file to byte array", e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE, 
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, file.getName()));
-        }
-    }
 }
