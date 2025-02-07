@@ -1,51 +1,51 @@
-private static final String VOICENAME = "kevin16";
+import com.sun.speech.freetts.AudioPlayer;
+import com.sun.speech.freetts.Voice;
+import com.sun.speech.freetts.VoiceManager;
+import com.sun.speech.freetts.audio.SingleFileAudioPlayer;
+
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import java.io.*;
+
+public class TextToSpeech {
+
+    private static final String VOICE_NAME = "kevin16";
 
     public static byte[] speakToByteArray(String text) {
+        System.setProperty("freetts.voices", "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory");
+
         try {
-            System.setProperty("freetts.voices", "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory");
-            // Create a temporary WAV file
             File tempFile = File.createTempFile("speech_", ".wav");
             tempFile.deleteOnExit();
 
-            // Set up FreeTTS to save output as a WAV file
-            VoiceManager voiceManager = VoiceManager.getInstance();
-            Voice voice = voiceManager.getVoice(VOICENAME);
-            // Allocate the voice
-            voice.allocate();
+            Voice voice = VoiceManager.getInstance().getVoice(VOICE_NAME);
+            if (voice == null) throw new IllegalStateException("Voice not found");
 
-            // Set audio output to a file
-            AudioPlayer audioPlayer = new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""),
+            voice.allocate();
+            AudioPlayer audioPlayer = new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""), 
                     javax.sound.sampled.AudioFileFormat.Type.WAVE);
             voice.setAudioPlayer(audioPlayer);
-
-            // Speak the text
             voice.speak(text);
             voice.deallocate();
             audioPlayer.close();
 
-            // Read the generated WAV file into a byte array
             return fileToByteArray(tempFile);
         } catch (Exception e) {
             e.printStackTrace();
+            return null;
         }
-        return null;
     }
 
-    private static byte[] fileToByteArray(File file) {
-        try {
-            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(file);
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+    private static byte[] fileToByteArray(File file) throws IOException {
+        try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(file);
+             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+             
             byte[] buffer = new byte[1024];
             int bytesRead;
-
             while ((bytesRead = audioInputStream.read(buffer)) != -1) {
                 byteArrayOutputStream.write(buffer, 0, bytesRead);
             }
-
-            audioInputStream.close();
             return byteArrayOutputStream.toByteArray();
-        } catch (Exception e) {
-            e.printStackTrace();
         }
-        return null;
     }
+}
