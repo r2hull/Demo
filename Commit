@@ -1,29 +1,17 @@
-Issue Title: Add Voice Captcha Support in CaptchaService
-
-feat: Added voice captcha generation in CaptchaService
-
-- Integrated voice captcha support using VoiceCaptchaUtil.
-- Added audio captcha generation alongside image captcha.
-- Implemented multipart response to return both image and audio captchas.
-- Enhanced logging for tracking captcha generation and response.
-
-
-
-## Feature: Voice Captcha Integration  
-
-### Summary:  
-This MR introduces **voice captcha support** in `CaptchaService`, allowing captchas to be generated in both **image and audio formats**.  
-
-### Changes:  
-- Implemented **audio captcha generation** using `VoiceCaptchaUtil.speakToByteArray()`.  
-- Extended `saveCaptcha()` to include an **audio response** in `MimeMultipart`.  
-- Updated logging to track **captcha generation, saving, and response creation**.  
-- Improved error handling for **JSON processing and multipart response generation**.  
-
-### Testing:  
-✅ Captcha generation returns **both image and audio data**.  
-✅ Multipart response verified in API responses.  
-✅ Logs capture all necessary execution steps.  
-
-### Reviewers:  
-Please review the changes and share feedback.
+ public static final String JDBC_TXN_INVOICE = """
+                    SELECT TO_CHAR(TO_DATE(vti.TRANSACTION_DATE, 'DD-MM-YY'), 'Mon-YYYY') as transactionDate,
+                    COUNT(vti.ATRN_NUM) as transactionCount, vti.PayMode_code as payMode,
+                    SUM(vti.MERCHANT_FEE_AMOUNT)as merchantFeeAmount,
+                    SUM(vti.SERVICE_TAX_AMOUNT)as merchantServiceTaxAmount,
+                    SUM(vti.MERCHANT_FEE_AMOUNT)+ SUM(vti.SERVICE_TAX_AMOUNT) as merchantTotalCommission,
+                    vti. merchant_name as merchantName,mi.GST_NUMBER as gstNumber,
+                    mi.address_line1 as address1, mi.address_line2 as address2, mi.state as state, mi.city as city,
+                    mi.country as country, mi.pincode as pincode
+                    FROM PAYAGGREPORT_READ.view_transaction_fees_invoice vti
+                    JOIN MERCHANT_INFO_MERCH mi on mi.mid = vti.mid
+                    WHERE vti.MID = :mId AND vti.PAYMODE_CODE is NOT NULL AND vti.atrn_num is NOT NULL AND
+                    TO_CHAR(TO_DATE(vti.TRANSACTION_DATE, 'DD-MM-YY'), 'Mon-YYYY') IN (:reportDate)
+                    GROUP BY TO_CHAR(TO_DATE(vti.TRANSACTION_DATE, 'DD-MM-YY'), 'Mon-YYYY'), vti.paymode_code,
+                    vti.merchant_name, mi.GST_NUMBER,mi.address_line1, mi.address_line2 , mi.state, mi.city, mi.country, mi.pincode
+                    ORDER BY TO_CHAR(TO_DATE(vti.TRANSACTION_DATE, 'DD-MM-YY'), 'Mon-YYYY') desc
+            """;
