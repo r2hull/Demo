@@ -33,19 +33,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.text.MessageFormat;
 
-
-
 /**
- * Class Name: CaptchaService
- * *
- * Description:
- * *
- * Author: Subhra Goswami
- * <p>
- * Copyright (c) 2024 [State Bank of India]
- * All rights reserved
- * *
- * Version:1.0
+ * CaptchaService handles the generation, validation, and management of captchas.  
+ * It provides methods for generating and regenerating captchas in both image and audio formats.  
+ * The service integrates with the database and includes logging for tracking execution.
  */
 @Service
 @RequiredArgsConstructor
@@ -55,130 +46,146 @@ public class CaptchaService {
     private final DefaultKaptcha captchaProducer;
     private final CaptchaValidator captchaValidator;
     private final CaptchaMapper captchaMapper;
-
     private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
 
     /**
-     * Generates a captcha and save it to the DB and returns a response.
+     * Generates a captcha, saves it in the database, and returns the response.  
+     * It includes an image and audio format of the captcha.
      *
-     * @param captchaRequest CaptchaRequest
-     * @return merchantResponse containing CaptchaResponse
+     * @param captchaRequest The request containing captcha details.
+     * @return ResponseEntity containing captcha data.
      */
     public ResponseEntity<byte[]> generateCaptcha(CaptchaRequest captchaRequest) {
         logger.info("Generating captcha for RequestId: {}", captchaRequest.getRequestId());
-        //Step 1 : Validate Captcha Request
         captchaValidator.requestValidator(captchaRequest);
-
         byte[] captchaBytes = createCaptchaResponse(captchaRequest);
-        HttpHeaders headers = createHeaders(captchaBytes.length);
-
-        return ResponseEntity.ok().headers(headers).body(captchaBytes);
+        logger.info("Captcha generated successfully for RequestId: {}", captchaRequest.getRequestId());
+        return ResponseEntity.ok().headers(createHeaders(captchaBytes.length)).body(captchaBytes);
     }
 
+    /**
+     * Regenerates an existing captcha and returns the updated response.
+     *
+     * @param captchaRequest The request containing captcha details.
+     * @return ResponseEntity with updated captcha data.
+     */
+    public ResponseEntity<byte[]> regenerateCaptcha(CaptchaRequest captchaRequest) {
+        logger.info("Regenerating captcha for RequestId: {}", captchaRequest.getRequestId());
+        captchaValidator.regenerateValidator(captchaRequest);
+        byte[] captchaBytes = createCaptchaResponse(captchaRequest);
+        logger.info("Captcha regenerated successfully for RequestId: {}", captchaRequest.getRequestId());
+        return ResponseEntity.ok().headers(createHeaders(captchaBytes.length)).body(captchaBytes);
+    }
+
+    /**
+     * Generates a captcha image from text and encodes it in Base64 format.
+     *
+     * @param captchaText The text to be converted into an image.
+     * @return A Base64 encoded captcha image.
+     */
+    public String generateCaptchaImage(String captchaText) {
+        logger.info("Generating captcha image for text: {}", captchaText);
+        BufferedImage image = captchaProducer.createImage(captchaText);
+        String base64Image = MerchantUtil.convertImageToBase64(image, "Captcha");
+        logger.info("Captcha image generated successfully.");
+        return base64Image;
+    }
+
+    /**
+     * Creates a captcha response, including an image and audio format.
+     *
+     * @param captchaRequest The request containing captcha details.
+     * @return Captcha response as a byte array.
+     */
     private byte[] createCaptchaResponse(CaptchaRequest captchaRequest) {
+        logger.info("Creating captcha response for RequestId: {}", captchaRequest.getRequestId());
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             saveCaptcha(captchaRequest).writeTo(outputStream);
+            logger.info("Captcha response created successfully for RequestId: {}", captchaRequest.getRequestId());
             return outputStream.toByteArray();
         } catch (IOException | MessagingException e) {
+            logger.error("Error generating captcha for RequestId: {}", captchaRequest.getRequestId(), e);
             throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
                     MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, captchaRequest.getRequestType() + "Key"));
         }
     }
 
+    /**
+     * Creates HTTP headers for the captcha response.
+     *
+     * @param contentLength The length of the captcha content.
+     * @return HttpHeaders containing content details.
+     */
     private HttpHeaders createHeaders(int contentLength) {
+        logger.info("Creating HTTP headers for captcha response.");
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_MIXED);
         headers.setContentLength(contentLength);
+        logger.info("Headers created successfully.");
         return headers;
     }
 
     /**
-     * ReGenerates a captcha and save it to the DB and returns a response.
+     * Saves the captcha details in the database and returns a MIME multipart response.
      *
-     * @param captchaRequest CaptchaRequest
-     * @return merchantResponse containing CaptchaResponse
+     * @param captchaRequest The request containing captcha details.
+     * @return MIME multipart response with captcha data.
      */
-    public ResponseEntity<byte[]> regenerateCaptcha(CaptchaRequest captchaRequest) {
-        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
-        //Step 1 : Validate Captcha Request
-        captchaValidator.regenerateValidator(captchaRequest);
-        byte[] captchaBytes = createCaptchaResponse(captchaRequest);
-        HttpHeaders headers = createHeaders(captchaBytes.length);
-        return ResponseEntity.ok().headers(headers).body(captchaBytes);
+    private MimeMultipart saveCaptcha(CaptchaRequest captchaRequest) {
+        logger.info("Saving captcha for RequestId: {}", captchaRequest.getRequestId());
+        RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
+        String captchaText = captchaProducer.createText();
+        String base64Image = generateCaptchaImage(captchaText);
+        DataSource audioDataSource = new ByteArrayDataSource(VoiceCaptchaUtil.speakToByteArray(captchaText), "audio/wav");
+
+        CaptchaResponse captchaResponse = saveAndMapCaptchaResponse(captchaText, captchaRequest, requestType, base64Image);
+        logger.info("Captcha saved successfully for RequestId: {}", captchaRequest.getRequestId());
+        return createMultipartResponse(captchaResponse, audioDataSource);
     }
 
     /**
-     * Generates the captcha image and encodes it in Base64
+     * Saves captcha details in the database and maps them to a response.
      *
-     * @param captchaText String
-     * @return Captcha
+     * @param captchaText   The generated captcha text.
+     * @param captchaRequest The request details.
+     * @param requestType   The type of captcha request.
+     * @param base64Image   The encoded captcha image.
+     * @return CaptchaResponse containing the saved details.
      */
-    public String generateCaptchaImage(String captchaText) {
-        logger.info("generated captcha text: {}", captchaText);
-        BufferedImage image = captchaProducer.createImage(captchaText);
-        return MerchantUtil.convertImageToBase64(image, "Captcha");
-    }
-
-    private MimeMultipart saveCaptcha(CaptchaRequest captchaRequest) {
-        RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
-
-        // Generate Captcha and its Base64 Image
-        String captchaText = captchaProducer.createText();
-        String base64Image = generateCaptchaImage(captchaText);
-
-        // Generate Audio Captcha
-        DataSource audioDataSource = generateAudioCaptcha(captchaText);
-
-        // Save Captcha and Map to Response
-        CaptchaResponse captchaResponse = saveAndMapCaptchaResponse(captchaText, captchaRequest, requestType, base64Image);
-
-        // Create MimeMultipart Response
-        return createMultipartResponse(captchaResponse, audioDataSource, requestType);
-    }
-
-    // Generate audio captcha
-    private DataSource generateAudioCaptcha(String captchaText) {
-        byte[] audioBytes = VoiceCaptchaUtil.speakToByteArray(captchaText);
-        return new ByteArrayDataSource(audioBytes, "audio/wav");
-    }
-
-    // Save Captcha and Map to Response
     private CaptchaResponse saveAndMapCaptchaResponse(String captchaText, CaptchaRequest captchaRequest, RequestType requestType, String base64Image) {
+        logger.info("Mapping and saving captcha response for RequestId: {}", captchaRequest.getRequestId());
         CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, false);
-        return captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image);
+        CaptchaResponse response = captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image);
+        logger.info("Captcha response mapped and saved successfully.");
+        return response;
     }
 
-    // Convert CaptchaResponse to JSON String
-    private String convertToJson(CaptchaResponse captchaResponse, RequestType requestType) {
-        try {
-            return new ObjectMapper().writeValueAsString(captchaResponse);
-        } catch (JsonProcessingException e) {
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestType.name()));
-        }
-    }
-
-    // Create multipart response
-    private MimeMultipart createMultipartResponse(CaptchaResponse captchaResponse, DataSource audioDataSource, RequestType requestType) {
+    /**
+     * Creates a MIME multipart response containing captcha details.
+     *
+     * @param captchaResponse The response containing captcha data.
+     * @param audioDataSource The audio captcha data source.
+     * @return MIME multipart containing JSON and audio captcha.
+     */
+    private MimeMultipart createMultipartResponse(CaptchaResponse captchaResponse, DataSource audioDataSource) {
+        logger.info("Creating multipart response for RequestId: {}", captchaResponse.getRequestId());
         MimeMultipart mimeMultipart = new MimeMultipart("mixed");
 
         try {
-            // Add JSON Part
             MimeBodyPart jsonPart = new MimeBodyPart();
-            jsonPart.setContent(convertToJson(captchaResponse, requestType), "application/json; charset=UTF-8");
+            jsonPart.setContent(new ObjectMapper().writeValueAsString(captchaResponse), "application/json; charset=UTF-8");
             mimeMultipart.addBodyPart(jsonPart);
 
-            // Add Audio File Part
             MimeBodyPart filePart = new MimeBodyPart();
             filePart.setDataHandler(new DataHandler(audioDataSource));
             filePart.setFileName("speech.wav");
             mimeMultipart.addBodyPart(filePart);
-        } catch (MessagingException e) {
+        } catch (MessagingException | JsonProcessingException e) {
+            logger.error("Error creating multipart response for RequestId: {}", captchaResponse.getRequestId(), e);
             throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestType.name()));
+                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, captchaResponse.getRequestId()));
         }
-        logger.info("Captcha generation completed for RequestId: {}", captchaResponse.getRequestId());
+        logger.info("Multipart response created successfully for RequestId: {}", captchaResponse.getRequestId());
         return mimeMultipart;
     }
-
 }
