@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,7 +15,6 @@
             margin: 20px auto;
             padding: 20px;
             border: 1px solid #000;
-            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
         }
         .header {
             text-align: center;
@@ -23,12 +22,13 @@
         }
         .header img {
             width: 150px;
+            height: auto;
         }
         .title {
             text-align: center;
-            font-weight: bold;
-            padding: 10px;
-            border: 1px solid black;
+            margin: 10px 0;
+            border: 0.5px solid black;
+            padding: 5px;
         }
         table {
             width: 100%;
@@ -51,59 +51,43 @@
         .signature {
             margin-top: 40px;
             text-align: left;
-            border: 1px solid black;
+            border: 1px solid;
             padding: 10px;
-        }
-        @media (max-width: 768px) {
-            .invoice-container {
-                width: 100%;
-                padding: 10px;
-            }
-            .header img {
-                width: 120px;
-            }
-            table, th, td {
-                font-size: 12px;
-            }
         }
     </style>
 </head>
 <body>
     <div class="invoice-container">
-        <!-- Header -->
         <div class="header">
-            <img alt="SBI ePay" src="C"/>
+            <img alt="SBI ePay" th:src="@{C}" />
         </div>
-        <div class="title">MONTHLY INVOICE</div>
-
-        <!-- Invoice Details -->
+        <div class="title"><span>MONTHLY INVOICE</span></div>
         <table>
             <tr>
-                <td style="border-bottom: none; border-right: none;"><strong>Kind Attn:</strong> 
-                    <span th:text="${map.merchantName}"></span><br>
+                <td style="border-bottom: none; border-right: none; border-left: none;">
+                    <strong>Kind Attn:</strong> <span th:text="${map.merchantName}"></span><br>
                     GSTIN: <span th:text="${map.gstNo}"></span><br>
                     HSN/SAC: <span th:text="${map.hsnSacNum}"></span><br>
                     <span th:text="${map.address}"></span>
                 </td>
-                <td style="border-bottom: none; border-left: none; vertical-align: top;">
+                <td style="vertical-align: top; border-bottom: none; border-right: none;">
                     <strong>Invoice No:</strong> SBIePay/<span th:text="${map.reportName}"></span>/<span th:text="${map.invoiceNum}"></span><br>
                     <strong>Date:</strong> <span th:text="${map.date}"></span>
                 </td>
             </tr>
         </table>
 
-        <!-- Description -->
         <table>
             <tr>
                 <th>Description</th>
                 <th class="amount">Amount (Rs.)</th>
             </tr>
             <tr>
-                <td>Towards transaction processing in the month of <span th:text="${map.reportName}"></span></td>
-                <td></td>
+                <td style="border-bottom: none;">Towards transaction processing in the month of <span th:text="${map.reportName}"></span></td>
+                <td style="border-bottom: none;"></td>
             </tr>
             <tr>
-                <td>
+                <td style="border-top: none; border-bottom: none;">
                     <strong>SBIePay transactions - As per Annexure I</strong>
                     <table>
                         <tr>
@@ -112,52 +96,48 @@
                             <th>GST Rate</th>
                         </tr>
                         <tr th:each="merchantFees : ${map.merchantFeesList}">
-                            <td th:text="${merchantFees.getPayMode()}"></td>
-                            <td style="text-align:center" th:text="${merchantFees.getTransactionCount()}"></td>
+                            <td th:text="${merchantFees.payMode}"></td>
+                            <td style="text-align:center" th:text="${merchantFees.transactionCount}"></td>
                             <td>18%</td>
                         </tr>
                     </table>
                 </td>
-                <td class="amount">
-                    <table>
-                        <tr th:each="merchantFees : ${map.merchantFeesList}">
-                            <td th:text="${merchantFees.getMerchantFeeAmount()}"></td>
-                        </tr>
-                    </table>
+                <td class="amount" style="border-top: none; border-bottom:none; text-align:right; line-height:2; margin-block-start: 1rem;">
+                    <br><br>
+                    <span th:each="merchantFees : ${map.merchantFeesList}" th:text="${merchantFees.merchantFeeAmount}"></span>
                 </td>
             </tr>
             <tr>
-                <td style="text-align: center;">18% (CGST 9% and SGST 9%)</td>
-                <td class="amount" th:text="${map.totalMerchantServiceTaxAmount}"></td>
+                <td style="border-top: none; text-align: center;">18% (CGST 9% and SGST 9%)</td>
+                <td class="amount" style="border-top: none; text-align: right;">
+                    <span th:text="${map.totalMerchantServiceTaxAmount}"></span>
+                </td>
             </tr>
             <tr>
                 <th style="text-align: center;">Gross Total Amount</th>
-                <th class="amount" th:text="${map.totalMerchantTotalCommission}"></th>
+                <th class="amount" style="text-align: right;" th:text="${map.totalMerchantTotalCommission}"></th>
             </tr>
             <tr>
                 <td colspan="2" style="text-align: center;" th:text="${map.totalMerchantTotalCommissionInWords}"></td>
             </tr>
         </table>
 
-        <!-- Footer -->
         <div class="footer">
-            <p><strong>PAN:</strong> AAACS8577K</p>
-            <p><strong>GSTIN:</strong> 27AAACS8577K2ZO</p>
-            <p><strong>HSN/SAC:</strong> 997119</p>
+            <p><strong>PAN:</strong> AAACS8577K<br>
+            <strong>GSTIN:</strong> 27AAACS8577K2ZO<br>
+            <strong>HSN/SAC:</strong> 997119</p>
             <p>Please remit through RTGS/NEFT to Account No. 4897932117777 maintained with SBI, SBI CAPITAL MARKET BRANCH MUMBAI (IFSC: SBIN0011777)</p>
         </div>
 
-        <!-- Signature -->
         <div class="signature">
             <p>For SBIePay</p>
             <p>(Signature and Company Seal)</p>
             <p>Authorized Signatory</p>
         </div>
+    </div>
 
-        <!-- Address -->
-        <div class="invoice-container">
-            <p>State Bank of India, Payment Aggregator-SBIePay,<br>D$TB-Marketing Department, 3rd Floor, D-wing, Belapur CBD, Navi Mumbai-400614</p>
-        </div>
+    <div class="invoice-container">
+        <p>State Bank of India, Payment Aggregator-SBIePay,<br>D$TB-Marketing Department, 3rd Floor, D-wing</p>
     </div>
 </body>
 </html>
