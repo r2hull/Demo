@@ -1,146 +1,9 @@
-
-//actual working thymleaf
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title th:text="${map.reportName}"></title>
-    <style>
-        table, th, td {
-          border: 1px solid black;
-          border-collapse: collapse;
-        }
-        table {
-            width: 100%;
-        }
-        textCenter {
-            text-align: center;
-        }
-        width100Pt {
-            width: 100%;
-        }
-    </style>
-</head>
-<body>
-<div>
-    <img style='display=block; width=80ps;height=60ps;' class="textCenter" alt="SBI ePay" src="cc"/>
-    <table>
-        <tbody>
-        <tr>
-            <td colspan="2" class="width100Pt" style="text-align: center;">Monthly Invoice</td>
-        </tr>
-        <tr>
-            <td>Kind Attn:<br/>
-                <span th:text="${map.merchantName}"></span><br/>
-                GSTIN: <span th:text="${map.gstNo}"></span><br/>
-                <span th:text="${map.hsnSacNum}"></span><br/>
-                <span th:text="${map.address}"></span>
-            </td>
-            <td>Invoice No: SBIePay/<span th:text="${map.reportName}"></span>/<span th:text="${map.invoiceNum}"></span>
-                Date: <span th:text="${map.date}"></span>
-            </td>
-        </tr>
-        </tbody>
-    </table>
-    <br/>
-    <table>
-        <tbody>
-        <tr>
-            <td>Description</td>
-            <td>Amount (Rs.)</td>
-        </tr>
-        <tr>
-            <td>
-                Towards transaction processing in the month of <span th:text="${map.reportName}"></span><br/>
-                SBIePay transactions - As per Annexure I
-                <table >
-                    <thead>
-                    <tr>
-                        <td>Gateway</td>
-                        <td>Transaction count</td>
-                        <td>GST Rate</td>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr th:each="merchantFees : ${map.merchantFeesList}">
-                        <td th:text="${merchantFees.getPayMode()}"></td>
-                        <td th:text="${merchantFees.getTransactionCount()}"></td>
-                        <td>18%</td>
-                    </tr>
-                    </tbody>
-                </table>
-                <br/><br/><br/>
-                <span style="width: 100%; text-align: center;">18%(CGST 9% and SGST 9%)</span>
-            </td>
-            <td>
-                <br/>
-                <table>
-                    <tbody>
-                    <tr></tr>
-                    <tr th:each="merchantFees : ${map.merchantFeesList}">
-                        <td th:text="${merchantFees.getMerchantFeeAmount()}"></td>
-                    </tr>
-                    </tbody>
-                </table>
-                <br/><br/><br/>
-                <span  th:text="${map.totalMerchantServiceTaxAmount}"></span>
-            </td>
-        </tr>
-        <tr>
-            <td style="text-align: center;">Gross Total Amount</td>
-            <td  th:text="${map.totalMerchantTotalCommission}"></td>
-        </tr>
-        <tr>
-            <td colspan="2" style="text-align: center;" th:text="${map.totalMerchantTotalCommissionInWords}"></td>
-        </tr>
-        </tbody>
-    </table>
-    <br/>
-    <table>
-        <tbody>
-        <tr>
-            <td colspan="2">
-                PAN: AAACS8577K<br/>
-                GSTIN: 27AAACS8577K2ZO<br/>
-                HSN/SAC: 997119<br/>
-                Please remit through RTGS/NEFT to Account no.4897932117777 titled<br/>
-                Maintained with State Bank of India, SBI CAPITAL MARKET BRANCH MUMBAI Branch (IFSC: SBIN0011777)
-            </td>
-        </tr>
-        <tr>
-            <td>For SBIePay<br/><br/>
-                (Signature and company seal)<br/><br/>
-                Authorized Signatory
-            </td>
-        </tr>
-        </tbody>
-    </table>
-    <span><br/>State Bank of India,<br/>
-                Payment Aggregator-SBIePay,<br/>
-                D$TB-Marketing Department,<br/>
-                3rd Floor, D-wing,<br/>
-                SB GITC Building,<br/>
-                Belapur CBD,<br/>
-                Navi Mumbai- 400614</span>
-</div>
-</body>
-</html>
-
-
-
-
-
-
-
-
-
-//this is template 
-<!DOCTYPE html>
-<html lang="en">
-<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice</title>
+    <title th:text="${map.reportName}"></title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -162,7 +25,7 @@
         .title {
             text-align: center;
             margin: 10px 0;
-            border: .5px solid black;
+            border: 0.5px solid black;
         }
         table {
             width: 100%;
@@ -174,18 +37,18 @@
             text-align: left;
         }
         .amount {
-            text-align: left;
+            text-align: right;
         }
         .footer {
             margin-top: 20px;
             font-size: 14px;
-            border:1px solid black;
+            border: 1px solid black;
             vertical-align: top;
         }
         .signature {
             margin-top: 40px;
             text-align: left;
-            border:1px solid;
+            border: 1px solid;
         }
     </style>
 </head>
@@ -194,21 +57,29 @@
         <div class="header">
             <img class="img-center" alt="SBI ePay" src="cc"/>
         </div>
-        <div class="title"><span>MONTHLY INVOICE</span>
+        <div class="title"><span>MONTHLY INVOICE</span></div>
         <table>
             <tr>
-                <td style="border-bottom: none; border-right: none; border-left: none;"><strong>Kind Attn:</strong> Airport Authority of India<br>GSTIN: 07AAACA6412D2Z9<br>HSN/SAC: 8479<br>Rajiv Gandhi Bhavan, New Delhi 110003</td>
-                <td style="vertical-align:top;border-bottom: none; border-right: none;"><strong>Invoice No:</strong> SBlePay/November-2024/2201<br><br><strong>Date:</strong> 03/12/2024</td>
+                <td style="border-bottom: none; border-right: none; border-left: none;">
+                    <strong>Kind Attn:</strong> <span th:text="${map.merchantName}"></span><br>
+                    <strong>GSTIN:</strong> <span th:text="${map.gstNo}"></span><br>
+                    <strong>HSN/SAC:</strong> <span th:text="${map.hsnSacNum}"></span><br>
+                    <span th:text="${map.address}"></span>
+                </td>
+                <td style="vertical-align: top; border-bottom: none; border-right: none;">
+                    <strong>Invoice No:</strong> SBIePay/<span th:text="${map.reportName}"></span>/<span th:text="${map.invoiceNum}"></span><br>
+                    <strong>Date:</strong> <span th:text="${map.date}"></span>
+                </td>
             </tr>
         </table>
-    </div>
+        
         <table>
             <tr>
                 <th>Description</th>
                 <th class="amount">Amount (Rs.)</th>
             </tr>
             <tr>
-                <td style="border-bottom: none;">Towards transaction processing in the month of November-2024</td>
+                <td style="border-bottom: none;">Towards transaction processing in the month of <span th:text="${map.reportName}"></span></td>
                 <td style="border-bottom: none;"></td>
             </tr>
             <tr>
@@ -220,59 +91,58 @@
                             <th>Transaction Count</th>
                             <th>GST Rate</th>
                         </tr>
-                        <tr>
-                            <td>Credit Card</td>
-                            <td style="text-align:center">1</td>
-                            <td>18%</td>
-                        </tr>
-                        <tr>
-                            <td>Net Banking</td>
-                            <td style="text-align:center">16</td>
-                            <td>18%</td>
-                        </tr>
-                        <tr>
-                            <td>Debit Card</td>
-                            <td style="text-align:center">2</td>
+                        <tr th:each="merchantFees : ${map.merchantFeesList}">
+                            <td th:text="${merchantFees.getPayMode()}"></td>
+                            <td style="text-align: center;" th:text="${merchantFees.getTransactionCount()}"></td>
                             <td>18%</td>
                         </tr>
                     </table>
                 </td>
-                <td class="amount" style="border-top: none; border-bottom:none ;text-align:right;line-height:2;margin-block-start: 1rem;"><br><br>
-                    1683.0<br>122.0<br>583.03
+                <td class="amount" style="border-top: none; border-bottom:none; text-align:right; line-height:2;">
+                    <span th:each="merchantFees : ${map.merchantFeesList}">
+                        <span th:text="${merchantFees.getMerchantFeeAmount()}"></span><br>
+                    </span>
                 </td>
             </tr>
             <tr>
                 <td style="border-top: none; text-align: center;">18% (CGST 9% and SGST 9%)</td>
-                <td class="amount" style="border-top: none; text-align: right;">429.85</td>
+                <td class="amount" style="border-top: none; text-align: right;" th:text="${map.totalMerchantServiceTaxAmount}"></td>
             </tr>
             <tr>
                 <th style="text-align: center;">Gross Total Amount</th>
-                <th class="amount" style="text-align: right;">2817.88</th>
+                <th class="amount" style="text-align: right;" th:text="${map.totalMerchantTotalCommission}"></th>
             </tr>
             <tr>
-                <td colspan="2" style="text-align: center;">Two Thousand Eight Hundread and Seventeen Point Eight Eight</td>
-                
+                <td colspan="2" style="text-align: center;" th:text="${map.totalMerchantTotalCommissionInWords}"></td>
             </tr>
         </table>
-        <div style="border:1px solid;border-top: none;">
-        <div class="footer" style="border-left: none;border-right: none;">
-            <p style="vertical-align: top;margin-left: 5px; "><strong>PAN:</strong> AACAS8577K<br>
-            <strong>GSTIN:</strong> 27AAACS8577K2ZO<br>
-            <strong>HSN/SAC:</strong> 997119</p>
-            <p style="margin-left: 5px;">Please remit through RTGS/NEFT to Account No. 4897932117777 maintained with SBI, SBI CAPITAL MARKET BRANCH MUMBAI (IFSC: SBIN0011777)</p>
-        </div>
-        <div class="">
-            <p style="margin-left: 5px;">For SBIePay</p>
-            <p style="margin-left: 5px;">(Signature and Company Seal)</p>
-            <p style="margin-left: 5px;">Authorized Signatory</p>
-            
+
+        <div style="border: 1px solid; border-top: none;">
+            <div class="footer" style="border-left: none; border-right: none;">
+                <p style="vertical-align: top; margin-left: 5px;">
+                    <strong>PAN:</strong> AAACS8577K<br>
+                    <strong>GSTIN:</strong> 27AAACS8577K2ZO<br>
+                    <strong>HSN/SAC:</strong> 997119
+                </p>
+                <p style="margin-left: 5px;">
+                    Please remit through RTGS/NEFT to Account No. 4897932117777 maintained with SBI, 
+                    SBI CAPITAL MARKET BRANCH MUMBAI (IFSC: SBIN0011777)
+                </p>
+            </div>
+            <div class="signature">
+                <p style="margin-left: 5px;">For SBIePay</p>
+                <p style="margin-left: 5px;">(Signature and Company Seal)</p>
+                <p style="margin-left: 5px;">Authorized Signatory</p>
+            </div>
         </div>
     </div>
-    </div>
+
     <div class="invoice-container">
-        <p>State Bank of India, Payment Aggregator-SBIePay,<br>D$TB-Marketing Department, 3rd Floor, D-wing</p>
+        <p>
+            State Bank of India, Payment Aggregator-SBIePay,<br>
+            D$TB-Marketing Department, 3rd Floor, D-wing,<br>
+            SB GITC Building, Belapur CBD, Navi Mumbai - 400614
+        </p>
     </div>
 </body>
 </html>
-
-
