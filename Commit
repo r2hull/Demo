@@ -1,43 +1,42 @@
-package com.epay.reporting.entity.view;
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
-/**
- * Class Name: MerchantFeesReport
- * *
- * Description: This class is used to hold and represent the merchant fees data for generating reports.
- * It contains information related to the fees charged to merchants, which may include fee amounts, transaction details,
- * and other related attributes for reporting purposes. It serves as a data transfer object (DTO) used in the processing
- * and presentation of merchant fee data within the system.
- * Author: Bhoopendra Rajput
- * Copyright (c) 2024 [State Bank of India]
- * All rights reserved
- * Version:1.0
- */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class MerchantFeesReport {
-    private String transactionDate;
-    private Integer transactionCount;
-    private String payMode;
-    private BigDecimal merchantFeeAmount;
-    private BigDecimal merchantServiceTaxAmount;
-    private BigDecimal merchantTotalCommission;
-    private String merchantName;
-    private String gstNumber;
-    private String address1;
-    private String address2;
-    private String state;
-    private String city;
-    private String country;
-    private String pincode;
+import java.util.List;
+
+public class MerchantFeesReportDummyData {
+    public static List<MerchantFeesReport> getDummyMerchantFeesData() {
+        return List.of(
+                MerchantFeesReport.builder()
+                        .transactionDate("Feb-2025")
+                        .transactionCount(100)
+                        .payMode("Credit Card")
+                        .merchantFeeAmount(new BigDecimal("5000.00"))
+                        .merchantServiceTaxAmount(new BigDecimal("900.00"))
+                        .merchantTotalCommission(new BigDecimal("5900.00"))
+                        .merchantName("ABC Pvt Ltd")
+                        .gstNumber("GST123456")
+                        .address1("123, Main Street")
+                        .address2("Near City Mall")
+                        .state("Maharashtra")
+                        .city("Mumbai")
+                        .country("India")
+                        .pincode("400001")
+                        .build(),
+
+                MerchantFeesReport.builder()
+                        .transactionDate("Feb-2025")
+                        .transactionCount(75)
+                        .payMode("UPI")
+                        .merchantFeeAmount(new BigDecimal("3500.00"))
+                        .merchantServiceTaxAmount(new BigDecimal("630.00"))
+                        .merchantTotalCommission(new BigDecimal("4130.00"))
+                        .merchantName("XYZ Traders")
+                        .gstNumber("GST789012")
+                        .address1("456, Market Road")
+                        .address2("Opp. Metro Station")
+                        .state("Karnataka")
+                        .city("Bangalore")
+                        .country("India")
+                        .pincode("560001")
+                        .build()
+        );
+    }
 }
-
-
-List<MerchantFeesReport> merchantFeesData = invoiceRepository.getMerchantFeesInvoice(mId, reportDates);
