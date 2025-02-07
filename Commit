@@ -1,17 +1,21 @@
- public static final String JDBC_TXN_INVOICE = """
-                    SELECT TO_CHAR(TO_DATE(vti.TRANSACTION_DATE, 'DD-MM-YY'), 'Mon-YYYY') as transactionDate,
-                    COUNT(vti.ATRN_NUM) as transactionCount, vti.PayMode_code as payMode,
-                    SUM(vti.MERCHANT_FEE_AMOUNT)as merchantFeeAmount,
-                    SUM(vti.SERVICE_TAX_AMOUNT)as merchantServiceTaxAmount,
-                    SUM(vti.MERCHANT_FEE_AMOUNT)+ SUM(vti.SERVICE_TAX_AMOUNT) as merchantTotalCommission,
-                    vti. merchant_name as merchantName,mi.GST_NUMBER as gstNumber,
-                    mi.address_line1 as address1, mi.address_line2 as address2, mi.state as state, mi.city as city,
-                    mi.country as country, mi.pincode as pincode
-                    FROM PAYAGGREPORT_READ.view_transaction_fees_invoice vti
-                    JOIN MERCHANT_INFO_MERCH mi on mi.mid = vti.mid
-                    WHERE vti.MID = :mId AND vti.PAYMODE_CODE is NOT NULL AND vti.atrn_num is NOT NULL AND
-                    TO_CHAR(TO_DATE(vti.TRANSACTION_DATE, 'DD-MM-YY'), 'Mon-YYYY') IN (:reportDate)
-                    GROUP BY TO_CHAR(TO_DATE(vti.TRANSACTION_DATE, 'DD-MM-YY'), 'Mon-YYYY'), vti.paymode_code,
-                    vti.merchant_name, mi.GST_NUMBER,mi.address_line1, mi.address_line2 , mi.state, mi.city, mi.country, mi.pincode
-                    ORDER BY TO_CHAR(TO_DATE(vti.TRANSACTION_DATE, 'DD-MM-YY'), 'Mon-YYYY') desc
-            """;
+2025-02-07 16:05:05.868 ERROR | com.epay.reporting.service.InvoiceService:96 | principal=  | scenario=/reporting/v1/invoice/fees/1000003 | operation=POST | correlation=b6448b26-2504-48d6-bec8-94d1725f43b0 | generateMerchantFeesInvoice | Failed to generate PDF for MID 1000003 and Report: [FEB-2025]. Error : PreparedStatementCallback; bad SQL grammar [        SELECT TO_CHAR(TO_DATE(vti.TRANSACTION_DATE, 'DD-MM-YY'), 'Mon-YYYY') as transactionDate,
+        COUNT(vti.ATRN_NUM) as transactionCount, vti.PayMode_code as payMode,
+        SUM(vti.MERCHANT_FEE_AMOUNT)as merchantFeeAmount,
+        SUM(vti.SERVICE_TAX_AMOUNT)as merchantServiceTaxAmount,
+        SUM(vti.MERCHANT_FEE_AMOUNT)+ SUM(vti.SERVICE_TAX_AMOUNT) as merchantTotalCommission,
+        vti. merchant_name as merchantName,mi.GST_NUMBER as gstNumber,
+        mi.address_line1 as address1, mi.address_line2 as address2, mi.state as state, mi.city as city,
+        mi.country as country, mi.pincode as pincode
+        FROM PAYAGGREPORT_READ.view_transaction_fees_invoice vti
+        JOIN MERCHANT_INFO_MERCH mi on mi.mid = vti.mid
+        WHERE vti.MID = ? AND vti.PAYMODE_CODE is NOT NULL AND vti.atrn_num is NOT NULL AND
+        TO_CHAR(TO_DATE(vti.TRANSACTION_DATE, 'DD-MM-YY'), 'Mon-YYYY') IN (?)
+        GROUP BY TO_CHAR(TO_DATE(vti.TRANSACTION_DATE, 'DD-MM-YY'), 'Mon-YYYY'), vti.paymode_code,
+        vti.merchant_name, mi.GST_NUMBER,mi.address_line1, mi.address_line2 , mi.state, mi.city, mi.country, mi.pincode
+        ORDER BY TO_CHAR(TO_DATE(vti.TRANSACTION_DATE, 'DD-MM-YY'), 'Mon-YYYY') desc
+]
+
+
+postman
+
+   ["Feb-2025"]
