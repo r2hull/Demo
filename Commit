@@ -1,27 +1,6 @@
-protected void downloadPdfFile(HttpServletResponse response, String reportName, String mId, String template, Map<String, Object> input) {
-        log.info("Starting PDF download for report: {} and merchant ID: {}", reportName, mId);
-        // Set the response headers for a downloadable file
-        response.setContentType("application/pdf");
-        response.setHeader("Content-Disposition",  StringEscapeUtils.escapeJava("attachment;filename=" + getFileName(reportName, mId)));
+response.setHeader("Content-Disposition", "attachment; filename=\"" + getFileName(reportName, mId) + "\"");
 
-        // Write the PDF content to the response output stream
-        try (ServletOutputStream outputStream = response.getOutputStream()) {
-            log.debug("Rendering PDF content for template: {}", template);
-            ITextRenderer renderer = new ITextRenderer();
-            renderer.setDocumentFromString(getPdfContent(input, template));
-            renderer.layout();
-            renderer.createPDF(outputStream);
-            log.info("PDF generated and written to response successfully.");
-        } catch (Exception e) {
-            log.error("An error occurred in downloadPdfFile method: {}", e.getMessage());
-            throw new ReportingException(ErrorConstants.FILE_GENERATION_ERROR_CODE, MessageFormat.format(ErrorConstants.FILE_GENERATION_ERROR_MESSAGE, "pdf", e.getMessage()));
-        }
-    }
-
-
-  private String getPdfContent(Map<String, Object> input, String template) {
-        log.debug("Processing PDF content for template: {}", template);
-        Context context = new Context();
-        context.setVariable("map", input);
-        return templateEngine.process(TEMPLATE_FOLDER + template, context);
-    }
+renderer.getSharedContext().setReplacedElementFactory(new Base64ImgReplacedElementFactory());
+renderer.getSharedContext().setPrint(true);
+renderer.getSharedContext().setInteractive(false);
+renderer.getOutputDevice().setMetadata("Content-Encoding", "UTF-8");
