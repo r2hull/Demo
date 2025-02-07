@@ -1,27 +1,51 @@
-public ResponseEntity<byte[]> generateCaptcha(CaptchaRequest captchaRequest) {
-    logger.info("Generating captcha for RequestId: {}", captchaRequest.getRequestId());
+private static final String VOICENAME = "kevin16";
 
-    captchaValidator.requestValidator(captchaRequest);
-    
-    byte[] captchaBytes = createCaptchaResponse(captchaRequest);
-    HttpHeaders headers = createHeaders(captchaBytes.length);
+    public static byte[] speakToByteArray(String text) {
+        try {
+            System.setProperty("freetts.voices", "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory");
+            // Create a temporary WAV file
+            File tempFile = File.createTempFile("speech_", ".wav");
+            tempFile.deleteOnExit();
 
-    return ResponseEntity.ok().headers(headers).body(captchaBytes);
-}
+            // Set up FreeTTS to save output as a WAV file
+            VoiceManager voiceManager = VoiceManager.getInstance();
+            Voice voice = voiceManager.getVoice(VOICENAME);
+            // Allocate the voice
+            voice.allocate();
 
-private byte[] createCaptchaResponse(CaptchaRequest captchaRequest) {
-    try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-        saveCaptcha(captchaRequest, false).writeTo(outputStream);
-        return outputStream.toByteArray();
-    } catch (IOException | MessagingException e) {
-        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, captchaRequest.getRequestType() + "Key"));
+            // Set audio output to a file
+            AudioPlayer audioPlayer = new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""),
+                    javax.sound.sampled.AudioFileFormat.Type.WAVE);
+            voice.setAudioPlayer(audioPlayer);
+
+            // Speak the text
+            voice.speak(text);
+            voice.deallocate();
+            audioPlayer.close();
+
+            // Read the generated WAV file into a byte array
+            return fileToByteArray(tempFile);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
-}
 
-private HttpHeaders createHeaders(int contentLength) {
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(MediaType.MULTIPART_MIXED);
-    headers.setContentLength(contentLength);
-    return headers;
-}
+    private static byte[] fileToByteArray(File file) {
+        try {
+            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(file);
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+
+            while ((bytesRead = audioInputStream.read(buffer)) != -1) {
+                byteArrayOutputStream.write(buffer, 0, bytesRead);
+            }
+
+            audioInputStream.close();
+            return byteArrayOutputStream.toByteArray();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
