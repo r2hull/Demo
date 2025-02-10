@@ -1,7 +1,104 @@
-dependencies {
-    implementation 'net.sf.freetts:freetts:1.2.2'
-    implementation 'com.sun.speech:jsapi:1.0'
-    implementation 'net.sf.freetts:cmu-time-awb:1.2.2' // Optional CMU voice model
-}
+package com.epay.merchant.util;
 
-com.sun.speech.freetts.jsapi.FreeTTSEngineCentral
+import com.epay.merchant.exception.MerchantException;
+import com.sun.speech.freetts.Voice;
+import com.sun.speech.freetts.VoiceManager;
+import com.sun.speech.freetts.audio.AudioPlayer;
+import com.sun.speech.freetts.audio.SingleFileAudioPlayer;
+import lombok.experimental.UtilityClass;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.UnsupportedAudioFileException;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.text.MessageFormat;
+
+/**
+ * Class Name: VoiceCaptchaUtil
+ * *
+ * Description: Utility class for generating voice captcha audio files.
+ * *
+ * Author: Bhoopendra Rajput
+ * <p>
+ * Copyright (c) 2024 [State Bank of India]
+ * All rights reserved
+ * *
+ * Version:1.0
+ */
+@UtilityClass
+public class VoiceCaptchaUtil {
+
+    private static final Logger logger = LoggerFactory.getLogger(VoiceCaptchaUtil.class);
+    private static final String VOICENAME = "kevin16";
+
+    /**
+     * Converts the given text to speech and returns the audio as a byte array.
+     *
+     * @param text the text to convert to speech.
+     * @return a byte array containing the speech audio, or null if an error occurs.
+     */
+    public static byte[] speakToByteArray(String text) {
+        System.setProperty("freetts.voices", "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory");
+        File tempFile = null;
+
+        try {
+            tempFile = File.createTempFile("speech_", ".wav");
+            tempFile.deleteOnExit();
+
+            Voice voice = VoiceManager.getInstance().getVoice(VOICENAME);
+            voice.allocate();
+
+            AudioPlayer audioPlayer = new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""),
+                    javax.sound.sampled.AudioFileFormat.Type.WAVE);
+            voice.setAudioPlayer(audioPlayer);
+
+            logger.info("Converting text to speech...");
+            voice.speak(text);
+            voice.deallocate();
+            audioPlayer.close();
+
+            return fileToByteArray(tempFile);
+
+        } catch (Exception e) {
+            logger.error("Error occurred while generating speech audio", e);
+            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, e.getMessage()));
+
+        } finally {
+            if (tempFile != null && tempFile.exists()) {
+                tempFile.delete();
+            }
+        }
+    }
+
+    /**
+     * Reads a file and converts it to a byte array.
+     *
+     * @param file the file to convert.
+     * @return a byte array representing the file’s contents.
+     * @throws MerchantException if an error occurs during file reading.
+     */
+    private static byte[] fileToByteArray(File file) {
+        try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(file);
+             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+
+            while ((bytesRead = audioInputStream.read(buffer)) != -1) {
+                byteArrayOutputStream.write(buffer, 0, bytesRead);
+            }
+
+            return byteArrayOutputStream.toByteArray();
+
+        } catch (IOException | UnsupportedAudioFileException e) {
+            logger.error("Error reading file to byte array", e);
+            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, file.getName()));
+        }
+    }
+}
