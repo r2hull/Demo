@@ -3,3 +3,5 @@ dependencies {
     implementation 'com.sun.speech:jsapi:1.0'
     implementation 'net.sf.freetts:cmu-time-awb:1.2.2' // Optional CMU voice model
 }
+
+com.sun.speech.freetts.jsapi.FreeTTSEngineCentral
