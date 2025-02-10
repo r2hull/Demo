@@ -4,27 +4,18 @@ import com.epay.merchant.exception.MerchantException;
 import com.sun.speech.freetts.Voice;
 import com.sun.speech.freetts.VoiceManager;
 import com.sun.speech.freetts.audio.AudioPlayer;
-import com.sun.speech.freetts.audio.UlawEncoderInputStream;
 import lombok.experimental.UtilityClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.sound.sampled.*;
+import javax.sound.sampled.AudioFileFormat;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.text.MessageFormat;
 
 /**
- * Class Name: VoiceCaptchaUtil
- * *
- * Description: Utility class for generating voice captcha audio as a byte array.
- * *
+ * Utility class for generating voice captcha audio as a byte array.
  * Author: Bhoopendra Rajput
- * <p>
- * Copyright (c) 2024 [State Bank of India]
- * All rights reserved
- * *
- * Version: 1.3
  */
 @UtilityClass
 public class VoiceCaptchaUtil {
@@ -43,7 +34,6 @@ public class VoiceCaptchaUtil {
         System.setProperty("freetts.voices", "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory");
 
         Voice voice = VoiceManager.getInstance().getVoice(VOICENAME);
-
         if (voice == null) {
             logger.warn("FreeTTS voice '{}' not found. Returning null.", VOICENAME);
             return null;
@@ -51,20 +41,22 @@ public class VoiceCaptchaUtil {
 
         voice.allocate();
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-            AudioFormat format = new AudioFormat(16000, 16, 1, true, false);
-            AudioInputStream audioInputStream = new AudioInputStream(new UlawEncoderInputStream(new ByteArrayInputStream(text.getBytes())), format, text.length());
+            AudioPlayer audioPlayer = new ByteArrayAudioPlayer(outputStream);
+            voice.setAudioPlayer(audioPlayer);
 
-            AudioSystem.write(audioInputStream, AudioFileFormat.Type.WAVE, outputStream);
+            logger.info("Converting text to speech...");
+            voice.speak(text);
 
-            logger.info("Successfully generated speech audio.");
+            voice.deallocate();
+            audioPlayer.close();
+
+            logger.info("Speech conversion successful.");
             return outputStream.toByteArray();
 
         } catch (IOException e) {
             logger.error("Error occurred while generating speech audio", e);
-            throw new MerchantException("AUDIO_GENERATION_ERROR", 
+            throw new MerchantException("AUDIO_GENERATION_ERROR",
                     MessageFormat.format("Error generating audio: {0}", e.getMessage()));
-        } finally {
-            voice.deallocate();
         }
     }
 }
