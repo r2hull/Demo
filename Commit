@@ -1,19 +1,29 @@
-  protected void downloadPdfFile(HttpServletResponse response, String reportName, String mId, String template, Map<String, Object> input) {
-        log.info("Starting PDF download for report: {} and merchant ID: {}", reportName, mId);
-        // Set the response headers for a downloadable file
-        response.setContentType("application/pdf");
-        response.setHeader("Content-Disposition",  StringEscapeUtils.escapeJava("attachment;filename=" + getFileName(reportName, mId)));
+body {
+    transform: scale(0.9); /* Adjust the scale value */
+    transform-origin: top left;
+}
 
-        // Write the PDF content to the response output stream
-        try (ServletOutputStream outputStream = response.getOutputStream()) {
-            log.debug("Rendering PDF content for template: {}", template);
-            ITextRenderer renderer = new ITextRenderer();
-            renderer.setDocumentFromString(getPdfContent(input, template));
-            renderer.layout();
-            renderer.createPDF(outputStream);
-            log.info("PDF generated and written to response successfully.");
-        } catch (Exception e) {
-            log.error("An error occurred in downloadPdfFile method: {}", e.getMessage());
-            throw new ReportingException(ErrorConstants.FILE_GENERATION_ERROR_CODE, MessageFormat.format(ErrorConstants.FILE_GENERATION_ERROR_MESSAGE, "pdf", e.getMessage()));
-        }
-    }
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+@page {
+    size: A4;
+    margin: 1cm; /* Adjust margins */
+}
+
+.no-break {
+    page-break-inside: avoid;
+}
+
+
+
+String htmlContent = getPdfContent(input, template);
+if (htmlContent.length() > SOME_THRESHOLD) { 
+    htmlContent = htmlContent.replace("<body>", "<body style='transform: scale(0.9); transform-origin: top left;'>");
+}
+renderer.setDocumentFromString(htmlContent);
