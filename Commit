@@ -1,5 +1,49 @@
 package com.epay.merchant.util;
 
+import com.sun.speech.freetts.audio.AudioPlayer;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+
+/**
+ * A custom AudioPlayer implementation that writes FreeTTS audio directly to a ByteArrayOutputStream.
+ */
+public class ByteArrayAudioPlayer implements AudioPlayer {
+
+    private final ByteArrayOutputStream outputStream;
+
+    public ByteArrayAudioPlayer(ByteArrayOutputStream outputStream) {
+        this.outputStream = outputStream;
+    }
+
+    @Override
+    public void write(byte[] audioData, int offset, int size) {
+        outputStream.write(audioData, offset, size);
+    }
+
+    @Override
+    public void close() {
+        try {
+            outputStream.flush();
+            outputStream.close();
+        } catch (IOException e) {
+            throw new RuntimeException("Error closing audio output stream", e);
+        }
+    }
+
+    // Required FreeTTS methods (but unused in this case)
+    @Override public void begin(int sampleRate) {}
+    @Override public boolean end() { return true; }
+    @Override public void reset() {}
+    @Override public void setVolume(float volume) {}
+    @Override public float getVolume() { return 1.0f; }
+    @Override public void setAudioFormat(javax.sound.sampled.AudioFormat format) {}
+    @Override public javax.sound.sampled.AudioFormat getAudioFormat() { return null; }
+}
+
+
+package com.epay.merchant.util;
+
 import com.epay.merchant.exception.MerchantException;
 import com.sun.speech.freetts.Voice;
 import com.sun.speech.freetts.VoiceManager;
@@ -8,14 +52,12 @@ import lombok.experimental.UtilityClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.sound.sampled.AudioFileFormat;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.text.MessageFormat;
 
 /**
  * Utility class for generating voice captcha audio as a byte array.
- * Author: Bhoopendra Rajput
  */
 @UtilityClass
 public class VoiceCaptchaUtil {
