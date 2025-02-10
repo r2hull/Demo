@@ -1,3 +1,22 @@
+   protected ReportFile pdfFileGenerator(String reportName, String mId, String template, Map<String, Object> input) {
+        log.info("Starting PDF generation for report: {} and merchant ID: {}", reportName, mId);
+        String fileName = getFileName(reportName, mId);
+        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+            log.debug("Rendering PDF content for template: {}", template);
+            ITextRenderer renderer = new ITextRenderer();
+            String pdfContent = getPdfContent(input, template);
+            renderer.setDocumentFromString(new String(pdfContent.getBytes(), StandardCharsets.UTF_8));
+            renderer.layout();
+            renderer.createPDF(byteArrayOutputStream);
+            log.info("PDF file successfully generated and returned as byte array.");
+            return ReportFile.builder().name(fileName).content(byteArrayOutputStream.toByteArray()).build();
+        } catch (IOException e) {
+            log.error("An error occurred in pdfFileGenerator method: {}", e.getMessage());
+            throw new ReportingException(ErrorConstants.FILE_GENERATION_ERROR_CODE, MessageFormat.format(ErrorConstants.FILE_GENERATION_ERROR_MESSAGE, "pdf", e.getMessage()));
+        }
+    }
+
+
 org.springframework.http.converter.HttpMessageNotWritableException: No converter for [class com.epay.reporting.model.response.ReportingResponse] with preset Content-Type 'application/pdf'
 	at org.springframework.web.servlet.mvc.method.annotation.AbstractMessageConverterMethodProcessor.writeWithMessageConverters(AbstractMessageConverterMethodProcessor.java:319)
 	at org.springframework.web.servlet.mvc.method.annotation.HttpEntityMethodProcessor.handleReturnValue(HttpEntityMethodProcessor.java:245)
