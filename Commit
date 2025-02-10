@@ -1,4 +1,6 @@
-Modify PDF generation to use frontend-provided template
+Update merchant_fees.html to match frontend-provided template
 
-
-Integrate frontend-provided template for PDF generation
+Updated `merchant_fees.html` to align with the frontend-provided template.  
+- Replaced/modified existing Thymeleaf structure as per the new design.  
+- Ensured compatibility with existing PDF generation logic.  
+- Retained required dynamic placeholders and formatti
