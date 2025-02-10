@@ -1,29 +1,5 @@
-import javax.speech.Central;
-import javax.speech.synthesis.Synthesizer;
-import javax.speech.synthesis.SynthesizerModeDesc;
-import java.io.ByteArrayOutputStream;
-import java.util.Locale;
-
-public class SpeechUtil {
-
-    public static byte[] textToSpeech(String text) {
-        try {
-            Synthesizer synthesizer = Central.createSynthesizer(new SynthesizerModeDesc(Locale.US));
-            synthesizer.allocate();
-            synthesizer.resume();
-
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            System.setOut(new java.io.PrintStream(outputStream)); // Redirect output
-
-            synthesizer.speakPlainText(text, null);
-            synthesizer.waitEngineState(Synthesizer.QUEUE_EMPTY);
-
-            synthesizer.deallocate();
-            return outputStream.toByteArray();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
+dependencies {
+    implementation 'net.sf.freetts:freetts:1.2.2'
+    implementation 'com.sun.speech:jsapi:1.0'
+    implementation 'net.sf.freetts:cmu-time-awb:1.2.2' // Optional CMU voice model
 }
