@@ -1,86 +1,29 @@
-package com.epay.merchant.util;
-
-import com.sun.speech.freetts.audio.AudioPlayer;
-
+import javax.speech.Central;
+import javax.speech.synthesis.Synthesizer;
+import javax.speech.synthesis.SynthesizerModeDesc;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import java.util.Locale;
 
-/**
- * A custom AudioPlayer implementation that writes FreeTTS audio directly to a ByteArrayOutputStream.
- */
-public class ByteArrayAudioPlayer implements AudioPlayer {
+public class SpeechUtil {
 
-    private final ByteArrayOutputStream outputStream;
-
-    public ByteArrayAudioPlayer(ByteArrayOutputStream outputStream) {
-        this.outputStream = outputStream;
-    }
-
-    @Override
-    public void write(byte[] audioData, int offset, int size) {
-        outputStream.write(audioData, offset, size);
-    }
-
-    @Override
-    public void close() {
+    public static byte[] textToSpeech(String text) {
         try {
-            outputStream.flush();  // 🚀 Ensure all data is written before closing
-            outputStream.close();
-        } catch (IOException e) {
-            throw new RuntimeException("Error closing audio output stream", e);
+            Synthesizer synthesizer = Central.createSynthesizer(new SynthesizerModeDesc(Locale.US));
+            synthesizer.allocate();
+            synthesizer.resume();
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            System.setOut(new java.io.PrintStream(outputStream)); // Redirect output
+
+            synthesizer.speakPlainText(text, null);
+            synthesizer.waitEngineState(Synthesizer.QUEUE_EMPTY);
+
+            synthesizer.deallocate();
+            return outputStream.toByteArray();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
     }
-
-    // Required FreeTTS methods (but unused in this case)
-    @Override public void begin(int sampleRate) {}
-    @Override public boolean end() { return true; }
-    @Override public void reset() {}
-    @Override public void setVolume(float volume) {}
-    @Override public float getVolume() { return 1.0f; }
-    @Override public void setAudioFormat(javax.sound.sampled.AudioFormat format) {}
-    @Override public javax.sound.sampled.AudioFormat getAudioFormat() { return null; }
-}
-
-
-package com.epay.merchant.util;
-
-import com.sun.speech.freetts.audio.AudioPlayer;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-
-/**
- * A custom AudioPlayer implementation that writes FreeTTS audio directly to a ByteArrayOutputStream.
- */
-public class ByteArrayAudioPlayer implements AudioPlayer {
-
-    private final ByteArrayOutputStream outputStream;
-
-    public ByteArrayAudioPlayer(ByteArrayOutputStream outputStream) {
-        this.outputStream = outputStream;
-    }
-
-    @Override
-    public void write(byte[] audioData, int offset, int size) {
-        outputStream.write(audioData, offset, size);
-    }
-
-    @Override
-    public void close() {
-        try {
-            outputStream.flush();  // 🚀 Ensure all data is written before closing
-            outputStream.close();
-        } catch (IOException e) {
-            throw new RuntimeException("Error closing audio output stream", e);
-        }
-    }
-
-    // Required FreeTTS methods (but unused in this case)
-    @Override public void begin(int sampleRate) {}
-    @Override public boolean end() { return true; }
-    @Override public void reset() {}
-    @Override public void setVolume(float volume) {}
-    @Override public float getVolume() { return 1.0f; }
-    @Override public void setAudioFormat(javax.sound.sampled.AudioFormat format) {}
-    @Override public javax.sound.sampled.AudioFormat getAudioFormat() { return null; }
 }
