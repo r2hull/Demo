@@ -1,29 +1,4 @@
-body {
-    transform: scale(0.9); /* Adjust the scale value */
-    transform-origin: top left;
-}
-
-html, body {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-}
-
-@page {
-    size: A4;
-    margin: 1cm; /* Adjust margins */
-}
-
-.no-break {
-    page-break-inside: avoid;
-}
+Modify PDF generation to use frontend-provided template
 
 
-
-String htmlContent = getPdfContent(input, template);
-if (htmlContent.length() > SOME_THRESHOLD) { 
-    htmlContent = htmlContent.replace("<body>", "<body style='transform: scale(0.9); transform-origin: top left;'>");
-}
-renderer.setDocumentFromString(htmlContent);
+Integrate frontend-provided template for PDF generation
