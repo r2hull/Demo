@@ -8,14 +8,11 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f9f9f9;
         }
-        .container {
-            max-width: 700px;
+        .invoice-container {
+            width: 672px;
             margin: 20px auto;
             padding: 20px;
-            background: #fff;
-            border: 1px solid #000;
         }
         .header {
             text-align: center;
@@ -26,154 +23,161 @@
         }
         .title {
             text-align: center;
-            font-size: 18px;
-            font-weight: bold;
-            border: 1px solid black;
-            padding: 10px;
-            margin-bottom: 20px;
+            margin: 10px 0;
+            border: .5px solid black;
         }
-        .section {
-            border: 1px solid #000;
-            padding: 10px;
-            margin-bottom: 10px;
-        }
-        .row {
+        .flex-container {
             display: flex;
-            justify-content: space-between;
-            gap: 10px;
-            margin-bottom: 8px;
+            width: 100%;
         }
-        .column {
-            flex: 1;
+        .flex-item {
+            padding: 8px;
+            box-sizing: border-box; /* Ensures padding is included in width */
+            border: 1px solid #000;
         }
         .amount {
-            text-align: right;
-        }
-        .bold {
-            font-weight: bold;
+            text-align: left;
         }
         .footer {
-            font-size: 14px;
-            border-top: 1px solid black;
-            padding-top: 10px;
             margin-top: 20px;
+            font-size: 14px;
+            border:1px solid black;
+            vertical-align: top;
+            display: flex; /* Footer as flex container */
+        }
+        .footer-left {
+            flex: 1; /* Takes up available space */
+            padding: 5px;
+        }
+        .footer-right {
+            flex: 1; /* Takes up available space */
+            text-align: left;
+            padding: 5px;
         }
         .signature {
             margin-top: 40px;
-            padding-top: 10px;
             text-align: left;
-            border-top: 1px solid black;
+            border:1px solid;
         }
-        .divider {
-            border-top: 1px solid black;
-            margin-top: 10px;
-            padding-top: 10px;
+        .table-like { /* Mimic table structure with divs */
+          display: flex;
+          flex-direction: column; /* Stack rows vertically */
+          width: 100%;
         }
+        .table-row {
+          display: flex;
+          width: 100%;
+        }
+        .table-cell {
+          flex: 1; /* Equal width for cells */
+          padding: 8px;
+          border: 1px solid #000;
+          box-sizing: border-box;
+        }
+        .nested-table {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+        .nested-row {
+            display: flex;
+            width: 100%;
+        }
+        .nested-cell {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #000;
+            box-sizing: border-box;
+        }
+
     </style>
     <title th:text="${map.reportName}"></title>
 </head>
 <body>
-
-<div class="container">
-    
-    <!-- Header -->
+<div class="invoice-container">
     <div class="header">
-        <img alt="SBI ePay" src="CC"/>
+        <img class="img-center" alt="SBI ePay" src="CC"/>
     </div>
-
-    <!-- Invoice Title -->
-    <div class="title">MONTHLY INVOICE</div>
-
-    <!-- Merchant & Invoice Details -->
-    <div class="section">
-        <div class="row">
-            <div class="column">
-                <p><span class="bold">Kind Attn:</span> <span th:text="${map.merchantName}"></span></p>
-                <p><span class="bold">GSTIN:</span> <span th:text="${map.gstNo}"></span></p>
-                <p><span class="bold">HSN/SAC:</span> <span th:text="${map.hsnSacNum}"></span></p>
-                <p th:text="${map.address}"></p>
-            </div>
-            <div class="column amount">
-                <p><span class="bold">Invoice No:</span> <span th:text="${map.reportName}"></span></p>
-                <p><span class="bold">Date:</span> <span th:text="${map.date}"></span></p>
+    <div class="title"><strong>MONTHLY INVOICE</strong>
+        <div class="table-like">
+            <div class="table-row">
+                <div class="table-cell" style="border-bottom: none; border-right: none; border-left: none;"><strong>Kind Attn:</strong>
+                    <span th:text="${map.merchantName}"></span><br/>
+                    GSTIN:<span th:text="${map.gstNo}"></span><br/>
+                    HSN/SAC: <span th:text="${map.hsnSacNum}"></span><br/>
+                    <span th:text="${map.address}"></span>
+                </div>
+                <div class="table-cell" style="vertical-align:top;border-bottom: none; border-right: none;"><strong>Invoice
+                    No:</strong><span th:text="${map.reportName}"></span><br/><br/>
+                    <strong>Date:</strong><span th:text="${map.date}"></span>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Description Section -->
-    <div class="section">
-        <div class="row bold">
-            <span>Description</span>
-            <span class="amount">Amount (Rs.)</span>
+    <div class="table-like">
+        <div class="table-row">
+            <div class="table-cell">Description</div>
+            <div class="table-cell amount">Amount (Rs.)</div>
         </div>
-
-        <div class="row">
-            <span>Transaction processing in the month of <span th:text="${map.reportName}"></span></span>
-            <span class="amount"></span>
+        <div class="table-row">
+            <div class="table-cell" style="border-bottom: none;">Towards transaction processing in the month of <span th:text="${map.reportName}"></span></div>
+            <div class="table-cell" style="border-bottom: none;"></div>
         </div>
-
-        <!-- Transaction Details -->
-        <div class="section">
-            <p class="bold">SBIePay Transactions - As per Annexure I</p>
-
-            <div class="row bold">
-                <span>Gateway</span>
-                <span>Transaction Count</span>
-                <span>GST Rate</span>
+        <div class="table-row">
+            <div class="table-cell" style="border-top: none; border-bottom: none;">
+                <strong>SBIePay transactions - As per Annexure I</strong>
+                <div class="nested-table">
+                    <div class="nested-row">
+                        <div class="nested-cell">Gateway</div>
+                        <div class="nested-cell">Transaction Count</div>
+                        <div class="nested-cell">GST Rate</div>
+                    </div>
+                     <div class="nested-row" th:each="merchantFees : ${map.merchantFeesList}">
+                        <div class="nested-cell" th:text="${merchantFees.getPayMode()}"></div>
+                        <div class="nested-cell" th:text="${merchantFees.getTransactionCount()}"></div>
+                        <div class="nested-cell">18%</div>
+                    </div>
+                </div>
             </div>
-
-            <div th:each="merchantFees : ${map.merchantFeesList}" class="row">
-                <span th:text="${merchantFees.getPayMode()}"></span>
-                <span th:text="${merchantFees.getTransactionCount()}"></span>
-                <span>18%</span>
-            </div>
-        </div>
-
-        <div class="row">
-            <span></span>
-            <span class="amount">
+            <div class="table-cell amount" style="border-top: none; border-bottom:none ;text-align:right;line-height:2;margin-block-start: 1rem;">
+                <br/><br/>
                 <span th:each="merchantFees : ${map.merchantFeesList}">
                     <span th:text="${merchantFees.getMerchantFeeAmount()}"></span><br/>
                 </span>
-            </span>
+            </div>
         </div>
-
-        <div class="row">
-            <span class="bold" style="text-align: center;">18% (CGST 9% + SGST 9%)</span>
-            <span class="amount"><span th:text="${map.totalMerchantServiceTaxAmount}"></span></span>
+        <div class="table-row">
+            <div class="table-cell" style="border-top: none; text-align: center;">18% (CGST 9% and SGST 9%)</div>
+            <div class="table-cell amount" style="border-top: none; text-align: right;"><span th:text="${map.totalMerchantServiceTaxAmount}"></span></div>
         </div>
-
-        <div class="row bold">
-            <span style="text-align: center;">Gross Total Amount</span>
-            <span class="amount"><span th:text="${map.totalMerchantTotalCommission}"></span></span>
+        <div class="table-row">
+            <div class="table-cell" style="text-align: center;">Gross Total Amount</div>
+            <div class="table-cell amount" style="text-align: right;"><span th:text="${map.totalMerchantTotalCommission}"></span></div>
         </div>
-
-        <div class="row">
-            <span class="bold" style="text-align: center;" th:text="${map.totalMerchantTotalCommissionInWords}"></span>
+        <div class="table-row">
+            <div class="table-cell" colspan="2" style="text-align: center;" th:text="${map.totalMerchantTotalCommissionInWords}"></div>
         </div>
     </div>
-
-    <!-- Payment & Bank Details -->
-    <div class="footer">
-        <p><span class="bold">PAN:</span> AACAS8577K</p>
-        <p><span class="bold">GSTIN:</span> 27AAACS8577K2ZO</p>
-        <p><span class="bold">HSN/SAC:</span> 997119</p>
-        <p>Please remit through RTGS/NEFT to Account No. 4897932117777 maintained with
-            SBI, SBI CAPITAL MARKET BRANCH MUMBAI (IFSC: SBIN0011777)</p>
+    <div style="border:1px solid;border-top: none;">
+        <div class="footer">
+            <div class="footer-left">
+                <p><strong>PAN:</strong> AACAS8577K<br/>
+                    <strong>GSTIN:</strong> 27AAACS8577K2ZO<br/>
+                    <strong>HSN/SAC:</strong> 997119</p>
+                <p>Please remit through RTGS/NEFT to Account No. 4897932117777 maintained with
+                    SBI, SBI CAPITAL MARKET BRANCH MUMBAI (IFSC: SBIN0011777)</p>
+            </div>
+            <div class="footer-right">
+                <p>For SBIePay</p>
+                <p>(Signature and Company Seal)</p>
+                <p>Authorized Signatory</p>
+            </div>
+        </div>
     </div>
-
-    <!-- Signature Section -->
-    <div class="signature">
-        <p>For SBIePay</p>
-        <p>(Signature and Company Seal)</p>
-        <p>Authorized Signatory</p>
-    </div>
-
 </div>
-
-<div class="container">
+<div class="invoice-container">
     <p>State Bank of India, Payment Aggregator-SBIePay,<br/>D$TB-Marketing Department, 3rd Floor, D-wing</p>
 </div>
-
 </body>
 </html>
