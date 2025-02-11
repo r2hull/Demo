@@ -1,5 +1,31 @@
-PS D:\Report\Merchant\Voice captcha\v1\epay_merchant_service> git pull
-error: You have not concluded your merge (MERGE_HEAD exists).
-hint: Please, commit your changes before merging.
-fatal: Exiting because of unfinished merge.
-PS D:\Report\Merchant\Voice captcha\v1\epay_merchant_service> 
+ private MimeMultipart createMultipartResponse(CaptchaResponse captchaResponse, DataSource audioDataSource, RequestType requestType) {
+        logger.info("Creating multipart response for RequestId: {}", captchaResponse.getRequestId());
+
+        MimeMultipart mimeMultipart = new MimeMultipart("mixed");
+
+        try {
+            // Add JSON Part
+            MimeBodyPart jsonPart = new MimeBodyPart();
+            jsonPart.setContent(convertToJson(captchaResponse, requestType), "application/json; charset=UTF-8");
+            mimeMultipart.addBodyPart(jsonPart);
+
+            // Add Audio File Part
+            MimeBodyPart filePart = new MimeBodyPart();
+            filePart.setDataHandler(new DataHandler(audioDataSource));
+            filePart.setFileName("speech.wav");
+            mimeMultipart.addBodyPart(filePart);
+        } catch (MessagingException e) {
+            logger.error("Error creating multipart response for RequestId: {}", captchaResponse.getRequestId(), e);
+            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestType.name()));
+        }
+        logger.info("Captcha generation completed for RequestId: {}", captchaResponse.getRequestId());
+        return mimeMultipart;
+    }
+
+
+------=_Part_0_1719097393.1738852398913
+...data
+------=_Part_0_1719097393.1738852398913
+Content-Disposition: attachment; filename=speech.wav
+...data
