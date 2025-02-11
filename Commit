@@ -1,34 +1,48 @@
-import javax.activation.DataHandler;
 import javax.activation.DataSource;
-import javax.mail.MessagingException;
+import javax.activation.DataHandler;
 import javax.mail.internet.MimeBodyPart;
-import javax.mail.internet.MimeMultipart;
-import java.text.MessageFormat;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
-private static final String STATIC_BOUNDARY = "CUSTOM_BOUNDARY_12345"; // Define a static boundary
+private static final String STATIC_BOUNDARY = "CUSTOM_BOUNDARY_12345"; // Define a fixed boundary
 
-private MimeMultipart createMultipartResponse(CaptchaResponse captchaResponse, DataSource audioDataSource, RequestType requestType) {
-    logger.info("Creating multipart response for RequestId: {}", captchaResponse.getRequestId());
-
-    // Set a custom boundary to avoid auto-generated ones
-    MimeMultipart mimeMultipart = new MimeMultipart("mixed; boundary=" + STATIC_BOUNDARY);
+private DataSource createManualMultipartResponse(CaptchaResponse captchaResponse, byte[] audioBytes, RequestType requestType) {
+    logger.info("Creating manual multipart response for RequestId: {}", captchaResponse.getRequestId());
 
     try {
-        // Add JSON Part
-        MimeBodyPart jsonPart = new MimeBodyPart();
-        jsonPart.setContent(convertToJson(captchaResponse, requestType), "application/json; charset=UTF-8");
-        mimeMultipart.addBodyPart(jsonPart);
+        // Convert JSON to String
+        String jsonResponse = convertToJson(captchaResponse, requestType);
 
-        // Add Audio File Part
-        MimeBodyPart filePart = new MimeBodyPart();
-        filePart.setDataHandler(new DataHandler(audioDataSource));
-        filePart.setFileName("speech.wav");
-        mimeMultipart.addBodyPart(filePart);
-    } catch (MessagingException e) {
-        logger.error("Error creating multipart response for RequestId: {}", captchaResponse.getRequestId(), e);
+        // Create the multipart content manually
+        StringBuilder multipartData = new StringBuilder();
+        
+        // Add JSON Part
+        multipartData.append("--").append(STATIC_BOUNDARY).append("\r\n");
+        multipartData.append("Content-Type: application/json; charset=UTF-8\r\n");
+        multipartData.append("\r\n").append(jsonResponse).append("\r\n");
+
+        // Add Audio Part
+        multipartData.append("--").append(STATIC_BOUNDARY).append("\r\n");
+        multipartData.append("Content-Disposition: attachment; filename=\"speech.wav\"\r\n");
+        multipartData.append("Content-Type: audio/wav\r\n");
+        multipartData.append("Content-Transfer-Encoding: base64\r\n");
+        multipartData.append("\r\n");
+
+        // Convert audio bytes to Base64
+        String base64Audio = java.util.Base64.getEncoder().encodeToString(audioBytes);
+        multipartData.append(base64Audio).append("\r\n");
+
+        // End Boundary
+        multipartData.append("--").append(STATIC_BOUNDARY).append("--\r\n");
+
+        // Convert String to ByteArrayDataSource
+        byte[] multipartBytes = multipartData.toString().getBytes(StandardCharsets.UTF_8);
+        return new javax.mail.util.ByteArrayDataSource(multipartBytes, "multipart/mixed; boundary=" + STATIC_BOUNDARY);
+
+    } catch (Exception e) {
+        logger.error("Error creating manual multipart response for RequestId: {}", captchaResponse.getRequestId(), e);
         throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
                 MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestType.name()));
     }
-    logger.info("Captcha generation completed for RequestId: {}", captchaResponse.getRequestId());
-    return mimeMultipart;
 }
