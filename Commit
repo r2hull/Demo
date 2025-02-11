@@ -1,31 +1,34 @@
- private MimeMultipart createMultipartResponse(CaptchaResponse captchaResponse, DataSource audioDataSource, RequestType requestType) {
-        logger.info("Creating multipart response for RequestId: {}", captchaResponse.getRequestId());
+import javax.activation.DataHandler;
+import javax.activation.DataSource;
+import javax.mail.MessagingException;
+import javax.mail.internet.MimeBodyPart;
+import javax.mail.internet.MimeMultipart;
+import java.text.MessageFormat;
 
-        MimeMultipart mimeMultipart = new MimeMultipart("mixed");
+private static final String STATIC_BOUNDARY = "CUSTOM_BOUNDARY_12345"; // Define a static boundary
 
-        try {
-            // Add JSON Part
-            MimeBodyPart jsonPart = new MimeBodyPart();
-            jsonPart.setContent(convertToJson(captchaResponse, requestType), "application/json; charset=UTF-8");
-            mimeMultipart.addBodyPart(jsonPart);
+private MimeMultipart createMultipartResponse(CaptchaResponse captchaResponse, DataSource audioDataSource, RequestType requestType) {
+    logger.info("Creating multipart response for RequestId: {}", captchaResponse.getRequestId());
 
-            // Add Audio File Part
-            MimeBodyPart filePart = new MimeBodyPart();
-            filePart.setDataHandler(new DataHandler(audioDataSource));
-            filePart.setFileName("speech.wav");
-            mimeMultipart.addBodyPart(filePart);
-        } catch (MessagingException e) {
-            logger.error("Error creating multipart response for RequestId: {}", captchaResponse.getRequestId(), e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestType.name()));
-        }
-        logger.info("Captcha generation completed for RequestId: {}", captchaResponse.getRequestId());
-        return mimeMultipart;
+    // Set a custom boundary to avoid auto-generated ones
+    MimeMultipart mimeMultipart = new MimeMultipart("mixed; boundary=" + STATIC_BOUNDARY);
+
+    try {
+        // Add JSON Part
+        MimeBodyPart jsonPart = new MimeBodyPart();
+        jsonPart.setContent(convertToJson(captchaResponse, requestType), "application/json; charset=UTF-8");
+        mimeMultipart.addBodyPart(jsonPart);
+
+        // Add Audio File Part
+        MimeBodyPart filePart = new MimeBodyPart();
+        filePart.setDataHandler(new DataHandler(audioDataSource));
+        filePart.setFileName("speech.wav");
+        mimeMultipart.addBodyPart(filePart);
+    } catch (MessagingException e) {
+        logger.error("Error creating multipart response for RequestId: {}", captchaResponse.getRequestId(), e);
+        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestType.name()));
     }
-
-
-------=_Part_0_1719097393.1738852398913
-...data
-------=_Part_0_1719097393.1738852398913
-Content-Disposition: attachment; filename=speech.wav
-...data
+    logger.info("Captcha generation completed for RequestId: {}", captchaResponse.getRequestId());
+    return mimeMultipart;
+}
