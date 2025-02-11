@@ -1,10 +1,5 @@
-PS D:\Report\Merchant\Voice captcha\epay_merchant_service> git branch
-  develop
-* feature/EMS-143_add_voice_captcha_support
-PS D:\Report\Merchant\Voice captcha\epay_merchant_service> git status 
-On branch feature/EMS-143_add_voice_captcha_support
-Your branch is ahead of 'origin/feature/EMS-143_add-voice-captcha-support' by 10 commits.
-  (use "git push" to publish your local commits)
-
-nothing to commit, working tree clean
-PS D:\Report\Merchant\Voice captcha\epay_merchant_service> 
+PS D:\Report\Merchant\Voice captcha\v1\epay_merchant_service> git pull
+error: You have not concluded your merge (MERGE_HEAD exists).
+hint: Please, commit your changes before merging.
+fatal: Exiting because of unfinished merge.
+PS D:\Report\Merchant\Voice captcha\v1\epay_merchant_service> 
