@@ -1,62 +1,32 @@
-import javax.activation.DataHandler;
-import javax.activation.DataSource;
-import javax.mail.MessagingException;
-import javax.mail.internet.MimeBodyPart;
-import javax.mail.internet.MimeMultipart;
-import javax.mail.util.ByteArrayDataSource;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-
-private static final String STATIC_BOUNDARY = "CUSTOM_BOUNDARY_12345"; // Fixed boundary
-
-private MimeMultipart createMultipartResponse(CaptchaResponse captchaResponse, DataSource audioDataSource, RequestType requestType) {
-    logger.info("Creating multipart response for RequestId: {}", captchaResponse.getRequestId());
-
-    try {
-        MimeMultipart mimeMultipart = new MimeMultipart("mixed");
-
-        // Add JSON Part
-        MimeBodyPart jsonPart = new MimeBodyPart();
-        jsonPart.setContent(convertToJson(captchaResponse, requestType), "application/json; charset=UTF-8");
-        mimeMultipart.addBodyPart(jsonPart);
-
-        // Add Audio File Part
-        MimeBodyPart filePart = new MimeBodyPart();
-        filePart.setDataHandler(new DataHandler(audioDataSource));
-        filePart.setFileName("speech.wav");
-        mimeMultipart.addBodyPart(filePart);
-
-        // Rewrite boundary to static and return modified MimeMultipart
-        return rewriteBoundary(mimeMultipart, STATIC_BOUNDARY);
-
-    } catch (MessagingException | IOException e) {
-        logger.error("Error creating multipart response for RequestId: {}", captchaResponse.getRequestId(), e);
-        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestType.name()));
-    }
-}
-
-/**
- * This method converts the generated MimeMultipart into a byte array, replaces the dynamic boundary with a static one, 
- * and reconstructs a new MimeMultipart with the fixed boundary.
- */
 private MimeMultipart rewriteBoundary(MimeMultipart multipart, String fixedBoundary) throws IOException, MessagingException {
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     multipart.writeTo(outputStream);
 
-    // Convert to string
+    // Convert MIME content to a string
     String originalContent = outputStream.toString(StandardCharsets.UTF_8);
 
-    // Regex pattern for dynamic boundary
-    String boundaryPattern = "------=_Part_0_\\d+\\.\\d+";
+    // Extract the existing boundary using regex
+    String boundaryPattern = "boundary=\"?([^\"\\s]+)\"?"; // Matches boundary="..."
+    Pattern pattern = Pattern.compile(boundaryPattern);
+    Matcher matcher = pattern.matcher(multipart.getContentType());
 
-    // Replace all occurrences of dynamic boundary
-    String modifiedContent = originalContent.replaceAll(boundaryPattern, "------" + fixedBoundary);
+    if (!matcher.find()) {
+        throw new MessagingException("Original boundary not found in content type!");
+    }
 
-    // Create a new MimeMultipart with fixed boundary
-    ByteArrayDataSource byteArrayDataSource = new ByteArrayDataSource(modifiedContent.getBytes(StandardCharsets.UTF_8), 
-                                                                      "multipart/mixed; boundary=" + fixedBoundary);
+    String originalBoundary = matcher.group(1); // Extracts the existing boundary
+
+    // Replace all occurrences of the original boundary with the fixed boundary
+    String modifiedContent = originalContent.replaceAll(Pattern.quote(originalBoundary), fixedBoundary);
+
+    // Ensure the new boundary starts with "--"
+    String finalBoundary = "--" + fixedBoundary;
+
+    // Wrap modified content back into a MimeMultipart
+    ByteArrayDataSource byteArrayDataSource = new ByteArrayDataSource(
+            modifiedContent.getBytes(StandardCharsets.UTF_8),
+            "multipart/mixed; boundary=" + finalBoundary
+    );
 
     return new MimeMultipart(byteArrayDataSource);
 }
