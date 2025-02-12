@@ -1,38 +1,13 @@
-private MimeMultipart rewriteBoundary(MimeMultipart multipart, String fixedBoundary) throws IOException, MessagingException {
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    multipart.writeTo(outputStream);
-
-    // Convert MIME content to a string
-    String originalContent = outputStream.toString(StandardCharsets.UTF_8);
-
-    // Extract all boundaries present in the content
-    String boundaryPattern = "boundary=\"?([^\"\\s]+)\"?"; // Matches boundary="..."
-    Pattern pattern = Pattern.compile(boundaryPattern);
-    Matcher matcher = pattern.matcher(multipart.getContentType());
-
-    List<String> existingBoundaries = new ArrayList<>();
-    while (matcher.find()) {
-        existingBoundaries.add(matcher.group(1)); // Extract existing boundaries
+private byte[] createCaptchaResponse(CaptchaRequest captchaRequest) {
+        logger.info("Creating captcha response for RequestId: {}", captchaRequest.getRequestId());
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            MimeMultipart mimeMultipart = saveCaptcha(captchaRequest);
+            mimeMultipart.writeTo(outputStream);
+            logger.info("Captcha response created successfully for RequestId: {}", captchaRequest.getRequestId());
+            return outputStream.toByteArray();
+        } catch (IOException | MessagingException e) {
+            logger.error("Error generating captcha for RequestId: {}", captchaRequest.getRequestId(), e);
+            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, captchaRequest.getRequestType() + "Key"));
+        }
     }
-
-    if (existingBoundaries.isEmpty()) {
-        throw new MessagingException("No boundary found in content type!");
-    }
-
-    // Replace all occurrences of dynamically generated boundaries with the fixed one
-    String modifiedContent = originalContent;
-    for (String originalBoundary : existingBoundaries) {
-        modifiedContent = modifiedContent.replaceAll(Pattern.quote(originalBoundary), fixedBoundary);
-    }
-
-    // Ensure the new boundary starts with "--"
-    String finalBoundary = "--" + fixedBoundary;
-
-    // Wrap modified content back into a MimeMultipart
-    ByteArrayDataSource byteArrayDataSource = new ByteArrayDataSource(
-            modifiedContent.getBytes(StandardCharsets.UTF_8),
-            "multipart/mixed; boundary=" + finalBoundary
-    );
-
-    return new MimeMultipart(byteArrayDataSource);
-}
