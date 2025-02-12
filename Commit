@@ -1,16 +1,22 @@
-public MerchantResponse<byte[]> generateCaptcha(CaptchaRequest captchaRequest) {
-    logger.info("Generating captcha for RequestId: {}", captchaRequest.getRequestId());
-    
-    // Step 1: Validate Captcha Request
-    // captchaValidator.requestValidator(captchaRequest);
+ private byte[] createCaptchaResponse(CaptchaRequest captchaRequest) {
+        logger.info("Creating captcha response for RequestId: {}", captchaRequest.getRequestId());
 
-    byte[] captchaBytes = createCaptchaResponse(captchaRequest);
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            MimeMultipart mimeMultipart = saveCaptcha(captchaRequest);
 
-    return MerchantResponse.<byte[]>builder()
-            .status(200)  // Assuming 200 for success
-            .data(Collections.singletonList(captchaBytes)) // Wrapping byte[] inside List
-            .count(1L)
-            .total(1L)
-            .errors(Collections.emptyList()) // Assuming no errors
-            .build();
-}
+            // Ensure proper Content-Type is set before writing
+            String contentType = mimeMultipart.getContentType();
+            logger.info("Final MIME Content-Type: {}", contentType);
+
+            outputStream.write(("Content-Type: " + contentType + "\r\n").getBytes(StandardCharsets.UTF_8));
+
+            mimeMultipart.writeTo(outputStream);
+
+            logger.info("Captcha response created successfully for RequestId: {}", captchaRequest.getRequestId());
+            return outputStream.toByteArray();
+        } catch (IOException | MessagingException e) {
+            logger.error("Error generating captcha for RequestId: {}", captchaRequest.getRequestId(), e);
+            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, captchaRequest.getRequestType() + "Key"));
+        }
+    }
