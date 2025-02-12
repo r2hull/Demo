@@ -1,1 +1,19 @@
-"12/02/2025"
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.stream.Stream;
+
+public class CurrentDateWithStream {
+    public static void main(String[] args) {
+        // Define the date formatter
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+        // Use Stream to get and format the current date
+        String formattedDate = Stream.of(LocalDate.now())
+                                     .map(date -> date.format(formatter))
+                                     .findFirst()
+                                     .orElse("Date not available");
+
+        // Print the formatted date
+        System.out.println("Current Date: " + formattedDate);
+    }
+}
