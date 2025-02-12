@@ -1,19 +1,45 @@
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.stream.Stream;
+public ResponseEntity<byte[]> generateCaptcha(CaptchaRequest captchaRequest) {
+        logger.info("Generating captcha for RequestId: {}", captchaRequest.getRequestId());
+        //Step 1 : Validate Captcha Request
+       // captchaValidator.requestValidator(captchaRequest);
 
-public class CurrentDateWithStream {
-    public static void main(String[] args) {
-        // Define the date formatter
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        byte[] captchaBytes = createCaptchaResponse(captchaRequest);
+        HttpHeaders headers = createHeaders(captchaBytes.length);
 
-        // Use Stream to get and format the current date
-        String formattedDate = Stream.of(LocalDate.now())
-                                     .map(date -> date.format(formatter))
-                                     .findFirst()
-                                     .orElse("Date not available");
+        return ResponseEntity.ok().headers(headers).body(captchaBytes);
+    }
 
-        // Print the formatted date
-        System.out.println("Current Date: " + formattedDate);
+
+    private HttpHeaders createHeaders(int contentLength) {
+        logger.info("Creating HTTP headers for captcha response.");
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_MIXED);
+        headers.setContentLength(contentLength);
+        logger.info("Headers created successfully.");
+        return headers;
+    }
+
+
+@AllArgsConstructor
+@Data
+@Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class MerchantResponse<T> {
+
+    private Integer status;
+    private List<T> data;
+    private Long count;
+    private Long total;
+    private List<ErrorDto> errors;
+
+    @Override
+    public String toString() {
+        return "ResponseDto{" +
+                "status=" + status +
+                ", data=" + data +
+                ", count=" + count +
+                ", total=" + total +
+                ", errors=" + errors +
+                '}';
     }
 }
