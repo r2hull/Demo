@@ -1,45 +1,16 @@
-public ResponseEntity<byte[]> generateCaptcha(CaptchaRequest captchaRequest) {
-        logger.info("Generating captcha for RequestId: {}", captchaRequest.getRequestId());
-        //Step 1 : Validate Captcha Request
-       // captchaValidator.requestValidator(captchaRequest);
+public MerchantResponse<byte[]> generateCaptcha(CaptchaRequest captchaRequest) {
+    logger.info("Generating captcha for RequestId: {}", captchaRequest.getRequestId());
+    
+    // Step 1: Validate Captcha Request
+    // captchaValidator.requestValidator(captchaRequest);
 
-        byte[] captchaBytes = createCaptchaResponse(captchaRequest);
-        HttpHeaders headers = createHeaders(captchaBytes.length);
+    byte[] captchaBytes = createCaptchaResponse(captchaRequest);
 
-        return ResponseEntity.ok().headers(headers).body(captchaBytes);
-    }
-
-
-    private HttpHeaders createHeaders(int contentLength) {
-        logger.info("Creating HTTP headers for captcha response.");
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.MULTIPART_MIXED);
-        headers.setContentLength(contentLength);
-        logger.info("Headers created successfully.");
-        return headers;
-    }
-
-
-@AllArgsConstructor
-@Data
-@Builder
-@JsonInclude(JsonInclude.Include.NON_NULL)
-public class MerchantResponse<T> {
-
-    private Integer status;
-    private List<T> data;
-    private Long count;
-    private Long total;
-    private List<ErrorDto> errors;
-
-    @Override
-    public String toString() {
-        return "ResponseDto{" +
-                "status=" + status +
-                ", data=" + data +
-                ", count=" + count +
-                ", total=" + total +
-                ", errors=" + errors +
-                '}';
-    }
+    return MerchantResponse.<byte[]>builder()
+            .status(200)  // Assuming 200 for success
+            .data(Collections.singletonList(captchaBytes)) // Wrapping byte[] inside List
+            .count(1L)
+            .total(1L)
+            .errors(Collections.emptyList()) // Assuming no errors
+            .build();
 }
