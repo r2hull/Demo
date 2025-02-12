@@ -5,19 +5,25 @@ private MimeMultipart rewriteBoundary(MimeMultipart multipart, String fixedBound
     // Convert MIME content to a string
     String originalContent = outputStream.toString(StandardCharsets.UTF_8);
 
-    // Extract the existing boundary using regex
+    // Extract all boundaries present in the content
     String boundaryPattern = "boundary=\"?([^\"\\s]+)\"?"; // Matches boundary="..."
     Pattern pattern = Pattern.compile(boundaryPattern);
     Matcher matcher = pattern.matcher(multipart.getContentType());
 
-    if (!matcher.find()) {
-        throw new MessagingException("Original boundary not found in content type!");
+    List<String> existingBoundaries = new ArrayList<>();
+    while (matcher.find()) {
+        existingBoundaries.add(matcher.group(1)); // Extract existing boundaries
     }
 
-    String originalBoundary = matcher.group(1); // Extracts the existing boundary
+    if (existingBoundaries.isEmpty()) {
+        throw new MessagingException("No boundary found in content type!");
+    }
 
-    // Replace all occurrences of the original boundary with the fixed boundary
-    String modifiedContent = originalContent.replaceAll(Pattern.quote(originalBoundary), fixedBoundary);
+    // Replace all occurrences of dynamically generated boundaries with the fixed one
+    String modifiedContent = originalContent;
+    for (String originalBoundary : existingBoundaries) {
+        modifiedContent = modifiedContent.replaceAll(Pattern.quote(originalBoundary), fixedBoundary);
+    }
 
     // Ensure the new boundary starts with "--"
     String finalBoundary = "--" + fixedBoundary;
