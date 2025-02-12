@@ -1,13 +1,50 @@
+private MimeMultipart rewriteBoundary(MimeMultipart multipart, String fixedBoundary) throws IOException, MessagingException {
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    multipart.writeTo(outputStream);
+
+    // Convert MIME content to a string
+    String originalContent = outputStream.toString(StandardCharsets.UTF_8);
+
+    // Extract original boundary from Content-Type
+    String originalBoundary = multipart.getContentType().split("boundary=")[1].replaceAll("\"", ""); // Remove quotes if any
+    logger.info("Original Boundary: {}", originalBoundary);
+
+    // Replace all occurrences of the old boundary with the fixed one
+    String modifiedContent = originalContent.replace(originalBoundary, fixedBoundary);
+
+    // Ensure the new boundary starts with "--"
+    String finalBoundary = "--" + fixedBoundary;
+
+    // Wrap modified content back into a MimeMultipart
+    ByteArrayDataSource byteArrayDataSource = new ByteArrayDataSource(
+            modifiedContent.getBytes(StandardCharsets.UTF_8),
+            "multipart/mixed; boundary=" + fixedBoundary // Ensure Content-Type is correct
+    );
+
+    return new MimeMultipart(byteArrayDataSource);
+}
+
+
+
 private byte[] createCaptchaResponse(CaptchaRequest captchaRequest) {
-        logger.info("Creating captcha response for RequestId: {}", captchaRequest.getRequestId());
-        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-            MimeMultipart mimeMultipart = saveCaptcha(captchaRequest);
-            mimeMultipart.writeTo(outputStream);
-            logger.info("Captcha response created successfully for RequestId: {}", captchaRequest.getRequestId());
-            return outputStream.toByteArray();
-        } catch (IOException | MessagingException e) {
-            logger.error("Error generating captcha for RequestId: {}", captchaRequest.getRequestId(), e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, captchaRequest.getRequestType() + "Key"));
-        }
+    logger.info("Creating captcha response for RequestId: {}", captchaRequest.getRequestId());
+    
+    try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+        MimeMultipart mimeMultipart = saveCaptcha(captchaRequest);
+        
+        // Ensure proper Content-Type is set before writing
+        String contentType = mimeMultipart.getContentType();
+        logger.info("Final MIME Content-Type: {}", contentType);
+        
+        outputStream.write(("Content-Type: " + contentType + "\r\n").getBytes(StandardCharsets.UTF_8));
+        
+        mimeMultipart.writeTo(outputStream);
+        
+        logger.info("Captcha response created successfully for RequestId: {}", captchaRequest.getRequestId());
+        return outputStream.toByteArray();
+    } catch (IOException | MessagingException e) {
+        logger.error("Error generating captcha for RequestId: {}", captchaRequest.getRequestId(), e);
+        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, captchaRequest.getRequestType() + "Key"));
     }
+}
