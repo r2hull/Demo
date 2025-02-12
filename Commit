@@ -1,16 +1,1 @@
-PS D:\Report\Report\epay_reports_service> git pull develop
-fatal: 'develop' does not appear to be a git repository
-fatal: Could not read from remote repository.
-
-Please make sure you have the correct access rights
-and the repository exists.
-PS D:\Report\Report\epay_reports_service> git fetch
-PS D:\Report\Report\epay_reports_service> git status
-On branch feature/ERS-28_BatchProcessing
-Your branch is up to date with 'origin/feature/ERS-28_BatchProcessing'.
-
-nothing to commit, working tree clean
-PS D:\Report\Report\epay_reports_service> git branch
-  develop
-* feature/ERS-28_BatchProcessing
-PS D:\Report\Report\epay_reports_service>                 
+"12/02/2025"
