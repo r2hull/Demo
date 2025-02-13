@@ -1,28 +1,40 @@
 public String generateCaptchaAudio(String captchaText, UUID requestId) {
-        logger.info("Started generateAudioCaptcha for requestId: {}", requestId);
+    logger.info("Started generateAudioCaptcha for requestId: {}", requestId);
 
-        return Optional.ofNullable(captchaText)
-                .map(text -> VoiceCaptchaUtil.generateAudioCaptcha(text, requestId))
-                .map(data -> encodeToBase64(data, requestId))
-                .orElseGet(() -> {
-                    logger.warn("Captcha text is null for requestId: {}", requestId);
-                    return "";
-                });
-    }
+    return Optional.ofNullable(captchaText)
+            .map(text -> VoiceCaptchaUtil.generateAudioCaptcha(text, requestId)) // Returns byte[]
+            .map(data -> encodeToBase64(data, requestId)) // Convert to Base64
+            .orElseGet(() -> {
+                logger.warn("Captcha text is null for requestId: {}", requestId);
+                return "";
+            });
+}
 
-    /**
-     * Encodes a byte array to a Base64 string using Java 8 Streams.
-     *
-     * @param data      The byte array to encode.
-     * @param requestId The request ID for logging.
-     * @return The Base64-encoded string.
-     */
-    private String encodeToBase64(byte[] data, UUID requestId) {
-        return Optional.ofNullable(data)
-                .filter(d -> d.length > 0)
-                .map(Base64.getEncoder()::encodeToString)
-                .orElseGet(() -> {
-                    logger.warn("Empty byte array for requestId: {}", requestId);
-                    return "";
-                });
-    }
+/**
+ * Encodes a byte array to a Base64 string using Java 8 Streams.
+ *
+ * @param data      The byte array to encode.
+ * @param requestId The request ID for logging.
+ * @return The Base64-encoded string.
+ */
+private String encodeToBase64(byte[] data, UUID requestId) {
+    return Optional.ofNullable(data)
+            .filter(d -> d.length > 0)
+            .map(Base64.getEncoder()::encodeToString)
+            .orElseGet(() -> {
+                logger.warn("Empty byte array for requestId: {}", requestId);
+                return "";
+            });
+}
+
+
+public String generateCaptchaAudio(String captchaText, UUID requestId) {
+    logger.info("Started generateAudioCaptcha for requestId: {}", requestId);
+
+    return Optional.ofNullable(captchaText)
+            .map(text -> VoiceCaptchaUtil.generateAudioCaptcha(text, requestId)) // Returns Base64 directly
+            .orElseGet(() -> {
+                logger.warn("Captcha text is null for requestId: {}", requestId);
+                return "";
+            });
+}
