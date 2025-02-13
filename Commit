@@ -1,1 +1,34 @@
-Added Base64 encoding for audio captcha response
+private static File generateAudioFile(String text, UUID requestId) {
+    String uniqueFileName = "speech_" + System.currentTimeMillis() + "_" + requestId;
+    File tempFile;
+
+    try {
+        tempFile = File.createTempFile(uniqueFileName, ".wav");
+        tempFile.deleteOnExit();
+
+        Voice voice = Optional.ofNullable(VoiceManager.getInstance().getVoice(VOICE_NAME))
+                .orElseThrow(() -> new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                        "Voice '" + VOICE_NAME + "' not found"));
+
+        voice.allocate();
+
+        // Create AudioPlayer (Manual Closing Required)
+        AudioPlayer audioPlayer = new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""),
+                javax.sound.sampled.AudioFileFormat.Type.WAVE);
+        
+        voice.setAudioPlayer(audioPlayer);
+        voice.speak(text);
+        voice.deallocate();
+        
+        // **Manually Closing AudioPlayer**
+        audioPlayer.close();
+
+        logger.info("Audio file generated successfully for requestId: {}", requestId);
+        return tempFile;
+
+    } catch (Exception e) {
+        logger.error("Error generating speech audio for requestId: {}", requestId, e);
+        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
+    }
+}
