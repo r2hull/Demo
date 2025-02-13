@@ -1,19 +1,25 @@
-package org.example;
-
 import com.sun.speech.freetts.Voice;
 import com.sun.speech.freetts.VoiceManager;
 
 public class TalkResource {
-
-    private static final String VOICENAME_kevin = "kevin16";
-
+    private static final String VOICENAME_KEVIN = "kevin16";
 
     public void speak(String text) {
-        Voice voice;
         VoiceManager voiceManager = VoiceManager.getInstance();
-        voice = voiceManager.getVoice(VOICENAME_kevin);
-        voice.allocate();
-        voice.speak(text);
-        voice.deallocate();
+        Voice voice = voiceManager.getVoice(VOICENAME_KEVIN);
+
+        if (voice != null) {
+            voice.allocate();
+            
+            // Adjust voice properties
+            voice.setRate(90);   // Reduce speed (default ~150, lower is slower)
+            voice.setPitch(100); // Set a clear pitch (adjustable)
+            voice.setVolume(1.0f); // Ensure volume is maximum
+            
+            voice.speak(text);
+            voice.deallocate();
+        } else {
+            System.err.println("Voice not found: " + VOICENAME_KEVIN);
+        }
     }
 }
