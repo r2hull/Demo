@@ -1,34 +1,19 @@
-private static File generateAudioFile(String text, UUID requestId) {
-    String uniqueFileName = "speech_" + System.currentTimeMillis() + "_" + requestId;
-    File tempFile;
+package org.example;
 
-    try {
-        tempFile = File.createTempFile(uniqueFileName, ".wav");
-        tempFile.deleteOnExit();
+import com.sun.speech.freetts.Voice;
+import com.sun.speech.freetts.VoiceManager;
 
-        Voice voice = Optional.ofNullable(VoiceManager.getInstance().getVoice(VOICE_NAME))
-                .orElseThrow(() -> new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                        "Voice '" + VOICE_NAME + "' not found"));
+public class TalkResource {
 
+    private static final String VOICENAME_kevin = "kevin16";
+
+
+    public void speak(String text) {
+        Voice voice;
+        VoiceManager voiceManager = VoiceManager.getInstance();
+        voice = voiceManager.getVoice(VOICENAME_kevin);
         voice.allocate();
-
-        // Create AudioPlayer (Manual Closing Required)
-        AudioPlayer audioPlayer = new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""),
-                javax.sound.sampled.AudioFileFormat.Type.WAVE);
-        
-        voice.setAudioPlayer(audioPlayer);
         voice.speak(text);
         voice.deallocate();
-        
-        // **Manually Closing AudioPlayer**
-        audioPlayer.close();
-
-        logger.info("Audio file generated successfully for requestId: {}", requestId);
-        return tempFile;
-
-    } catch (Exception e) {
-        logger.error("Error generating speech audio for requestId: {}", requestId, e);
-        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
     }
 }
