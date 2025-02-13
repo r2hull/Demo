@@ -1,5 +1,7 @@
 import java.util.Base64;
 import java.util.UUID;
+import java.util.Optional;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,35 +19,29 @@ public class CaptchaService {
     public String generateAudioCaptcha(String captchaText, UUID requestId) {
         logger.info("Started generateAudioCaptcha for requestId: {}", requestId);
 
-        try {
-            // Convert text to speech bytes
-            byte[] audioBytes = VoiceCaptchaUtil.voiceToBytes(captchaText, requestId);
-
-            // Convert to Base64
-            return encodeToBase64(audioBytes, requestId);
-
-        } catch (Exception e) {
-            logger.error("Error generating audio CAPTCHA for requestId: {}", requestId, e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
-        }
+        return Optional.ofNullable(captchaText)
+                .map(text -> VoiceCaptchaUtil.voiceToBytes(text, requestId))
+                .map(data -> encodeToBase64(data, requestId))
+                .orElseGet(() -> {
+                    logger.warn("Captcha text is null for requestId: {}", requestId);
+                    return "";
+                });
     }
 
     /**
-     * Encodes a byte array to a Base64 string.
+     * Encodes a byte array to a Base64 string using Java 8 Streams.
      *
      * @param data      The byte array to encode.
      * @param requestId The request ID for logging.
      * @return The Base64-encoded string.
      */
     private String encodeToBase64(byte[] data, UUID requestId) {
-        if (data == null || data.length == 0) {
-            logger.warn("Empty byte array provided for requestId: {}", requestId);
-            return "";
-        }
-
-        String base64String = Base64.getEncoder().encodeToString(data);
-        logger.info("Successfully encoded audio to Base64 for requestId: {}", requestId);
-        return base64String;
+        return Optional.ofNullable(data)
+                .filter(d -> d.length > 0)
+                .map(Base64.getEncoder()::encodeToString)
+                .orElseGet(() -> {
+                    logger.warn("Empty byte array for requestId: {}", requestId);
+                    return "";
+                });
     }
 }
