@@ -1,129 +1,51 @@
-package com.epay.merchant.util;
-
-import com.epay.merchant.exception.MerchantException;
-import com.sun.speech.freetts.Voice;
-import com.sun.speech.freetts.VoiceManager;
-import com.sun.speech.freetts.audio.AudioPlayer;
-import com.sun.speech.freetts.audio.SingleFileAudioPlayer;
-import lombok.experimental.UtilityClass;
+import java.util.Base64;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.UnsupportedAudioFileException;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.text.MessageFormat;
-import java.util.UUID;
+public class CaptchaService {
 
-/**
- * Class Name: VoiceCaptchaUtil
- * *
- * Description: Utility class for generating voice captcha audio files.
- * *
- * Author: Bhoopendra Rajput
- * <p>
- * Copyright (c) 2024 [State Bank of India]
- * All rights reserved
- * *
- * Version:1.0
- */
-@UtilityClass
-public class VoiceCaptchaUtil {
-
-    private static final Logger logger = LoggerFactory.getLogger(VoiceCaptchaUtil.class);
-    private static final String VOICE_NAME = "kevin16";
-
-    static {
-        System.setProperty("freetts.voices", "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory");
-    }
+    private static final Logger logger = LoggerFactory.getLogger(CaptchaService.class);
 
     /**
-     * Converts the given text to speech and returns the audio as a byte array.
+     * Generates an audio CAPTCHA and returns it as a Base64-encoded string.
      *
-     * @param text      the text to convert to speech.
-     * @param requestId containing requestId details.
-     * @return a byte array containing the speech audio.
+     * @param captchaText The text to convert into an audio CAPTCHA.
+     * @param requestId   Unique identifier for tracking the request.
+     * @return Base64-encoded string of the audio CAPTCHA.
      */
-    public static byte[] voiceToBytes(String text, UUID requestId) {
-        File tempFile = null;
+    public String generateAudioCaptcha(String captchaText, UUID requestId) {
+        logger.info("Started generateAudioCaptcha for requestId: {}", requestId);
+
         try {
-            // Generate a unique filename
-            String uniqueFileName = "speech_" + System.currentTimeMillis() + "_" + requestId;
-            logger.info("file generated for requestId'{}' ",requestId);
-            tempFile = File.createTempFile(uniqueFileName, ".wav");
-            tempFile.deleteOnExit();
+            // Convert text to speech bytes
+            byte[] audioBytes = VoiceCaptchaUtil.voiceToBytes(captchaText, requestId);
 
-            Voice voice = VoiceManager.getInstance().getVoice(VOICE_NAME);
-            if (voice == null) {
-                logger.error("Voice '{}' not found. Returning empty byte array.", VOICE_NAME);
-                return new byte[0];
-            }
-
-            voice.allocate();
-
-            AudioPlayer audioPlayer = new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""),
-                    javax.sound.sampled.AudioFileFormat.Type.WAVE);
-            voice.setAudioPlayer(audioPlayer);
-
-            logger.info("Converting text to speech...");
-            voice.speak(text);
-            voice.deallocate();
-            audioPlayer.close();
-
-            return fileToByteArray(tempFile);
+            // Convert to Base64
+            return encodeToBase64(audioBytes, requestId);
 
         } catch (Exception e) {
-            logger.error("Error occurred while generating speech audio", e);
+            logger.error("Error generating audio CAPTCHA for requestId: {}", requestId, e);
             throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId ));
-
-
-        } finally {
-            if (tempFile != null && tempFile.exists() && tempFile.delete()) {
-                logger.info("Temporary file deleted: {}", tempFile.getAbsolutePath());
-            }
+                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
         }
     }
 
     /**
-     * Reads a file and converts it to a byte array.
+     * Encodes a byte array to a Base64 string.
      *
-     * @param file the file to convert.
-     * @return a byte array representing the file’s contents.
+     * @param data      The byte array to encode.
+     * @param requestId The request ID for logging.
+     * @return The Base64-encoded string.
      */
-    private static byte[] fileToByteArray(File file) {
-        try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(file);
-             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-
-            while ((bytesRead = audioInputStream.read(buffer)) != -1) {
-                byteArrayOutputStream.write(buffer, 0, bytesRead);
-            }
-
-            return byteArrayOutputStream.toByteArray();
-
-        } catch (IOException | UnsupportedAudioFileException e) {
-            logger.error("Error reading file to byte array", e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, file.getName() ));
+    private String encodeToBase64(byte[] data, UUID requestId) {
+        if (data == null || data.length == 0) {
+            logger.warn("Empty byte array provided for requestId: {}", requestId);
+            return "";
         }
+
+        String base64String = Base64.getEncoder().encodeToString(data);
+        logger.info("Successfully encoded audio to Base64 for requestId: {}", requestId);
+        return base64String;
     }
 }
-
-public String generateCaptchaImage(String captchaText) {
-        logger.info("generated captcha text: {}", captchaText);
-        BufferedImage image = captchaProducer.createImage(captchaText);
-        return MerchantUtil.convertImageToBase64(image, "Captcha");
-    }
-
-
-    private DataSource generateAudioCaptcha(String captchaText, UUID requestId) {
-        logger.info("Started generateAudioCaptcha captcha text: {}", captchaText);
-        byte[] audioBytes = VoiceCaptchaUtil.voiceToBytes(captchaText,requestId);
-        return new ByteArrayDataSource(audioBytes, "audio/wav");
-    }
