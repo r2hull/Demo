@@ -1,145 +1,34 @@
-package com.epay.merchant.util;
+private static File generateAudioFile(String text, UUID requestId) {
+    String uniqueFileName = "speech_" + System.currentTimeMillis() + "_" + requestId;
+    File tempFile;
 
-import com.epay.merchant.exception.MerchantException;
-import com.sun.speech.freetts.Voice;
-import com.sun.speech.freetts.VoiceManager;
-import com.sun.speech.freetts.audio.AudioPlayer;
-import com.sun.speech.freetts.audio.SingleFileAudioPlayer;
-import lombok.experimental.UtilityClass;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+    try {
+        tempFile = File.createTempFile(uniqueFileName, ".wav");
+        tempFile.deleteOnExit();
 
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.UnsupportedAudioFileException;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.text.MessageFormat;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.stream.Stream;
+        Voice voice = Optional.ofNullable(VoiceManager.getInstance().getVoice(VOICE_NAME))
+                .orElseThrow(() -> new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                        "Voice '" + VOICE_NAME + "' not found"));
 
-/**
- * Utility class for generating voice captcha audio files.
- */
-@UtilityClass
-public class VoiceCaptchaUtil {
+        voice.allocate();
 
-    private static final Logger logger = LoggerFactory.getLogger(VoiceCaptchaUtil.class);
-    private static final String VOICE_NAME = "kevin16";
+        // Create AudioPlayer (Manual Closing Required)
+        AudioPlayer audioPlayer = new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""),
+                javax.sound.sampled.AudioFileFormat.Type.WAVE);
+        
+        voice.setAudioPlayer(audioPlayer);
+        voice.speak(text);
+        voice.deallocate();
+        
+        // **Manually Closing AudioPlayer**
+        audioPlayer.close();
 
-    static {
-        System.setProperty("freetts.voices", "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory");
-    }
+        logger.info("Audio file generated successfully for requestId: {}", requestId);
+        return tempFile;
 
-    /**
-     * Converts the given text to speech and returns the audio as a byte array.
-     *
-     * @param text      the text to convert to speech.
-     * @param requestId unique identifier for tracking the request.
-     * @return a byte array containing the speech audio.
-     */
-    public static byte[] voiceToBytes(String text, UUID requestId) {
-        return Optional.ofNullable(text)
-                .map(t -> generateAudioFile(t, requestId))
-                .map(VoiceCaptchaUtil::fileToByteArray)
-                .orElseGet(() -> {
-                    logger.warn("Text is null, returning empty byte array for requestId: {}", requestId);
-                    return new byte[0];
-                });
-    }
-
-    /**
-     * Generates an audio file from text using FreeTTS.
-     *
-     * @param text      the text to convert to speech.
-     * @param requestId request identifier for tracking.
-     * @return the generated temporary file.
-     */
-    private static File generateAudioFile(String text, UUID requestId) {
-        String uniqueFileName = "speech_" + System.currentTimeMillis() + "_" + requestId;
-        File tempFile;
-
-        try {
-            tempFile = File.createTempFile(uniqueFileName, ".wav");
-            tempFile.deleteOnExit();
-
-            Voice voice = Optional.ofNullable(VoiceManager.getInstance().getVoice(VOICE_NAME))
-                    .orElseThrow(() -> new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                            "Voice '" + VOICE_NAME + "' not found"));
-
-            voice.allocate();
-
-            try (AudioPlayer audioPlayer = new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""),
-                    javax.sound.sampled.AudioFileFormat.Type.WAVE)) {
-
-                voice.setAudioPlayer(audioPlayer);
-                voice.speak(text);
-                voice.deallocate();
-            }
-
-            logger.info("Audio file generated successfully for requestId: {}", requestId);
-            return tempFile;
-
-        } catch (Exception e) {
-            logger.error("Error generating speech audio for requestId: {}", requestId, e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
-        }
-    }
-
-    /**
-     * Reads a file and converts it to a byte array using Java 8 Streams.
-     *
-     * @param file the file to convert.
-     * @return a byte array representing the file’s contents.
-     */
-    private static byte[] fileToByteArray(File file) {
-        try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(file);
-             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-
-            Stream.generate(() -> readBytes(audioInputStream))
-                    .takeWhile(bytes -> bytes != null)
-                    .forEach(bytes -> writeBytes(byteArrayOutputStream, bytes));
-
-            return byteArrayOutputStream.toByteArray();
-
-        } catch (IOException | UnsupportedAudioFileException e) {
-            logger.error("Error reading file {} to byte array", file.getName(), e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, file.getName()));
-        }
-    }
-
-    /**
-     * Reads bytes from an AudioInputStream.
-     *
-     * @param audioInputStream the audio input stream.
-     * @return a byte array of data read or null if no data.
-     */
-    private static byte[] readBytes(AudioInputStream audioInputStream) {
-        byte[] buffer = new byte[1024];
-        try {
-            int bytesRead = audioInputStream.read(buffer);
-            return bytesRead != -1 ? buffer : null;
-        } catch (IOException e) {
-            logger.error("Error reading bytes from audio input stream", e);
-            return null;
-        }
-    }
-
-    /**
-     * Writes bytes to a ByteArrayOutputStream.
-     *
-     * @param outputStream the output stream.
-     * @param data         the byte data.
-     */
-    private static void writeBytes(ByteArrayOutputStream outputStream, byte[] data) {
-        try {
-            outputStream.write(data);
-        } catch (IOException e) {
-            logger.error("Error writing bytes to output stream", e);
-        }
+    } catch (Exception e) {
+        logger.error("Error generating speech audio for requestId: {}", requestId, e);
+        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
     }
 }
