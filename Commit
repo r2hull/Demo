@@ -1,129 +1,28 @@
-package com.epay.merchant.util;
+public String generateCaptchaAudio(String captchaText, UUID requestId) {
+        logger.info("Started generateAudioCaptcha for requestId: {}", requestId);
 
-import com.epay.merchant.exception.MerchantException;
-import com.sun.speech.freetts.Voice;
-import com.sun.speech.freetts.VoiceManager;
-import com.sun.speech.freetts.audio.AudioPlayer;
-import com.sun.speech.freetts.audio.SingleFileAudioPlayer;
-import lombok.experimental.UtilityClass;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.UnsupportedAudioFileException;
-import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-import java.text.MessageFormat;
-import java.util.Base64;
-import java.util.UUID;
-import java.util.stream.IntStream;
-
-/**
- * Utility class for generating voice captcha audio files.
- */
-@UtilityClass
-public class VoiceCaptchaUtil {
-
-    private static final Logger logger = LoggerFactory.getLogger(VoiceCaptchaUtil.class);
-    private static final String VOICE_NAME = "kevin16";
-
-    static {
-        System.setProperty("freetts.voices", "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory");
+        return Optional.ofNullable(captchaText)
+                .map(text -> VoiceCaptchaUtil.generateAudioCaptcha(text, requestId))
+                .map(data -> encodeToBase64(data, requestId))
+                .orElseGet(() -> {
+                    logger.warn("Captcha text is null for requestId: {}", requestId);
+                    return "";
+                });
     }
 
     /**
-     * Converts text to speech and returns a Base64-encoded WAV file.
+     * Encodes a byte array to a Base64 string using Java 8 Streams.
      *
-     * @param text      the text to convert.
-     * @param requestId the requestId for tracking.
-     * @return Base64-encoded audio file as a string.
+     * @param data      The byte array to encode.
+     * @param requestId The request ID for logging.
+     * @return The Base64-encoded string.
      */
-    public static String generateAudioCaptcha(String text, UUID requestId) {
-        File tempFile = null;
-        File finalWavFile = null;
-
-        try {
-            tempFile = File.createTempFile("speech_" + requestId, ".tmp");
-            finalWavFile = new File(tempFile.getParent(), tempFile.getName() + ".wav");
-
-            Voice voice = VoiceManager.getInstance().getVoice(VOICE_NAME);
-            if (voice == null) {
-                logger.error("Voice '{}' not found. Returning empty Base64.", VOICE_NAME);
-                return "";
-            }
-
-            voice.allocate();
-            voice.setRate(100); // Slow speech (default ~150)
-            voice.setPitch(75); // Lower frequency (default ~100)
-            voice.setVolume(1.0f); // Full volume
-
-            // Ensure SingleFileAudioPlayer correctly saves as WAV
-            try (AudioPlayer audioPlayer = new SingleFileAudioPlayer(tempFile.getAbsolutePath(), javax.sound.sampled.AudioFileFormat.Type.WAVE)) {
-                voice.setAudioPlayer(audioPlayer);
-                voice.speak(text);
-                voice.deallocate();
-            }
-
-            // Move file to final WAV location
-            Files.move(tempFile.toPath(), finalWavFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-
-            logger.info("Generated WAV file: {}", finalWavFile.getAbsolutePath());
-
-            return convertToBase64(finalWavFile);
-
-        } catch (Exception e) {
-            logger.error("Error generating speech audio", e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
-
-        } finally {
-            // Ensure temp file deletion
-            deleteFile(tempFile);
-            deleteFile(finalWavFile);
-        }
+    private String encodeToBase64(byte[] data, UUID requestId) {
+        return Optional.ofNullable(data)
+                .filter(d -> d.length > 0)
+                .map(Base64.getEncoder()::encodeToString)
+                .orElseGet(() -> {
+                    logger.warn("Empty byte array for requestId: {}", requestId);
+                    return "";
+                });
     }
-
-    /**
-     * Converts a file to a Base64-encoded string.
-     *
-     * @param file the file to encode.
-     * @return Base64 string.
-     */
-    private static String convertToBase64(File file) {
-        try (FileInputStream fileInputStream = new FileInputStream(file);
-             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-
-            byte[] buffer = new byte[1024];
-            IntStream.generate(() -> {
-                        try {
-                            return fileInputStream.read(buffer);
-                        } catch (IOException e) {
-                            throw new RuntimeException("Error reading audio file", e);
-                        }
-                    })
-                    .takeWhile(bytesRead -> bytesRead != -1)
-                    .forEach(bytesRead -> byteArrayOutputStream.write(buffer, 0, bytesRead));
-
-            return Base64.getEncoder().encodeToString(byteArrayOutputStream.toByteArray());
-
-        } catch (IOException e) {
-            logger.error("Error converting file to Base64", e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE, "Error encoding audio file.");
-        }
-    }
-
-    /**
-     * Deletes a file safely.
-     *
-     * @param file the file to delete.
-     */
-    private static void deleteFile(File file) {
-        if (file != null && file.exists() && file.delete()) {
-            logger.info("Deleted temp file: {}", file.getAbsolutePath());
-        } else if (file != null) {
-            logger.warn("Failed to delete temp file: {}", file.getAbsolutePath());
-        }
-    }
-}
