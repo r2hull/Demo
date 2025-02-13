@@ -12,14 +12,29 @@ public class TalkResource {
             voice.allocate();
             
             // Adjust voice properties
-            voice.setRate(90);   // Reduce speed (default ~150, lower is slower)
-            voice.setPitch(100); // Set a clear pitch (adjustable)
-            voice.setVolume(1.0f); // Ensure volume is maximum
+            voice.setRate(80);   // Reduce speed for clarity
+            voice.setPitch(100); // Set a clear pitch
+            voice.setVolume(1.0f); // Ensure maximum volume
             
-            voice.speak(text);
+            // Speak each letter separately
+            for (char ch : text.toCharArray()) {
+                if (Character.isLetterOrDigit(ch)) { // Speak only letters and digits
+                    voice.speak(String.valueOf(ch));
+                    try {
+                        Thread.sleep(500); // Add a delay between letters (adjust as needed)
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            }
             voice.deallocate();
         } else {
             System.err.println("Voice not found: " + VOICENAME_KEVIN);
         }
+    }
+
+    public static void main(String[] args) {
+        TalkResource talkResource = new TalkResource();
+        talkResource.speak("CAPTCHA123"); // Example input
     }
 }
