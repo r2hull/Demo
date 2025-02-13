@@ -1,62 +1,8 @@
- public static byte[] generateAudioCaptcha(String text, UUID requestId) {
-        String uniqueFileName = "speech_" + System.currentTimeMillis() + "_" + requestId;
-        File tempFile = null;
+Play Audio
+Your browser cannot display the file as “audio/octet-stream”.
 
-        try {
-            tempFile = File.createTempFile(uniqueFileName, ".wav");
-            tempFile.deleteOnExit();
-
-            Voice voice = VoiceManager.getInstance().getVoice(VOICE_NAME);
-            if (voice == null) {
-                logger.error("Voice '{}' not found. Returning empty byte array.", VOICE_NAME);
-                return new byte[0];
-            }
-
-            voice.allocate();
-
-            // Create AudioPlayer
-            AudioPlayer audioPlayer = new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""),
-                    javax.sound.sampled.AudioFileFormat.Type.WAVE);
-
-            voice.setAudioPlayer(audioPlayer);
-
-            // Adjust voice properties
-            voice.setRate(90);   // Reduce speed (default ~150, lower is slower)
-            voice.setPitch(100); // Set a clear pitch (adjustable)
-            voice.setVolume(1.0f); // Ensure volume is maximum
-            // Speak each letter separately
-            IntStream.range(0, text.length())
-                    .mapToObj(i -> String.valueOf(text.charAt(i))) // Convert each character to String
-                    .filter(ch -> ch.matches("[a-zA-Z0-9]")) // Only allow letters and digits
-                    .forEach(ch -> {
-                        voice.speak(ch);
-                        try {
-                            Thread.sleep(500); // Add delay between letters (adjust as needed)
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        }
-                    });
-
-            voice.deallocate();
-            audioPlayer.close();
-
-            logger.info("Audio file generated successfully for requestId: {}", requestId);
-
-            return fileToByteArray(tempFile);
-
-        } catch (Exception e) {
-            logger.error("Error generating speech audio for requestId: {}", requestId, e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
-
-        } finally {
-            // Ensure temporary file deletion
-            if (tempFile != null && tempFile.exists()) {
-                if (tempFile.delete()) {
-                    logger.info("Temporary file deleted: {}", tempFile.getAbsolutePath());
-                } else {
-                    logger.warn("Failed to delete temporary file: {}", tempFile.getAbsolutePath());
-                }
-            }
-        }
-    }
+File Info
+• MIME type: audio/octet-stream
+• Extension: bin
+• Size: 73.06 KB
+• Download: audio.bin
