@@ -10,27 +10,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sound.sampled.AudioFileFormat;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.UUID;
-import java.util.stream.IntStream;
-
 
 /**
- * Class Name: VoiceCaptchaUtil
- * *
- * Description: Utility class for generating voice captcha audio files.
- * *
- * Author: Bhoopendra Rajput
+ * Utility class for generating voice captcha audio files using FreeTTS.
  * <p>
- * Copyright (c) 2024 [State Bank of India]
- * All rights reserved
- * *
- * Version:1.1
+ * This class provides methods to convert text into speech and generate audio files,
+ * returning the result as a byte array. It ensures proper resource management, 
+ * error handling, and logging.
+ * </p>
+ *
+ * <p>Author: Bhoopendra Rajput</p>
+ * <p>Version: 1.1</p>
+ * <p>Copyright (c) 2024 [State Bank of India]. All rights reserved.</p>
  */
 @UtilityClass
 public class VoiceCaptchaUtil {
@@ -43,19 +40,27 @@ public class VoiceCaptchaUtil {
     }
 
     /**
-     * Converts text to speech and returns audio as a byte array.
+     * Converts the given text into speech and returns the generated audio as a byte array.
      *
-     * @param text      the text to convert to speech.
-     * @param requestId the requestId for tracking.
-     * @return byte array containing the speech audio.
+     * @param text      The input text to be converted into speech.
+     * @param requestId Unique identifier for tracking requests.
+     * @return Byte array containing the generated speech audio.
      */
     public static byte[] generateAudioCaptcha(String text, UUID requestId) {
+        logger.info("Generating audio captcha for requestId: {}", requestId);
+
         File tempFile = createTempFile(requestId);
-        if (tempFile == null) return new byte[0];
+        if (tempFile == null) {
+            logger.error("Temp file creation failed for requestId: {}", requestId);
+            return new byte[0];
+        }
 
         try {
             Voice voice = initializeVoice();
-            if (voice == null) return new byte[0];
+            if (voice == null) {
+                logger.error("Voice initialization failed for requestId: {}", requestId);
+                return new byte[0];
+            }
 
             SingleFileAudioPlayer audioPlayer = configureAudioPlayer(tempFile);
             voice.setAudioPlayer(audioPlayer);
@@ -73,10 +78,17 @@ public class VoiceCaptchaUtil {
         }
     }
 
+    /**
+     * Creates a temporary file for storing the generated audio.
+     *
+     * @param requestId Unique identifier for the request.
+     * @return A File object representing the temporary file.
+     */
     private static File createTempFile(UUID requestId) {
         try {
             File tempFile = File.createTempFile("speech_" + System.currentTimeMillis() + "_" + requestId, ".wav");
             tempFile.deleteOnExit();
+            logger.debug("Temporary file created: {}", tempFile.getAbsolutePath());
             return tempFile;
         } catch (IOException e) {
             logger.error("Failed to create temp file for requestId: {}", requestId, e);
@@ -84,6 +96,11 @@ public class VoiceCaptchaUtil {
         }
     }
 
+    /**
+     * Initializes the voice engine with predefined settings.
+     *
+     * @return A Voice object if successful, otherwise null.
+     */
     private static Voice initializeVoice() {
         Voice voice = VoiceManager.getInstance().getVoice(VOICE_NAME);
         if (voice == null) {
@@ -94,14 +111,28 @@ public class VoiceCaptchaUtil {
         voice.setRate(130);
         voice.setPitch(100);
         voice.setVolume(1.0f);
+        logger.debug("Voice '{}' initialized successfully.", VOICE_NAME);
         return voice;
     }
 
+    /**
+     * Configures the audio player for generating speech output.
+     *
+     * @param tempFile Temporary file to store the audio.
+     * @return Configured SingleFileAudioPlayer instance.
+     */
     private static SingleFileAudioPlayer configureAudioPlayer(File tempFile) {
         return new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""), AudioFileFormat.Type.WAVE);
     }
 
+    /**
+     * Converts each character in the given text into speech.
+     *
+     * @param voice The initialized voice object.
+     * @param text  The text to be spoken.
+     */
     private static void speakCharacters(Voice voice, String text) {
+        logger.debug("Speaking text: {}", text);
         text.chars()
                 .mapToObj(c -> String.valueOf((char) c))
                 .filter(ch -> ch.matches("[a-zA-Z0-9]"))
@@ -111,34 +142,67 @@ public class VoiceCaptchaUtil {
                 });
     }
 
+    /**
+     * Cleans up the resources used by the voice engine.
+     *
+     * @param voice       The Voice object to be deallocated.
+     * @param audioPlayer The AudioPlayer instance to be closed.
+     */
     private static void cleanupResources(Voice voice, SingleFileAudioPlayer audioPlayer) {
         voice.deallocate();
         audioPlayer.close();
+        logger.debug("Resources cleaned up successfully.");
     }
 
+    /**
+     * Validates the generated audio file and converts it into a byte array.
+     *
+     * @param tempFile  The generated audio file.
+     * @param requestId Unique request identifier.
+     * @return Byte array containing the audio file data.
+     */
     private static byte[] validateAndReturnAudio(File tempFile, UUID requestId) {
         if (!tempFile.exists() || tempFile.length() == 0) {
             logger.error("Generated audio file is empty or missing for requestId: {}", requestId);
             return new byte[0];
         }
+        logger.info("Audio file successfully generated for requestId: {}", requestId);
         return fileToByteArray(tempFile);
     }
 
+    /**
+     * Deletes the temporary file after use.
+     *
+     * @param tempFile The file to be deleted.
+     */
     private static void deleteTempFile(File tempFile) {
         if (tempFile != null && tempFile.exists() && !tempFile.delete()) {
             logger.warn("Failed to delete temporary file: {}", tempFile.getAbsolutePath());
+        } else {
+            logger.debug("Temporary file deleted: {}", tempFile.getAbsolutePath());
         }
     }
 
+    /**
+     * Sleeps for a specified duration.
+     *
+     * @param millis The number of milliseconds to sleep.
+     */
     private static void sleep(long millis) {
         try {
             Thread.sleep(millis);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            logger.warn("Sleep interrupted", e);
         }
     }
 
-
+    /**
+     * Reads the contents of a file and returns it as a byte array.
+     *
+     * @param file The file to read.
+     * @return Byte array containing the file contents.
+     */
     private static byte[] fileToByteArray(File file) {
         try (FileInputStream fis = new FileInputStream(file);
              ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
@@ -149,6 +213,7 @@ public class VoiceCaptchaUtil {
                 byteArrayOutputStream.write(buffer, 0, bytesRead);
             }
 
+            logger.debug("File successfully converted to byte array: {}", file.getAbsolutePath());
             return byteArrayOutputStream.toByteArray();
 
         } catch (IOException e) {
