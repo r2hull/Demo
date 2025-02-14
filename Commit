@@ -1,68 +1,88 @@
-  public static byte[] generateAudioCaptcha(String text, UUID requestId) {
-        String uniqueFileName = "speech_" + System.currentTimeMillis() + "_" + requestId;
-        File tempFile = null;
+public static byte[] generateAudioCaptcha(String text, UUID requestId) {
+    File tempFile = createTempFile(requestId);
+    if (tempFile == null) return new byte[0];
 
-        try {
-            tempFile = File.createTempFile(uniqueFileName, ".wav");
-            tempFile.deleteOnExit();
+    try {
+        Voice voice = initializeVoice();
+        if (voice == null) return new byte[0];
 
-            Voice voice = VoiceManager.getInstance().getVoice(VOICE_NAME);
-            if (voice == null) {
-                logger.error("Voice '{}' not found. Returning empty byte array.", VOICE_NAME);
-                return new byte[0];
-            }
+        SingleFileAudioPlayer audioPlayer = configureAudioPlayer(tempFile);
+        voice.setAudioPlayer(audioPlayer);
 
-            voice.allocate();
+        speakCharacters(voice, text);
+        cleanupResources(voice, audioPlayer);
 
-            // Create AudioPlayer
-            SingleFileAudioPlayer audioPlayer = new SingleFileAudioPlayer(
-                    tempFile.getAbsolutePath().replace(".wav", ""),
-                    AudioFileFormat.Type.WAVE
-            );
-
-            voice.setAudioPlayer(audioPlayer);
-            voice.setRate(130);   // Reduce speed (default ~150, lower is slower)
-            voice.setPitch(100); // Set a clear pitch (adjustable)
-            voice.setVolume(1.0f); // Ensure volume is maximum
-//            voice.speak(text);
-
-            // Speak each letter separately
-            IntStream.range(0, text.length())
-                    .mapToObj(i -> String.valueOf(text.charAt(i))) // Convert each character to String
-                    .filter(ch -> ch.matches("[a-zA-Z0-9]")) // Only allow letters and digits
-                    .forEach(ch -> {
-                        voice.speak(ch);
-                        try {
-                            Thread.sleep(10); // Add delay between letters (adjust as needed)
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        }
-                    });
-            // Properly close resources
-            voice.deallocate();
-            audioPlayer.close();
-
-            // Check if the file exists and is valid
-            if (!tempFile.exists() || tempFile.length() == 0) {
-                logger.error("Generated audio file is empty or missing for requestId: {}", requestId);
-                return new byte[0];
-            }
-
-            logger.info("Audio file generated successfully. Size: {} bytes for requestId: {}", tempFile.length(), requestId);
-            return fileToByteArray(tempFile);
-
-        } catch (Exception e) {
-            logger.error("Error generating speech audio for requestId: {}", requestId, e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
-
-        } finally {
-            if (tempFile != null && tempFile.exists()) {
-                if (tempFile.delete()) {
-                    logger.info("Temporary file deleted: {}", tempFile.getAbsolutePath());
-                } else {
-                    logger.warn("Failed to delete temporary file: {}", tempFile.getAbsolutePath());
-                }
-            }
-        }
+        return validateAndReturnAudio(tempFile, requestId);
+    } catch (Exception e) {
+        logger.error("Error generating speech audio for requestId: {}", requestId, e);
+        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
+    } finally {
+        deleteTempFile(tempFile);
     }
+}
+
+private static File createTempFile(UUID requestId) {
+    try {
+        File tempFile = File.createTempFile("speech_" + System.currentTimeMillis() + "_" + requestId, ".wav");
+        tempFile.deleteOnExit();
+        return tempFile;
+    } catch (IOException e) {
+        logger.error("Failed to create temp file for requestId: {}", requestId, e);
+        return null;
+    }
+}
+
+private static Voice initializeVoice() {
+    Voice voice = VoiceManager.getInstance().getVoice(VOICE_NAME);
+    if (voice == null) {
+        logger.error("Voice '{}' not found.", VOICE_NAME);
+        return null;
+    }
+    voice.allocate();
+    voice.setRate(130);
+    voice.setPitch(100);
+    voice.setVolume(1.0f);
+    return voice;
+}
+
+private static SingleFileAudioPlayer configureAudioPlayer(File tempFile) {
+    return new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""), AudioFileFormat.Type.WAVE);
+}
+
+private static void speakCharacters(Voice voice, String text) {
+    text.chars()
+        .mapToObj(c -> String.valueOf((char) c))
+        .filter(ch -> ch.matches("[a-zA-Z0-9]"))
+        .forEach(ch -> {
+            voice.speak(ch);
+            sleep(10);
+        });
+}
+
+private static void cleanupResources(Voice voice, SingleFileAudioPlayer audioPlayer) {
+    voice.deallocate();
+    audioPlayer.close();
+}
+
+private static byte[] validateAndReturnAudio(File tempFile, UUID requestId) {
+    if (!tempFile.exists() || tempFile.length() == 0) {
+        logger.error("Generated audio file is empty or missing for requestId: {}", requestId);
+        return new byte[0];
+    }
+    return fileToByteArray(tempFile);
+}
+
+private static void deleteTempFile(File tempFile) {
+    if (tempFile != null && tempFile.exists() && !tempFile.delete()) {
+        logger.warn("Failed to delete temporary file: {}", tempFile.getAbsolutePath());
+    }
+}
+
+private static void sleep(long millis) {
+    try {
+        Thread.sleep(millis);
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+    }
+}
