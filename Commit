@@ -1,12 +1,9 @@
-freetts:
-  voices: "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory"
-
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 
-@Configuration
+@Component
 public class FreeTTSConfig {
-
+    
     @Value("${freetts.voices}")
     private String voiceDirectory;
 
@@ -16,19 +13,31 @@ public class FreeTTSConfig {
 }
 
 
+
+import com.sun.speech.freetts.Voice;
+import com.sun.speech.freetts.VoiceManager;
 import org.springframework.stereotype.Component;
 
 @Component
 public class VoiceCaptchaUtil {
 
-    private final FreeTTSConfig freeTTSConfig;
+    private static FreeTTSConfig freeTTSConfig;
 
+    // Inject FreeTTSConfig into the static class
     public VoiceCaptchaUtil(FreeTTSConfig freeTTSConfig) {
-        this.freeTTSConfig = freeTTSConfig;
+        VoiceCaptchaUtil.freeTTSConfig = freeTTSConfig;
     }
 
-    public void initializeVoice() {
-        String voiceDirectory = freeTTSConfig.getVoiceDirectory();
-        VoiceManager.getInstance().getVoice(voiceDirectory); // Use directly
+    public static Voice initializeVoice() {
+        String voiceDirectory = freeTTSConfig.getVoiceDirectory();  // Fetch from config
+        Voice voice = VoiceManager.getInstance().getVoice(voiceDirectory);
+        if (voice == null) {
+            throw new IllegalStateException("Voice '" + voiceDirectory + "' not found.");
+        }
+        voice.allocate();
+        voice.setRate(130);
+        voice.setPitch(100);
+        voice.setVolume(1.0f);
+        return voice;
     }
 }
