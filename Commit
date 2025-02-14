@@ -1,24 +1,23 @@
-@Component
-public class FreeTTSConfig {
-    
-    @Value("${freetts.voice-name}")
-    private String voiceName;
 
-    public String getVoiceName() {
-        return voiceName;
+public class Gender implements Comparable {
+    private final String name;
+    private static int nextOrdinal = 0;
+    private final int ordinal;
+    public static final Gender MALE = new Gender("MALE");
+    public static final Gender FEMALE = new Gender("FEMALE");
+    public static final Gender NEUTRAL = new Gender("NEUTRAL");
+    public static final Gender DONT_CARE = new Gender("DONT_CARE");
+
+    private Gender(String name) {
+        this.ordinal = nextOrdinal++;
+        this.name = name;
     }
-}
 
-
-public static Voice initializeVoice() {
-    String voiceName = freeTTSConfig.getVoiceName(); // Get correct voice name
-    Voice voice = VoiceManager.getInstance().getVoice(voiceName);
-    if (voice == null) {
-        throw new IllegalStateException("Voice '" + voiceName + "' not found.");
+    public String toString() {
+        return this.name;
     }
-    voice.allocate();
-    voice.setRate(130);
-    voice.setPitch(100);
-    voice.setVolume(1.0f);
-    return voice;
+
+    public int compareTo(Object o) {
+        return o != DONT_CARE && this != DONT_CARE ? this.ordinal - ((Gender)o).ordinal : 0;
+    }
 }
