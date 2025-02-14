@@ -1,132 +1,160 @@
-public static byte[] generateAudioCaptcha(String text, UUID requestId) {
-    /**
-     * Generates an audio CAPTCHA by converting text into speech.
-     * @param text The text to be converted into audio.
-     * @param requestId Unique request identifier.
-     * @return Byte array of the generated audio file, or an empty array if an error occurs.
-     */
-    File tempFile = createTempFile(requestId);
-    if (tempFile == null) return new byte[0];
+package com.epay.merchant.util;
 
-    try {
-        Voice voice = initializeVoice();
-        if (voice == null) return new byte[0];
+import com.epay.merchant.exception.MerchantException;
+import com.sun.speech.freetts.Voice;
+import com.sun.speech.freetts.VoiceManager;
+import com.sun.speech.freetts.audio.AudioPlayer;
+import com.sun.speech.freetts.audio.SingleFileAudioPlayer;
+import lombok.experimental.UtilityClass;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-        SingleFileAudioPlayer audioPlayer = configureAudioPlayer(tempFile);
-        voice.setAudioPlayer(audioPlayer);
+import javax.sound.sampled.AudioFileFormat;
 
-        speakCharacters(voice, text);
-        cleanupResources(voice, audioPlayer);
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.text.MessageFormat;
+import java.util.UUID;
+import java.util.stream.IntStream;
 
-        return validateAndReturnAudio(tempFile, requestId);
-    } catch (Exception e) {
-        logger.error("Error generating speech audio for requestId: {}", requestId, e);
-        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
-    } finally {
-        deleteTempFile(tempFile);
+
+/**
+ * Class Name: VoiceCaptchaUtil
+ * *
+ * Description: Utility class for generating voice captcha audio files.
+ * *
+ * Author: Bhoopendra Rajput
+ * <p>
+ * Copyright (c) 2024 [State Bank of India]
+ * All rights reserved
+ * *
+ * Version:1.1
+ */
+@UtilityClass
+public class VoiceCaptchaUtil {
+
+    private static final Logger logger = LoggerFactory.getLogger(VoiceCaptchaUtil.class);
+    private static final String VOICE_NAME = "kevin16";
+
+    static {
+        System.setProperty("freetts.voices", "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory");
     }
-}
 
-private static File createTempFile(UUID requestId) {
     /**
-     * Creates a temporary file to store the generated audio.
-     * @param requestId Unique request identifier.
-     * @return A temporary file or null if creation fails.
+     * Converts text to speech and returns audio as a byte array.
+     *
+     * @param text      the text to convert to speech.
+     * @param requestId the requestId for tracking.
+     * @return byte array containing the speech audio.
      */
-    try {
-        File tempFile = File.createTempFile("speech_" + System.currentTimeMillis() + "_" + requestId, ".wav");
-        tempFile.deleteOnExit();
-        return tempFile;
-    } catch (IOException e) {
-        logger.error("Failed to create temp file for requestId: {}", requestId, e);
-        return null;
+    public static byte[] generateAudioCaptcha(String text, UUID requestId) {
+        File tempFile = createTempFile(requestId);
+        if (tempFile == null) return new byte[0];
+
+        try {
+            Voice voice = initializeVoice();
+            if (voice == null) return new byte[0];
+
+            SingleFileAudioPlayer audioPlayer = configureAudioPlayer(tempFile);
+            voice.setAudioPlayer(audioPlayer);
+
+            speakCharacters(voice, text);
+            cleanupResources(voice, audioPlayer);
+
+            return validateAndReturnAudio(tempFile, requestId);
+        } catch (Exception e) {
+            logger.error("Error generating speech audio for requestId: {}", requestId, e);
+            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
+        } finally {
+            deleteTempFile(tempFile);
+        }
     }
-}
 
-private static Voice initializeVoice() {
-    /**
-     * Initializes and configures the voice for text-to-speech conversion.
-     * @return Configured Voice object, or null if the voice is not found.
-     */
-    Voice voice = VoiceManager.getInstance().getVoice(VOICE_NAME);
-    if (voice == null) {
-        logger.error("Voice '{}' not found.", VOICE_NAME);
-        return null;
+    private static File createTempFile(UUID requestId) {
+        try {
+            File tempFile = File.createTempFile("speech_" + System.currentTimeMillis() + "_" + requestId, ".wav");
+            tempFile.deleteOnExit();
+            return tempFile;
+        } catch (IOException e) {
+            logger.error("Failed to create temp file for requestId: {}", requestId, e);
+            return null;
+        }
     }
-    voice.allocate();
-    voice.setRate(130);   // Set speech rate
-    voice.setPitch(100);  // Set speech pitch
-    voice.setVolume(1.0f); // Set maximum volume
-    return voice;
-}
 
-private static SingleFileAudioPlayer configureAudioPlayer(File tempFile) {
-    /**
-     * Configures the audio player to store the generated speech audio.
-     * @param tempFile The temporary file to store the audio.
-     * @return A configured SingleFileAudioPlayer instance.
-     */
-    return new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""), AudioFileFormat.Type.WAVE);
-}
-
-private static void speakCharacters(Voice voice, String text) {
-    /**
-     * Converts each alphanumeric character into speech.
-     * @param voice The Voice object used for speech synthesis.
-     * @param text The text to be converted into speech.
-     */
-    text.chars()
-        .mapToObj(c -> String.valueOf((char) c))
-        .filter(ch -> ch.matches("[a-zA-Z0-9]")) // Only process letters and numbers
-        .forEach(ch -> {
-            voice.speak(ch);
-            sleep(10); // Add slight delay between characters for clarity
-        });
-}
-
-private static void cleanupResources(Voice voice, SingleFileAudioPlayer audioPlayer) {
-    /**
-     * Releases voice resources and closes the audio player.
-     * @param voice The Voice object to be deallocated.
-     * @param audioPlayer The audio player to be closed.
-     */
-    voice.deallocate();
-    audioPlayer.close();
-}
-
-private static byte[] validateAndReturnAudio(File tempFile, UUID requestId) {
-    /**
-     * Validates the generated audio file and returns its byte array.
-     * @param tempFile The temporary file containing the audio data.
-     * @param requestId Unique request identifier.
-     * @return Byte array of the audio file, or an empty array if validation fails.
-     */
-    if (!tempFile.exists() || tempFile.length() == 0) {
-        logger.error("Generated audio file is empty or missing for requestId: {}", requestId);
-        return new byte[0];
+    private static Voice initializeVoice() {
+        Voice voice = VoiceManager.getInstance().getVoice(VOICE_NAME);
+        if (voice == null) {
+            logger.error("Voice '{}' not found.", VOICE_NAME);
+            return null;
+        }
+        voice.allocate();
+        voice.setRate(130);
+        voice.setPitch(100);
+        voice.setVolume(1.0f);
+        return voice;
     }
-    return fileToByteArray(tempFile);
-}
 
-private static void deleteTempFile(File tempFile) {
-    /**
-     * Deletes the temporary file after processing.
-     * @param tempFile The temporary file to be deleted.
-     */
-    if (tempFile != null && tempFile.exists() && !tempFile.delete()) {
-        logger.warn("Failed to delete temporary file: {}", tempFile.getAbsolutePath());
+    private static SingleFileAudioPlayer configureAudioPlayer(File tempFile) {
+        return new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""), AudioFileFormat.Type.WAVE);
     }
-}
 
-private static void sleep(long millis) {
-    /**
-     * Pauses execution for the given milliseconds.
-     * @param millis The duration to sleep in milliseconds.
-     */
-    try {
-        Thread.sleep(millis);
-    } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
+    private static void speakCharacters(Voice voice, String text) {
+        text.chars()
+                .mapToObj(c -> String.valueOf((char) c))
+                .filter(ch -> ch.matches("[a-zA-Z0-9]"))
+                .forEach(ch -> {
+                    voice.speak(ch);
+                    sleep(10);
+                });
+    }
+
+    private static void cleanupResources(Voice voice, SingleFileAudioPlayer audioPlayer) {
+        voice.deallocate();
+        audioPlayer.close();
+    }
+
+    private static byte[] validateAndReturnAudio(File tempFile, UUID requestId) {
+        if (!tempFile.exists() || tempFile.length() == 0) {
+            logger.error("Generated audio file is empty or missing for requestId: {}", requestId);
+            return new byte[0];
+        }
+        return fileToByteArray(tempFile);
+    }
+
+    private static void deleteTempFile(File tempFile) {
+        if (tempFile != null && tempFile.exists() && !tempFile.delete()) {
+            logger.warn("Failed to delete temporary file: {}", tempFile.getAbsolutePath());
+        }
+    }
+
+    private static void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+
+    private static byte[] fileToByteArray(File file) {
+        try (FileInputStream fis = new FileInputStream(file);
+             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                byteArrayOutputStream.write(buffer, 0, bytesRead);
+            }
+
+            return byteArrayOutputStream.toByteArray();
+
+        } catch (IOException e) {
+            logger.error("Error reading file to byte array: {}", file.getAbsolutePath(), e);
+            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, file.getName()));
+        }
     }
 }
