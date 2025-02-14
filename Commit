@@ -1,43 +1,24 @@
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
 @Component
 public class FreeTTSConfig {
     
-    @Value("${freetts.voices}")
-    private String voiceDirectory;
+    @Value("${freetts.voice-name}")
+    private String voiceName;
 
-    public String getVoiceDirectory() {
-        return voiceDirectory;
+    public String getVoiceName() {
+        return voiceName;
     }
 }
 
 
-
-import com.sun.speech.freetts.Voice;
-import com.sun.speech.freetts.VoiceManager;
-import org.springframework.stereotype.Component;
-
-@Component
-public class VoiceCaptchaUtil {
-
-    private static FreeTTSConfig freeTTSConfig;
-
-    // Inject FreeTTSConfig into the static class
-    public VoiceCaptchaUtil(FreeTTSConfig freeTTSConfig) {
-        VoiceCaptchaUtil.freeTTSConfig = freeTTSConfig;
+public static Voice initializeVoice() {
+    String voiceName = freeTTSConfig.getVoiceName(); // Get correct voice name
+    Voice voice = VoiceManager.getInstance().getVoice(voiceName);
+    if (voice == null) {
+        throw new IllegalStateException("Voice '" + voiceName + "' not found.");
     }
-
-    public static Voice initializeVoice() {
-        String voiceDirectory = freeTTSConfig.getVoiceDirectory();  // Fetch from config
-        Voice voice = VoiceManager.getInstance().getVoice(voiceDirectory);
-        if (voice == null) {
-            throw new IllegalStateException("Voice '" + voiceDirectory + "' not found.");
-        }
-        voice.allocate();
-        voice.setRate(130);
-        voice.setPitch(100);
-        voice.setVolume(1.0f);
-        return voice;
-    }
+    voice.allocate();
+    voice.setRate(130);
+    voice.setPitch(100);
+    voice.setVolume(1.0f);
+    return voice;
 }
