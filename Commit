@@ -1,7 +1,2 @@
-repositories {
-    maven { url "https://mvnrepository.com/artifact/com.sun.speech.freetts/freetts" }
-}
-
-dependencies {
-    implementation 'com.sun.speech.freetts:freetts:1.2.2'
-}
+// https://mvnrepository.com/artifact/net.logicsquad/nanocaptcha
+	implementation group: 'net.logicsquad', name: 'nanocaptcha', version: '2.1'
