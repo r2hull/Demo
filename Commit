@@ -1,2 +1,1 @@
-// https://mvnrepository.com/artifact/net.logicsquad/nanocaptcha
-	implementation group: 'net.logicsquad', name: 'nanocaptcha', version: '2.1'
+https://github.com/logicsquad/nanocaptcha
