@@ -1,44 +1,35 @@
-private static final String VOICE_NAME = "kevin16";
-    private static final int SLEEP_TIME = 10;
+import com.sun.speech.freetts.Voice;
+import com.sun.speech.freetts.VoiceManager;
+import com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory;
 
-    static {
-        System.setProperty("freetts.voices", "com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory");
-    }
+public class FreeTTSUtil {
 
-    /**
-     * Converts the given text into speech and returns the generated audio as a byte array.
-     *
-     * @param text      The input text to be converted into speech.
-     * @param requestId Unique identifier for tracking requests.
-     * @return Byte array containing the generated speech audio.
-     */
-    public static byte[] generateAudioCaptcha(String text, UUID requestId) {
-        logger.info("Generating audio captcha for requestId: {}", requestId);
-        File tempFile = createTempFile(requestId);
-        if (tempFile == null){
-            logger.error("Temp file creation failed for requestId: {}", requestId);
-            return new byte[0];
+    private static final String VOICE_NAME = "kevin16";
+
+    public static Voice initializeVoice() {
+        // Manually register the voice directory
+        new KevinVoiceDirectory();  // This ensures FreeTTS recognizes the voices
+
+        VoiceManager voiceManager = VoiceManager.getInstance();
+        Voice voice = voiceManager.getVoice(VOICE_NAME);
+
+        if (voice == null) {
+            throw new RuntimeException("Voice not found: " + VOICE_NAME);
         }
 
-        try {
-            Voice voice = initializeVoice();
-            if (voice == null) {
-                logger.error("Voice initialization failed for requestId: {}", requestId);
-                return new byte[0];
-            }
+        voice.allocate(); // Allocate resources for the voice
+        return voice;
+    }
 
-            SingleFileAudioPlayer audioPlayer = configureAudioPlayer(tempFile);
-            voice.setAudioPlayer(audioPlayer);
+    public static void listAvailableVoices() {
+        new KevinVoiceDirectory(); // Ensure the directory is loaded before listing voices
 
-            speakCharacters(voice, text);
-            cleanupResources(voice, audioPlayer);
+        VoiceManager voiceManager = VoiceManager.getInstance();
+        Voice[] voices = voiceManager.getVoices();
 
-            return validateAndReturnAudio(tempFile, requestId);
-        } catch (Exception e) {
-            logger.error("Error generating speech audio for requestId: {}", requestId, e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
-        } finally {
-            deleteTempFile(tempFile);
+        System.out.println("Available voices:");
+        for (Voice v : voices) {
+            System.out.println(" - " + v.getName());
         }
     }
+}
