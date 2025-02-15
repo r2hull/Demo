@@ -56,13 +56,6 @@ class InvoiceServiceTest {
 
         when(invoiceDao.getGstInvoiceData(testMid, testReportMonths)).thenReturn(mockData);
 
-        // Mock FileModel to prevent NullPointerException
-        FileModel fileModel = mock(FileModel.class);
-        when(fileModel.getReportMonth()).thenReturn("2024-01");
-
-        when(fileGeneratorService.buildFileModel(eq(ReportFormat.CSV), any(), any(), any()))
-                .thenReturn(fileModel);
-
         // Execute method
         ReportingResponse<String> response = invoiceService.generateMerchantGstInvoice(testMid, testReportMonths, this.response);
 
@@ -70,6 +63,7 @@ class InvoiceServiceTest {
         assertEquals("Success", response.getData().getFirst());
         assertEquals("SUCCESS", response.getStatus());
 
+        // Verify interactions
         verify(mIdValidator, times(1)).validatedActiveMId(testMid);
         verify(invoiceDao, times(1)).getGstInvoiceData(testMid, testReportMonths);
         verify(fileGeneratorService, times(1)).buildFileModel(any(), any(), any(), any());
