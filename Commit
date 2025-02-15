@@ -1,95 +1,75 @@
-package com.epay.reporting.service;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-import com.epay.reporting.dto.ReportFile;
-import com.epay.reporting.externalservice.aws.S3Service;
-import com.epay.reporting.util.enums.Report;
+import com.epay.reporting.dao.InvoiceDao;
+import com.epay.reporting.exception.ReportingException;
+import com.epay.reporting.service.FileGeneratorService;
 import com.epay.reporting.util.enums.ReportFormat;
 import com.epay.reporting.util.file.generator.FileGenerator;
-import com.epay.reporting.util.file.generator.ZipFileGenerator;
 import com.epay.reporting.util.file.model.FileModel;
-import com.sbi.epay.logging.utility.LoggerFactoryUtility;
-import com.sbi.epay.logging.utility.LoggerUtility;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.text.StringEscapeUtils;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.stereotype.Service;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-@Service
-@RequiredArgsConstructor
-public class FileGeneratorService {
-    private final LoggerUtility log = LoggerFactoryUtility.getLogger(this.getClass());
-    private final FileGenerator fileGenerator;
-    private final ZipFileGenerator zipFileGenerator;
-    private final S3Service s3Service;
+@ExtendWith(MockitoExtension.class)
+class InvoiceServiceTest {
 
-   
-    public void downloadFile(HttpServletResponse response, ReportFormat reportFormat, Report report, String mId, FileModel fileModel) {
-        log.info("Started downloadFile for reportFormat: {}, report: {},mId: {},fileModel: {}", reportFormat, report.getName(),mId,fileModel);
-        fileGenerator.downloadFile(response, reportFormat, report, mId, fileModel);
-    }
-  
-    public ReportFile generateFile(ReportFormat reportFormat, Report report, String mId, FileModel fileModel) {
-        log.info("Started fileGenerator for reportFormat: {}, report: {}, mId: {}, fileModel: {}", reportFormat, report.getName(),mId,fileModel);
-        return fileGenerator.generateFile(reportFormat, report, mId, fileModel);
-    }
+    @Mock
+    private InvoiceDao invoiceDao;
 
-   
-    public void generateZipFile(HttpServletResponse response, ReportFormat reportFormat, Report report, String mId, List<FileModel> fileModels) {
-        log.info("Started zipFileGenerator for reportFormat: {}, report: {}, mId: {}, fileModels: {}", reportFormat, report.getName(),mId,fileModels);
-        zipFileGenerator.generateZipFile(response, reportFormat, report, mId, fileModels);
- }
-    public FileModel buildFileModel(ReportFormat reportFormat, List<String> header, List<List<Object>> fileData, Map<String, Object> pdfFileData) {
-        log.debug("Started buildFileModel for reportFormat: {}, header: {}, fileData: {}, pdfFileData: {}", reportFormat, header, fileData, pdfFileData);
-        return fileGenerator.buildFileModel(reportFormat, header, fileData, pdfFileData);
+    @Mock
+    private FileGeneratorService fileGeneratorService;
+
+    @Mock
+    private FileGenerator fileGenerator;
+
+    @Mock
+    private HttpServletResponse response;
+
+    @InjectMocks
+    private InvoiceService invoiceService;
+
+    private final String testMid = "12345";
+    private final List<String> testReportMonths = List.of("2024-01");
+
+    @BeforeEach
+    void setUp() {
+        reset(invoiceDao, fileGeneratorService, fileGenerator);
     }
 
-  
-    public void downloadFile(HttpServletResponse httpResponse, ReportFormat reportFormat, String filePath) {
-        log.info("Started downloadFile for reportFormat: {}, filePath: {}", reportFormat, filePath);
-        String contentType = switch (reportFormat) {
-            case CSV -> "text/csv";
-            case XLS -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-            case PDF -> MediaType.APPLICATION_PDF_VALUE;
-        };
-        setHeader(httpResponse, contentType, FilenameUtils.getName(filePath));
-        s3Service.downloadFile(httpResponse, filePath);
-    }
+    @Test
+    void testGenerateMerchantGstInvoice_Success() {
+        // Mock Data
+        List<Map<String, Object>> mockData = new ArrayList<>();
+        Map<String, Object> dataMap = new HashMap<>();
+        dataMap.put("headers", List.of("Column1", "Column2"));
+        dataMap.put("rows", List.of(List.of("Value1", "Value2")));
+        Map<String, Object> csvData = new HashMap<>();
+        csvData.put("map", dataMap);
+        mockData.add(csvData);
 
-    
-    private void setHeader(HttpServletResponse response, String contentType, String fileName) {
-        response.setContentType(contentType);
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, StringEscapeUtils.escapeJava("attachment;filename=" + fileName));
-        HttpHeaders headers = new HttpHeaders();
-        ContentDisposition contentDisposition = ContentDisposition.attachment().filename(fileName).build();
-        headers.setContentDisposition(contentDisposition);
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, headers.getFirst(HttpHeaders.CONTENT_DISPOSITION));
-    }
+        // Mock File Model
+        FileModel mockFileModel = mock(FileModel.class);
+        when(invoiceDao.getGstInvoiceData(testMid, testReportMonths)).thenReturn(mockData);
+        when(fileGenerator.buildFileModel(any(), any(), any(), any())).thenReturn(mockFileModel);
+        when(fileGeneratorService.buildFileModel(any(), any(), any(), any())).thenReturn(mockFileModel);
 
+        // Execute method
+        ReportingResponse<String> response = invoiceService.generateMerchantGstInvoice(testMid, testReportMonths, this.response);
+
+        // Verify response
+        assertEquals("Success", response.getData().getFirst());
+        assertEquals("SUCCESS", response.getStatus());
+
+        // Verify interactions
+        verify(invoiceDao, times(1)).getGstInvoiceData(testMid, testReportMonths);
+        verify(fileGenerator, times(1)).buildFileModel(any(), any(), any(), any());
+        verify(fileGeneratorService, times(1)).buildFileModel(any(), any(), any(), any());
+    }
 }
-
-
-package com.epay.reporting.util.file.generator;
-
-@Component
-@RequiredArgsConstructor
-public class FileGenerator {
-    
-    public FileModel buildFileModel(ReportFormat reportFormat, List<String> header, List<List<Object>> fileData, Map<String, Object> pdfFileData) {
-        logger.info("Building file model for report format: {}", reportFormat);
-        return switch (reportFormat) {
-            case CSV -> CSVFileModel.builder().headers(header).fileData(fileData).build();
-            case XLS -> ExcelFileModel.builder().headers(header).fileData(fileData).build();
-            case PDF -> PdfFileModel.builder().fileData(pdfFileData).build();
-            case null -> CSVFileModel.builder().headers(header).fileData(fileData).build();
-        };
-    }
-
-}
-
