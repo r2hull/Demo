@@ -1,1 +1,56 @@
-https://github.com/logicsquad/nanocaptcha
+public ReportingResponse<String> generateMerchantGstInvoice(String mId, List<String> reportMonth, HttpServletResponse response) {
+        try {
+            log.info("Fetching GST Invoice Data for mId: {} and reportMonth: {}", mId, reportMonth);
+            mIdValidator.validatedActiveMId(mId);
+            List<Map<String, Object>> gstInvoiceData = invoiceDao.getGstInvoiceData(mId, reportMonth);
+            if (CollectionUtils.isNotEmpty(gstInvoiceData)) {
+                List<FileModel> fileModels = getFileModels(gstInvoiceData);
+                log.info("Fetched {} records for GST Invoice", gstInvoiceData.size());
+                List<String> gstHeaders = null;
+                List<List<Object>> fileData = new ArrayList<>();
+                for (Map<String, Object> csvData : gstInvoiceData) {
+                    Map<String, Object> dataMap = (Map<String, Object>) csvData.get("map");
+                    gstHeaders = (List<String>) dataMap.get("headers");
+                    fileData.addAll((List<List<Object>>) dataMap.get("rows"));
+                }
+                buildReport(mId, reportMonth, gstHeaders, fileData, fileModels, response);
+            } else {
+                log.warn("No GST Invoice Data found for MID: {} and reportMonth: {}", mId, reportMonth);
+                return ReportingResponse.<String>builder().data(List.of("No Data Found")).status(ReportingConstant.RESPONSE_SUCCESS).build();
+            }
+        } catch (Exception e) {
+            log.error("Unexpected error while generating GST Invoice for MID: {} and reportMonth: {}. Error: {}", mId, reportMonth, e.getMessage());
+            throw new ReportingException(ErrorConstants.GENERATION_ERROR_CODE, "Error generating GST invoice report.");
+        }
+        return ReportingResponse.<String>builder().data(List.of("Success")).status(ReportingConstant.RESPONSE_SUCCESS).build();
+    }
+
+    private void buildReport(String mId, List<String> reportMonth, List<String> header, List<List<Object>> fileData, List<FileModel> fileModels, HttpServletResponse response) {
+        log.info("Building GST Invoice Report for MID: {} and Report Date: {}", mId, reportMonth);
+        FileModel fileModel = fileGeneratorService.buildFileModel(
+                ReportFormat.CSV, header, fileData, Map.of("headers", header, "rows", fileData)
+        );
+        fileModel.setReportMonth(fileModels.getFirst().getReportMonth());
+        log.info("File model created, generating file for GST Invoice.");
+
+        if (fileData.size() > 1) {
+            fileGeneratorService.generateZipFile(response, ReportFormat.CSV, Report.GST_INVOICE, mId, List.of(fileModel));
+        } else {
+            fileGeneratorService.downloadFile(response, ReportFormat.CSV, Report.GST_INVOICE, mId, fileModel);
+        }
+    }
+
+
+ public FileModel buildFileModel(ReportFormat reportFormat, List<String> header, List<List<Object>> fileData, Map<String, Object> pdfFileData) {
+        log.debug("Started buildFileModel for reportFormat: {}, header: {}, fileData: {}, pdfFileData: {}", reportFormat, header, fileData, pdfFileData);
+        return fileGenerator.buildFileModel(reportFormat, header, fileData, pdfFileData);
+    }
+
+@Data
+public abstract class FileModel {
+
+    /**
+     * The month associated with the report.
+     */
+    private String reportMonth;
+}
