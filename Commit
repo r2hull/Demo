@@ -1,35 +1,18 @@
-import com.sun.speech.freetts.Voice;
-import com.sun.speech.freetts.VoiceManager;
-import com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory;
-
-public class FreeTTSUtil {
-
-    private static final String VOICE_NAME = "kevin16";
-
-    public static Voice initializeVoice() {
-        // Manually register the voice directory
-        new KevinVoiceDirectory();  // This ensures FreeTTS recognizes the voices
-
-        VoiceManager voiceManager = VoiceManager.getInstance();
-        Voice voice = voiceManager.getVoice(VOICE_NAME);
-
-        if (voice == null) {
-            throw new RuntimeException("Voice not found: " + VOICE_NAME);
-        }
-
-        voice.allocate(); // Allocate resources for the voice
-        return voice;
+public static Voice initializeVoice() {
+    try {
+        // Dynamically load the voice directory
+        Class.forName("com.sun.speech.freetts.en.us.cmu_us_kal.KevinVoiceDirectory").newInstance();
+    } catch (Exception e) {
+        throw new RuntimeException("Failed to load FreeTTS voice directory", e);
     }
 
-    public static void listAvailableVoices() {
-        new KevinVoiceDirectory(); // Ensure the directory is loaded before listing voices
+    VoiceManager voiceManager = VoiceManager.getInstance();
+    Voice voice = voiceManager.getVoice("kevin16");
 
-        VoiceManager voiceManager = VoiceManager.getInstance();
-        Voice[] voices = voiceManager.getVoices();
-
-        System.out.println("Available voices:");
-        for (Voice v : voices) {
-            System.out.println(" - " + v.getName());
-        }
+    if (voice == null) {
+        throw new RuntimeException("Voice not found: kevin16");
     }
+
+    voice.allocate();
+    return voice;
 }
