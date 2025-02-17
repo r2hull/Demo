@@ -1,8 +1,61 @@
-You can refine your response like this for better clarity and professionalism:
+public ResponseDto<DownTimeDTO> getDowntimePayMode() {
+        logger.info("Cache Call to get pay mode down time.");
+        List<MerchantPayModeDownTimeEntity> payModeDownTimeCacheList = merchantPayModeDownTimeCacheRepository.findByStatusAndRecordStatus("L", "A");
+        List<DownTimeDTO> downTimeDTOList = new ArrayList<>();
 
-"I have moved this to the application.properties file. However, System.property is used internally in the JAR, so we need to set it every time. I will remove it once we have all the code for this JAR."
+        if (payModeDownTimeCacheList.isEmpty()) {
+            logger.info("Cache pay mode down time list is empty. Calling database.");
+            //Call DataBase AGG_PAYGATEWAY_DOWNTIME_DTLS_VIEW by Id
+            List<MerchantPaymodeDownTime> downTimeList = merchantPaymentDownTimeDao.getCurrentDownPayMode();
+            if (CollectionUtils.isEmpty(downTimeList)) {
+                logger.error("Database pay mode down time list is empty.");
+                return ResponseDto.<DownTimeDTO>builder().status(Status.SUCCESS.getValue()).total(0L).count(0L).errors(List.of()).data(List.of()).build();
+            }
+            logger.info("Pay mode down time list fetched successfully from database.");
+            List<MerchantPayModeDownTimeEntity> payModeCacheEntities = downTimeList.stream().map(merchantPayModeCacheEntity -> {
+                MerchantPayModeDownTimeEntity downTimeCache = new MerchantPayModeDownTimeEntity();
+                BeanUtils.copyProperties(merchantPayModeCacheEntity, downTimeCache);
+                return downTimeCache;
+            }).collect(Collectors.toList());
+            // save downTimeList in cache.
+            merchantPayModeDownTimeCacheRepository.saveAll(payModeCacheEntities);
+            logger.info("Pay mode down time data saved into cache.");
 
-You can say:
+            for (MerchantPaymodeDownTime merchantPayModeDownTime : downTimeList) {
+                downTimeDTOList.add(DownTimeDTO.builder().srNo(merchantPayModeDownTime.getSrNo()).gatewayId(merchantPayModeDownTime.getPaymentGatewayId()).startTimestamp(merchantPayModeDownTime.getStartTimestamp()).endTimestamp(merchantPayModeDownTime.getEndTimestamp()).status(merchantPayModeDownTime.getStatus()).payModeCode(merchantPayModeDownTime.getPayModeCode()).errorMessage(merchantPayModeDownTime.getErrorMessage()).build());
+            }
+        } else {
+            logger.info("Pay mode down time list fetched successfully from cache.");
+            for (MerchantPayModeDownTimeEntity merchantPayModeDownTime : payModeDownTimeCacheList) {
+                downTimeDTOList.add(DownTimeDTO.builder().srNo(merchantPayModeDownTime.getSrNo()).gatewayId(merchantPayModeDownTime.getPaymentGatewayId()).startTimestamp(merchantPayModeDownTime.getStartTimestamp()).endTimestamp(merchantPayModeDownTime.getEndTimestamp()).status(merchantPayModeDownTime.getStatus()).payModeCode(merchantPayModeDownTime.getPayModeCode()).errorMessage(merchantPayModeDownTime.getErrorMessage()).build());
+            }
+        }
 
-"I checked the library, and there are no vulnerabilities."
+        return ResponseDto.<DownTimeDTO>builder().status(Status.SUCCESS.getValue()).total((long) downTimeDTOList.size()).count(1L).errors(List.of()).data(downTimeDTOList).build();
 
+    }
+
+
+
+
+//need to implement here
+public ResponseDto<MerchantPricingResponseDto> getMerchantPricing(MerchantPricingRequestDto pricingRequest) {
+
+        //TODO: get from cache else from db
+        List<MerchantPricing> merchantPricingList = merchantPricingDao.getMerchantPricing(pricingRequest);
+
+        if (merchantPricingList.isEmpty()) {
+
+            return ResponseDto.<MerchantPricingResponseDto>builder().status(Status.FAIL.getValue()).total(0L).count(0L).data(List.of()).errors(List.of(ErrorDto.builder().errorCode(ErrorConstants.NOT_FOUND_ERROR_CODE).errorMessage(MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Pricing detail")).reason(MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Pricing detail")).build())).build();
+        }
+
+        MerchantPricing merchantPricing  = merchantPricingList.getFirst();
+
+        MerchantPricingResponseDto merchantPricingResponseDto = MerchantPricingResponseDto.builder().build();
+
+        BeanUtils.copyProperties(merchantPricing.getPricingRequestDto(), merchantPricingResponseDto);
+        BeanUtils.copyProperties(merchantPricing, merchantPricingResponseDto);
+
+        return ResponseDto.<MerchantPricingResponseDto>builder().status(Status.SUCCESS.getValue()).total(1L).count(1L).errors(List.of()).data(List.of(merchantPricingResponseDto)).build();
+
+    }
