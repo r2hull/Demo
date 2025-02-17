@@ -1,229 +1,61 @@
-package com.epay.merchant.service;
+Improper limitation of a pathname to a restricted directory ('Path Traversal')
+Description
+The application was found to take a parameter from user input to construct a path name. If an unfiltered parameter is passed to this file API, files from an arbitrary filesystem location could be read. When data from an untrusted source is untrusted source is used to construct a file path, an attacker could potentially gain access to restricted files locations outside the relevant context.
 
-import com.epay.merchant.config.MerchantConfig;
-import com.epay.merchant.dao.CaptchaDao;
-import com.epay.merchant.dto.CaptchaDto;
-import com.epay.merchant.exception.MerchantException;
-import com.epay.merchant.mapper.CaptchaMapper;
-import com.epay.merchant.model.request.CaptchaRequest;
-import com.epay.merchant.model.response.CaptchaResponse;
-import com.epay.merchant.model.response.MerchantResponse;
-import com.epay.merchant.util.ErrorConstants;
-import com.epay.merchant.util.MerchantUtil;
-import com.epay.merchant.util.enums.RequestType;
-import com.epay.merchant.validator.CaptchaValidator;
-import com.sbi.epay.captcha.impl.DefaultKaptcha;
-import com.sbi.epay.logging.utility.LoggerFactoryUtility;
-import com.sbi.epay.logging.utility.LoggerUtility;
-import com.sun.speech.freetts.Voice;
-import com.sun.speech.freetts.VoiceManager;
-import com.sun.speech.freetts.audio.SingleFileAudioPlayer;
-import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
-import org.springframework.stereotype.Service;
+For example, if the application tries to access the users profile picture based on their user name by concatenating the username to the filepath:
 
-import javax.sound.sampled.AudioFileFormat;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.text.MessageFormat;
-import java.util.Base64;
-import java.util.List;
-import java.util.UUID;
-import java.util.Optional;
+"images/userprofiles/" + username
 
+The expected result of this would be "images/userprofiles/alice", however an attacker could use a malicious input such as "../../../etc/passwd" to gain access to and/or manipulate sensitive information.
 
-import static com.epay.merchant.util.MerchantConstant.FREETTS_VOICES;
-import static com.epay.merchant.util.MerchantConstant.RESPONSE_SUCCESS;
+Assume all input is malicious. Use an "accept known good" input validation strategy.
 
-@Service
-@RequiredArgsConstructor
-public class CaptchaService {
+Inputs can be sanitized by using the getName() method with concat() method to remove the potentially malicious path traversal and limit the scope to a restricted directory. Or input can also be sanitized by using resolve() method alongwith startsWith() method to verify that the base path of the file is safe and expected.
 
-    private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
+Example using Path.resolve and not allowing direct user input:
 
-    private final MerchantConfig merchantConfig;
-    private final CaptchaDao captchaDao;
-    private final DefaultKaptcha captchaProducer;
-    private final CaptchaValidator captchaValidator;
-    private final CaptchaMapper captchaMapper;
-
-    public MerchantResponse<CaptchaResponse> generateCaptcha(CaptchaRequest captchaRequest) {
-        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
-        //Step 1 : Validate Captcha Request
-        //captchaValidator.requestValidator(captchaRequest);
-        return saveCaptcha(captchaRequest, false);
+// Class to store our user data along with a randomly generated file name
+public static class UserData {
+    private String userFileNameUnsafe;
+    private String fileName;
+    public UserData(String userFileName) {
+        this.userFileNameUnsafe = userFileName;
+        // Generate a random ID for the filename
+        this.fileName = UUID.randomUUID().toString();
     }
-
-
-
-    public MerchantResponse<CaptchaResponse> regenerateCaptcha(CaptchaRequest captchaRequest) {
-        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
-        //Step 1 : Validate Captcha Request
-        captchaValidator.regenerateValidator(captchaRequest);
-        return saveCaptcha(captchaRequest, true);
-    }
-
-
-    private String generateCaptchaImage(String captchaText) {
-        logger.info("generated captcha text: {}", captchaText);
-        BufferedImage image = captchaProducer.createImage(captchaText);
-        return MerchantUtil.convertImageToBase64(image, "Captcha");
-    }
-
-    private MerchantResponse<CaptchaResponse> saveCaptcha(CaptchaRequest captchaRequest, boolean retry) {
-        RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
-        //Step 2 : Generate Captcha Text
-        String captchaText = captchaProducer.createText();
-        //Step 3 : Generate Captcha Image and convert into Base 64
-        String base64Image = generateCaptchaImage(captchaText);
-        String base64Audio = generateCaptchaAudio(captchaText, captchaRequest.getRequestId());
-        //Step 3 : Save the Captcha into DB
-        CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry);
-        //Step 4 : Build the Merchant Response
-        logger.info("generate captcha completed for RequestId: {}", captchaRequest.getRequestId());
-        return MerchantResponse.<CaptchaResponse>builder().data(List.of(captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image, base64Audio))).status(RESPONSE_SUCCESS).build();
-    }
-
-    public String generateCaptchaAudio(String captchaText, UUID requestId) {
-        logger.info("Started generateAudioCaptcha for requestId: {}", requestId);
-
-        return Optional.ofNullable(captchaText)
-                .map(text -> generateAudioCaptcha(text, requestId))
-                .map(data -> encodeToBase64(data, requestId))
-                .orElseGet(() -> {
-                    logger.warn("Captcha text is null for requestId: {}", requestId);
-                    return "";
-                });
-    }
-
-
-    public byte[] generateAudioCaptcha(String text, UUID requestId) {
-        if(StringUtils.isEmpty(System.getProperty(FREETTS_VOICES)))
-            System.setProperty(FREETTS_VOICES, merchantConfig.getVoiceDir());
-
-        logger.info("Generating audio captcha for requestId: {}", requestId);
-        File tempFile = createTempFile(requestId);
-        if (tempFile == null){
-            logger.error("Temp file creation failed for requestId: {}", requestId);
-            return new byte[0];
-        }
-
-        try {
-            Voice voice = initializeVoice();
-            if (voice == null) {
-                logger.error("Voice initialization failed for requestId: {}", requestId);
-                return new byte[0];
-            }
-
-            SingleFileAudioPlayer audioPlayer = configureAudioPlayer(tempFile);
-            voice.setAudioPlayer(audioPlayer);
-
-            speakCharacters(voice, text);
-            cleanupResources(voice, audioPlayer);
-
-            return validateAndReturnAudio(tempFile, requestId);
-        } catch (Exception e) {
-            logger.error("Error generating speech audio for requestId: {}", requestId, e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
-        } finally {
-            try {
-                Files.delete(tempFile.toPath());
-            } catch (IOException ioException) {
-                logger.warn("Failed to delete temporary file: {}, error: {}", tempFile.getAbsolutePath(), ioException.getMessage());
-            }
-        }
-    }
-
-
-    private File createTempFile(UUID requestId) {
-        try {
-            File tempFile = File.createTempFile("speech_" + System.currentTimeMillis() + "_" + requestId, ".wav");
-            tempFile.deleteOnExit();
-            logger.debug("Temporary file created: {}", tempFile.getAbsolutePath());
-            return tempFile;
-        } catch (IOException e) {
-            logger.error("Failed to create temp file for requestId: {}", requestId, e);
-            return null;
-        }
-    }
-
- 
-    private Voice initializeVoice() {
-        Voice voice = VoiceManager.getInstance().getVoice(merchantConfig.getVoiceName());
-        if (voice == null) {
-            logger.error("Voice '{}' not found.", merchantConfig.getVoiceName());
-            return null;
-        }
-        voice.allocate();
-        voice.setRate(130);
-        voice.setPitch(100);
-        voice.setVolume(1.0f);
-        logger.debug("Voice '{}' initialized successfully.", merchantConfig.getVoiceName());
-        return voice;
-    }
-
- 
-    private SingleFileAudioPlayer configureAudioPlayer(File tempFile) {
-        return new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""), AudioFileFormat.Type.WAVE);
-    }
-
-
-    private void speakCharacters(Voice voice, String text) {
-        logger.debug("Speaking text: {}", text);
-        text.chars().forEach(ch -> voice.speak(String.valueOf((char)ch)));
-    }
-
-  
-    private void cleanupResources(Voice voice, SingleFileAudioPlayer audioPlayer) {
-        voice.deallocate();
-        audioPlayer.close();
-        logger.debug("Resources cleaned up successfully.");
-    }
-
- 
-    private byte[] validateAndReturnAudio(File tempFile, UUID requestId) {
-        if (!tempFile.exists() || tempFile.length() == 0) {
-            logger.error("Generated audio file is empty or missing for requestId: {}", requestId);
-            return new byte[0];
-        }
-        logger.info("Audio file successfully generated for requestId: {}", requestId);
-        return fileToByteArray(tempFile);
-    }
-
-  
-    private byte[] fileToByteArray(File file) {
-        try (FileInputStream fis = new FileInputStream(file);
-             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = fis.read(buffer)) != -1) {
-                byteArrayOutputStream.write(buffer, 0, bytesRead);
-            }
-            logger.debug("File successfully converted to byte array: {}", file.getAbsolutePath());
-            return byteArrayOutputStream.toByteArray();
-
-        } catch (IOException e) {
-            logger.error("Error reading file to byte array: {}", file.getAbsolutePath(), e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, file.getName()));
-        }
-    }
-
-
-    public String encodeToBase64(byte[] data, UUID requestId) {
-        return Optional.ofNullable(data)
-                .filter(d -> d.length > 0)
-                .map(Base64.getEncoder()::encodeToString)
-                .orElseGet(() -> {
-                    logger.warn("Empty byte array for requestId: {}", requestId);
-                    return "";
-                });
-    }
+    public String getUserFileNameUnsafe() { return userFileNameUnsafe; };
+    public String getFileName() { return fileName; };
 }
 
+public static void main(String[] args) throws Exception {
+    // User input, saved only as a reference
+    UserData userData = new UserData("..\\test.txt");
+    // Restrict all file processing to this directory only
+    String base = "/var/app/restricted";
+    Path basePath = Paths.get(base);
+    // Resolve the full path, but only use our random generated filename
+    Path fullPath = basePath.resolve(userData.getFileName());
+    // verify the path is contained within our basePath
+    if (!fullPath.startsWith(base)) {
+        throw new Exception("Invalid path specified!");
+    }
+    // process / work with file
+}
+Status: 
+Needs triage
+Severity:  High
+Project: Epay_Merchant_Service
+Tool: SAST
+Scanner: GitLab Advanced SAST
+Location
+File: src/main/java/com/epay/merchant/service/CaptchaService.java:191
+Identifiers
+java-lang-pathtraversal-file-taint
+CWE-22
+A5:2017 - Broken Access Control
+A01:2021 - Broken Access Control
+SAST Rules ID - java_file_rule_rule-FilePathTraversalHttpServlet
+Gitlab java_file_rule-FilePathTraversalHttpServlet
+SAST Rules ID - java_traversal_rule-RelativePathTraversal
+SAST Rules ID - java_inject_rule-SpotbugsPathTraversalAbsolute
+Find Security Bugs-find_sec_bugs.PT_ABSOLUTE_PATH_TRAVERSAL-1
