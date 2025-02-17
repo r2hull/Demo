@@ -31,3 +31,12 @@ public class MerchantPricingEntity implements Serializable {
     @Id
     private String merchGtwFeeId;
 }
+
+
+
+@Repository
+public interface MerchantPayModeDownTimeCacheRepository extends CrudRepository<MerchantPayModeDownTimeEntity, String> {
+
+    @Query("SELECT payModeDownTime FROM /Admin_PayGateway_DownTime_DTLS payModeDownTime WHERE payModeDownTime.status = $1 AND payModeDownTime.recordStatus = $2")
+    List<MerchantPayModeDownTimeEntity> findByStatusAndRecordStatus(String status, String recordStatus);
+}
