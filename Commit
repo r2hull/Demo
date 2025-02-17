@@ -1,66 +1,41 @@
-Improper limitation of a pathname to a restricted directory ('Path Traversal')
-Description
-The application was found to take a parameter from user input to construct a path name. If an unfiltered parameter is passed to this file API, files from an arbitrary filesystem location could be read. When data from an untrusted source is untrusted source is used to construct a file path, an attacker could potentially gain access to restricted files locations outside the relevant context.
-
-For example, if the application tries to access the users profile picture based on their user name by concatenating the username to the filepath:
-
-"images/userprofiles/" + username
-
-The expected result of this would be "images/userprofiles/alice", however an attacker could use a malicious input such as "../../../etc/passwd" to gain access to and/or manipulate sensitive information.
-
-Assume all input is malicious. Use an "accept known good" input validation strategy.
-
-Inputs can be sanitized by using the getName() method with concat() method to remove the potentially malicious path traversal and limit the scope to a restricted directory. Or input can also be sanitized by using resolve() method alongwith startsWith() method to verify that the base path of the file is safe and expected.
-
-Example using Path.resolve and not allowing direct user input:
-
-// Class to store our user data along with a randomly generated file name
-public static class UserData {
-    private String userFileNameUnsafe;
-    private String fileName;
-    public UserData(String userFileName) {
-        this.userFileNameUnsafe = userFileName;
-        // Generate a random ID for the filename
-        this.fileName = UUID.randomUUID().toString();
+private File createTempFile(UUID requestId) {
+    try {
+        Path tempDir = Paths.get(System.getProperty("java.io.tmpdir")); // Secure system temp directory
+        File tempFile = Files.createTempFile(tempDir, "speech_" + System.currentTimeMillis() + "_" + requestId, ".wav").toFile();
+        tempFile.deleteOnExit();
+        logger.debug("Temporary file created: {}", tempFile.getAbsolutePath());
+        return tempFile;
+    } catch (IOException e) {
+        logger.error("Failed to create temp file for requestId: {}", requestId, e);
+        return null;
     }
-    public String getUserFileNameUnsafe() { return userFileNameUnsafe; };
-    public String getFileName() { return fileName; };
 }
 
-public static void main(String[] args) throws Exception {
-    // User input, saved only as a reference
-    UserData userData = new UserData("..\\test.txt");
-    // Restrict all file processing to this directory only
-    String base = "/var/app/restricted";
-    Path basePath = Paths.get(base);
-    // Resolve the full path, but only use our random generated filename
-    Path fullPath = basePath.resolve(userData.getFileName());
-    // verify the path is contained within our basePath
-    if (!fullPath.startsWith(base)) {
-        throw new Exception("Invalid path specified!");
+
+private byte[] fileToByteArray(File file) {
+    Path allowedDir = Paths.get(System.getProperty("java.io.tmpdir")); // Secure temp directory
+    Path filePath = file.toPath().normalize(); // Normalize path to prevent traversal
+
+    if (!filePath.startsWith(allowedDir)) { // Ensure file is within the temp directory
+        logger.error("Unauthorized file access attempt: {}", file.getAbsolutePath());
+        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                "Unauthorized file access attempt: " + file.getName());
     }
-    // process / work with file
+
+    try (FileInputStream fis = new FileInputStream(file);
+         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+
+        byte[] buffer = new byte[1024];
+        int bytesRead;
+        while ((bytesRead = fis.read(buffer)) != -1) {
+            byteArrayOutputStream.write(buffer, 0, bytesRead);
+        }
+        logger.debug("File successfully converted to byte array: {}", file.getAbsolutePath());
+        return byteArrayOutputStream.toByteArray();
+
+    } catch (IOException e) {
+        logger.error("Error reading file to byte array: {}", file.getAbsolutePath(), e);
+        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, file.getName()));
+    }
 }
-Status: 
-Needs triage
-Severity:  High
-Project: Epay_Merchant_Service
-Tool: SAST
-Scanner: GitLab Advanced SAST
-Location
-File: src/main/java/com/epay/merchant/service/CaptchaService.java:191
-Identifiers
-java-lang-pathtraversal-file-taint
-CWE-22
-A5:2017 - Broken Access Control
-A01:2021 - Broken Access Control
-SAST Rules ID - java_file_rule_rule-FilePathTraversalHttpServlet
-Gitlab java_file_rule-FilePathTraversalHttpServlet
-SAST Rules ID - java_traversal_rule-RelativePathTraversal
-SAST Rules ID - java_inject_rule-SpotbugsPathTraversalAbsolute
-Find Security Bugs-find_sec_bugs.PT_ABSOLUTE_PATH_TRAVERSAL-1
-
-
-1)try (FileInputStream fis = new FileInputStream(file);
-
-2)File tempFile = File.createTempFile("speech_" + System.currentTimeMillis() + "_" + requestId, ".wav");
