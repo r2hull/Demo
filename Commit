@@ -35,3 +35,37 @@ public ResponseDto<MerchantPricingResponseDto> getMerchantPricing(MerchantPricin
 
     return buildSuccessResponse(merchantPricingList);
 }
+
+
+
+private ResponseDto<MerchantPricingResponseDto> buildSuccessResponse(List<MerchantPricing> pricingList) {
+    List<MerchantPricingResponseDto> responseDtoList = pricingList.stream().map(pricing -> {
+        MerchantPricingResponseDto responseDto = MerchantPricingResponseDto.builder().build();
+        BeanUtils.copyProperties(pricing.getPricingRequestDto(), responseDto);
+        BeanUtils.copyProperties(pricing, responseDto);
+        return responseDto;
+    }).collect(Collectors.toList());
+
+    return ResponseDto.<MerchantPricingResponseDto>builder()
+            .status(Status.SUCCESS.getValue())
+            .total((long) responseDtoList.size())
+            .count(1L)
+            .errors(List.of())
+            .data(responseDtoList)
+            .build();
+}
+
+private ResponseDto<MerchantPricingResponseDto> buildErrorResponse() {
+    return ResponseDto.<MerchantPricingResponseDto>builder()
+            .status(Status.FAIL.getValue())
+            .total(0L)
+            .count(0L)
+            .data(List.of())
+            .errors(List.of(ErrorDto.builder()
+                    .errorCode(ErrorConstants.NOT_FOUND_ERROR_CODE)
+                    .errorMessage(MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Pricing detail"))
+                    .reason(MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Pricing detail"))
+                    .build()))
+            .build();
+}
+
