@@ -1,40 +1,33 @@
-@Cacheable(value = "merchantPricingCache", key = "#pricingRequest.merchantId")
-public ResponseDto<MerchantPricingResponseDto> getMerchantPricing(MerchantPricingRequestDto pricingRequest) {
-    logger.info("Fetching merchant pricing from cache.");
+@Repository
+public interface MerchantPricingCacheRepository extends CrudRepository<MerchantPricingEntity, String> {
 
-    List<MerchantPricing> merchantPricingList = merchantPricingDao.getMerchantPricing(pricingRequest);
+    @Query("SELECT t FROM /Admin_Pricing_View t WHERE t.pricingRequestDto.mId = :mId AND t.pricingRequestDto.payModeCode = :payModeCode AND t.pricingRequestDto.gtwMapsId = :gtwMapsId AND t.pricingRequestDto.payProcType = :payProcType " +
+            "AND t.slabFrom <= :txnAmount AND t.slabTo >= :txnAmount")
+    List<MerchantPricing> getPricing(@Param("mId") String mId, @Param("payModeCode") String payModeCode, @Param("gtwMapsId") String gtwMapsId, @Param("payProcType") String payProcType, @Param("txnAmount") BigDecimal txnAmount);
 
-    if (merchantPricingList.isEmpty()) {
-        logger.error("Merchant pricing not found in database.");
-        return ResponseDto.<MerchantPricingResponseDto>builder()
-                .status(Status.FAIL.getValue())
-                .total(0L)
-                .count(0L)
-                .data(List.of())
-                .errors(List.of(ErrorDto.builder()
-                        .errorCode(ErrorConstants.NOT_FOUND_ERROR_CODE)
-                        .errorMessage(MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Pricing detail"))
-                        .reason(MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Pricing detail"))
-                        .build()))
-                .build();
+}
+@Component
+@AllArgsConstructor
+public class MerchantPricingDao {
+
+    private final MerchantPricingRepository merchantPricingRepository;
+
+    public Optional<MerchantPricing> getMerchantPricingById(MerchantPricingRequestDto merchantPricingRequestDto){
+
+        return merchantPricingRepository.findById(merchantPricingRequestDto);
     }
 
-    MerchantPricing merchantPricing = merchantPricingList.getFirst();
-    MerchantPricingResponseDto merchantPricingResponseDto = MerchantPricingResponseDto.builder().build();
+    public List<MerchantPricing> getMerchantPricing(MerchantPricingRequestDto req){
 
-    BeanUtils.copyProperties(merchantPricing.getPricingRequestDto(), merchantPricingResponseDto);
-    BeanUtils.copyProperties(merchantPricing, merchantPricingResponseDto);
+        return merchantPricingRepository.getPricing(req.getMId(), req.getPayModeCode(), req.getGtwMapsId(), req.getPayProcType(), req.getTransactionAmount());
+    }
+}
 
-    // Save to cache
-    merchantPricingCacheRepository.save(merchantPricing);
-
-    logger.info("Merchant pricing saved to cache.");
-
-    return ResponseDto.<MerchantPricingResponseDto>builder()
-            .status(Status.SUCCESS.getValue())
-            .total(1L)
-            .count(1L)
-            .errors(List.of())
-            .data(List.of(merchantPricingResponseDto))
-            .build();
+@Data
+@Region(
+    name = "Admin_Pricing_View"
+)
+public class MerchantPricingEntity implements Serializable {
+    @Id
+    private String merchGtwFeeId;
 }
