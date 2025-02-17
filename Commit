@@ -1,6 +1,31 @@
+app:
+  temp-dir: ${java.io.tmpdir}  # Default system temp directory
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class MerchantConfig {
+
+    @Value("${app.temp-dir}")
+    private String tempDir;
+
+    public String getTempDir() {
+        return tempDir;
+    }
+}
+
+
+
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+private final MerchantConfig merchantConfig; // Injected via constructor
+
 private File createTempFile(UUID requestId) {
     try {
-        Path tempDir = Paths.get(System.getProperty("java.io.tmpdir")); // Secure system temp directory
+        Path tempDir = Paths.get(merchantConfig.getTempDir()); // Get directory from config
         File tempFile = Files.createTempFile(tempDir, "speech_" + System.currentTimeMillis() + "_" + requestId, ".wav").toFile();
         tempFile.deleteOnExit();
         logger.debug("Temporary file created: {}", tempFile.getAbsolutePath());
@@ -8,34 +33,5 @@ private File createTempFile(UUID requestId) {
     } catch (IOException e) {
         logger.error("Failed to create temp file for requestId: {}", requestId, e);
         return null;
-    }
-}
-
-
-private byte[] fileToByteArray(File file) {
-    Path allowedDir = Paths.get(System.getProperty("java.io.tmpdir")); // Secure temp directory
-    Path filePath = file.toPath().normalize(); // Normalize path to prevent traversal
-
-    if (!filePath.startsWith(allowedDir)) { // Ensure file is within the temp directory
-        logger.error("Unauthorized file access attempt: {}", file.getAbsolutePath());
-        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                "Unauthorized file access attempt: " + file.getName());
-    }
-
-    try (FileInputStream fis = new FileInputStream(file);
-         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-
-        byte[] buffer = new byte[1024];
-        int bytesRead;
-        while ((bytesRead = fis.read(buffer)) != -1) {
-            byteArrayOutputStream.write(buffer, 0, bytesRead);
-        }
-        logger.debug("File successfully converted to byte array: {}", file.getAbsolutePath());
-        return byteArrayOutputStream.toByteArray();
-
-    } catch (IOException e) {
-        logger.error("Error reading file to byte array: {}", file.getAbsolutePath(), e);
-        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, file.getName()));
     }
 }
