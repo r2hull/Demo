@@ -1,6 +1,12 @@
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
+
+import java.awt.image.BufferedImage;
+import java.util.List;
+import java.util.UUID;
+
+import static com.epay.merchant.util.MerchantConstant.RESPONSE_SUCCESS;
 
 @Service
 @RequiredArgsConstructor
@@ -10,68 +16,60 @@ public class CaptchaService {
     private final DefaultKaptcha captchaProducer;
     private final CaptchaValidator captchaValidator;
     private final CaptchaMapper captchaMapper;
-    
+
     private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
 
-    // Executor for async tasks
-    private final ExecutorService executorService = Executors.newFixedThreadPool(3);
-
-    public MerchantResponse<CaptchaResponse> generateCaptcha(CaptchaRequest captchaRequest) {
+    public Mono<MerchantResponse<CaptchaResponse>> generateCaptcha(CaptchaRequest captchaRequest) {
         logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
         return saveCaptcha(captchaRequest, false);
     }
 
-    public MerchantResponse<CaptchaResponse> regenerateCaptcha(CaptchaRequest captchaRequest) {
+    public Mono<MerchantResponse<CaptchaResponse>> regenerateCaptcha(CaptchaRequest captchaRequest) {
         logger.info("regenerate captcha for RequestId: {}", captchaRequest.getRequestId());
         captchaValidator.regenerateValidator(captchaRequest);
         return saveCaptcha(captchaRequest, true);
     }
 
-    private MerchantResponse<CaptchaResponse> saveCaptcha(CaptchaRequest captchaRequest, boolean retry) {
+    private Mono<MerchantResponse<CaptchaResponse>> saveCaptcha(CaptchaRequest captchaRequest, boolean retry) {
         RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
         String captchaText = captchaProducer.createText();
         UUID requestId = captchaRequest.getRequestId();
 
-        // Execute tasks asynchronously
-        CompletableFuture<String> imageFuture = CompletableFuture.supplyAsync(() -> generateCaptchaImage(captchaText), executorService);
-        CompletableFuture<String> audioFuture = CompletableFuture.supplyAsync(() -> generateCaptchaAudio(captchaText, requestId), executorService);
-        CompletableFuture<CaptchaDto> saveFuture = CompletableFuture.supplyAsync(() -> captchaDao.save(captchaText, requestId, requestType, retry), executorService);
+        // Run all tasks in parallel using Mono.zip()
+        return Mono.zip(
+                generateCaptchaImage(captchaText),  // Async image generation
+                generateCaptchaAudio(captchaText, requestId),  // Async audio generation
+                saveCaptchaToDb(captchaText, requestId, requestType, retry)  // Async DB save
+        ).map(tuple -> {
+            String base64Image = tuple.getT1();
+            String base64Audio = tuple.getT2();
+            CaptchaDto captchaDto = tuple.getT3();
 
-        // Combine all async tasks
-        CompletableFuture<MerchantResponse<CaptchaResponse>> responseFuture = 
-            CompletableFuture.allOf(imageFuture, audioFuture, saveFuture)
-                .thenApply(v -> {
-                    try {
-                        String base64Image = imageFuture.get();
-                        String base64Audio = audioFuture.get();
-                        CaptchaDto captchaDto = saveFuture.get();
-                        return MerchantResponse.<CaptchaResponse>builder()
-                            .data(List.of(captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image, base64Audio)))
-                            .status(RESPONSE_SUCCESS)
-                            .build();
-                    } catch (Exception e) {
-                        logger.error("Error in parallel execution", e);
-                        return MerchantResponse.<CaptchaResponse>builder().status("ERROR").build();
-                    }
-                });
-
-        return responseFuture.join(); // Blocking call to return result
+            return MerchantResponse.<CaptchaResponse>builder()
+                    .data(List.of(captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image, base64Audio)))
+                    .status(RESPONSE_SUCCESS)
+                    .build();
+        }).doOnError(e -> logger.error("Error in parallel execution", e));
     }
 
-    private String generateCaptchaImage(String captchaText) {
-        logger.info("Generating captcha image for text: {}", captchaText);
-        BufferedImage image = captchaProducer.createImage(captchaText);
-        return MerchantUtil.convertImageToBase64(image, "Captcha");
+    private Mono<String> generateCaptchaImage(String captchaText) {
+        return Mono.fromSupplier(() -> {
+            logger.info("Generating captcha image for text: {}", captchaText);
+            BufferedImage image = captchaProducer.createImage(captchaText);
+            return MerchantUtil.convertImageToBase64(image, "Captcha");
+        });
     }
 
-    public String generateCaptchaAudio(String captchaText, UUID requestId) {
-        logger.info("Generating captcha audio for requestId: {}", requestId);
-        return Optional.ofNullable(captchaText)
-                .map(text -> VoiceCaptchaUtil.generateAudioCaptcha(text, requestId))
-                .map(data -> VoiceCaptchaUtil.encodeToBase64(data, requestId))
-                .orElseGet(() -> {
-                    logger.warn("Captcha text is null for requestId: {}", requestId);
-                    return "";
-                });
+    private Mono<String> generateCaptchaAudio(String captchaText, UUID requestId) {
+        return Mono.fromSupplier(() -> {
+            logger.info("Generating captcha audio for requestId: {}", requestId);
+            return VoiceCaptchaUtil.generateAudioCaptcha(captchaText, requestId)
+                    .map(data -> VoiceCaptchaUtil.encodeToBase64(data, requestId))
+                    .orElse("");
+        });
+    }
+
+    private Mono<CaptchaDto> saveCaptchaToDb(String captchaText, UUID requestId, RequestType requestType, boolean retry) {
+        return Mono.fromSupplier(() -> captchaDao.save(captchaText, requestId, requestType, retry));
     }
 }
