@@ -1,71 +1,15 @@
-public ResponseDto<MerchantPricingResponseDto> getMerchantPricing(MerchantPricingRequestDto pricingRequest) {
-    logger.info("Checking cache for merchant pricing.");
+@Repository
+public interface MerchantPricingCacheRepository extends CrudRepository<MerchantPricingEntity, String> {
 
-    // Check if data is in cache
-    List<MerchantPricing> cachedPricingList = merchantPricingCacheRepository.getPricing(
-            pricingRequest.getMId(),
-            pricingRequest.getPayModeCode(),
-            pricingRequest.getGtwMapsId(),
-            pricingRequest.getPayProcType(),
-            pricingRequest.getTransactionAmount());
-
-    if (!cachedPricingList.isEmpty()) {
-        logger.info("Merchant pricing found in cache.");
-        return buildSuccessResponse(cachedPricingList);
-    }
-
-    logger.info("Cache miss. Fetching merchant pricing from database.");
-    // If not in cache, fetch from DB
-    List<MerchantPricing> merchantPricingList = merchantPricingDao.getMerchantPricing(pricingRequest);
-
-    if (merchantPricingList.isEmpty()) {
-        logger.error("Merchant pricing not found in database.");
-        return buildErrorResponse();
-    }
-
-    // Save to cache
-    List<MerchantPricingEntity> pricingEntities = merchantPricingList.stream().map(pricing -> {
-        MerchantPricingEntity entity = new MerchantPricingEntity();
-        BeanUtils.copyProperties(pricing, entity);
-        return entity;
-    }).collect(Collectors.toList());
-
-    merchantPricingCacheRepository.saveAll(pricingEntities);
-    logger.info("Merchant pricing saved to cache.");
-
-    return buildSuccessResponse(merchantPricingList);
+    @Query("SELECT t FROM /Admin_Pricing_View t WHERE t.mId = :mId " +
+            "AND t.payModeCode = :payModeCode " +
+            "AND t.gtwMapsId = :gtwMapsId " +
+            "AND t.payProcType = :payProcType " +
+            "AND t.slabFrom <= :txnAmount " +
+            "AND t.slabTo >= :txnAmount")
+    List<MerchantPricingEntity> getPricing(@Param("mId") String mId, 
+                                           @Param("payModeCode") String payModeCode, 
+                                           @Param("gtwMapsId") String gtwMapsId, 
+                                           @Param("payProcType") String payProcType, 
+                                           @Param("txnAmount") BigDecimal txnAmount);
 }
-
-
-
-private ResponseDto<MerchantPricingResponseDto> buildSuccessResponse(List<MerchantPricing> pricingList) {
-    List<MerchantPricingResponseDto> responseDtoList = pricingList.stream().map(pricing -> {
-        MerchantPricingResponseDto responseDto = MerchantPricingResponseDto.builder().build();
-        BeanUtils.copyProperties(pricing.getPricingRequestDto(), responseDto);
-        BeanUtils.copyProperties(pricing, responseDto);
-        return responseDto;
-    }).collect(Collectors.toList());
-
-    return ResponseDto.<MerchantPricingResponseDto>builder()
-            .status(Status.SUCCESS.getValue())
-            .total((long) responseDtoList.size())
-            .count(1L)
-            .errors(List.of())
-            .data(responseDtoList)
-            .build();
-}
-
-private ResponseDto<MerchantPricingResponseDto> buildErrorResponse() {
-    return ResponseDto.<MerchantPricingResponseDto>builder()
-            .status(Status.FAIL.getValue())
-            .total(0L)
-            .count(0L)
-            .data(List.of())
-            .errors(List.of(ErrorDto.builder()
-                    .errorCode(ErrorConstants.NOT_FOUND_ERROR_CODE)
-                    .errorMessage(MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Pricing detail"))
-                    .reason(MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Pricing detail"))
-                    .build()))
-            .build();
-}
-
