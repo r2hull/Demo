@@ -1,1 +1,8 @@
-Fix: Secured file handling to prevent path traversal
+You can refine your response like this for better clarity and professionalism:
+
+"I have moved this to the application.properties file. However, System.property is used internally in the JAR, so we need to set it every time. I will remove it once we have all the code for this JAR."
+
+You can say:
+
+"I checked the library, and there are no vulnerabilities."
+
