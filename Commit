@@ -59,3 +59,8 @@ Gitlab java_file_rule-FilePathTraversalHttpServlet
 SAST Rules ID - java_traversal_rule-RelativePathTraversal
 SAST Rules ID - java_inject_rule-SpotbugsPathTraversalAbsolute
 Find Security Bugs-find_sec_bugs.PT_ABSOLUTE_PATH_TRAVERSAL-1
+
+
+1)try (FileInputStream fis = new FileInputStream(file);
+
+2)File tempFile = File.createTempFile("speech_" + System.currentTimeMillis() + "_" + requestId, ".wav");
