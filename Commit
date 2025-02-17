@@ -1,233 +1,36 @@
-package com.epay.merchant.service;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
-import com.epay.merchant.config.MerchantConfig;
-import com.epay.merchant.dao.CaptchaDao;
-import com.epay.merchant.dto.CaptchaDto;
-import com.epay.merchant.exception.MerchantException;
-import com.epay.merchant.mapper.CaptchaMapper;
-import com.epay.merchant.model.request.CaptchaRequest;
-import com.epay.merchant.model.response.CaptchaResponse;
-import com.epay.merchant.model.response.MerchantResponse;
-import com.epay.merchant.util.ErrorConstants;
-import com.epay.merchant.util.MerchantUtil;
-import com.epay.merchant.util.enums.RequestType;
-import com.epay.merchant.validator.CaptchaValidator;
-import com.sbi.epay.captcha.impl.DefaultKaptcha;
-import com.sbi.epay.logging.utility.LoggerFactoryUtility;
-import com.sbi.epay.logging.utility.LoggerUtility;
-import com.sun.speech.freetts.Voice;
-import com.sun.speech.freetts.VoiceManager;
-import com.sun.speech.freetts.audio.SingleFileAudioPlayer;
-import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
-import org.springframework.stereotype.Service;
+private MerchantResponse<CaptchaResponse> saveCaptcha(CaptchaRequest captchaRequest, boolean retry) {
+    RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
 
-import javax.sound.sampled.AudioFileFormat;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.text.MessageFormat;
-import java.util.Base64;
-import java.util.List;
-import java.util.UUID;
-import java.util.Optional;
+    // Step 1: Generate Captcha Text
+    String captchaText = captchaProducer.createText();
 
+    // Step 2: Execute image, audio, and DB save tasks reactively
+    Mono<String> imageMono = Mono.fromCallable(() -> generateCaptchaImage(captchaText))
+                                 .subscribeOn(Schedulers.boundedElastic()); // Run in a non-blocking thread pool
 
-import static com.epay.merchant.util.MerchantConstant.FREETTS_VOICES;
-import static com.epay.merchant.util.MerchantConstant.RESPONSE_SUCCESS;
+    Mono<String> audioMono = Mono.fromCallable(() -> generateCaptchaAudio(captchaText, captchaRequest.getRequestId()))
+                                 .subscribeOn(Schedulers.boundedElastic());
 
+    Mono<CaptchaDto> captchaSaveMono = Mono.fromCallable(() -> 
+        captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry))
+                                 .subscribeOn(Schedulers.boundedElastic());
 
-@Service
-@RequiredArgsConstructor
-public class CaptchaService {
+    // Step 3: Combine results and block (since the controller is not reactive)
+    return Mono.zip(imageMono, audioMono, captchaSaveMono)
+            .map(tuple -> {
+                String base64Image = tuple.getT1();
+                String base64Audio = tuple.getT2();
+                CaptchaDto captchaDto = tuple.getT3();
 
-    private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
+                logger.info("Captcha generation completed for RequestId: {}", captchaRequest.getRequestId());
 
-    private final MerchantConfig merchantConfig;
-    private final CaptchaDao captchaDao;
-    private final DefaultKaptcha captchaProducer;
-    private final CaptchaValidator captchaValidator;
-    private final CaptchaMapper captchaMapper;
-
-    /**
-     * Generates a captcha and save it to the DB and returns a response.
-     *
-     * @param captchaRequest CaptchaRequest
-     * @return merchantResponse containing CaptchaResponse
-     */
-    public MerchantResponse<CaptchaResponse> generateCaptcha(CaptchaRequest captchaRequest) {
-        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
-        //Step 1 : Validate Captcha Request
-        captchaValidator.requestValidator(captchaRequest);
-        return saveCaptcha(captchaRequest, false);
-    }
-
-
-    public MerchantResponse<CaptchaResponse> regenerateCaptcha(CaptchaRequest captchaRequest) {
-        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
-        //Step 1 : Validate Captcha Request
-        captchaValidator.regenerateValidator(captchaRequest);
-        return saveCaptcha(captchaRequest, true);
-    }
-
-    private String generateCaptchaImage(String captchaText) {
-        logger.info("generated captcha text: {}", captchaText);
-        BufferedImage image = captchaProducer.createImage(captchaText);
-        return MerchantUtil.convertImageToBase64(image, "Captcha");
-    }
-
-    private MerchantResponse<CaptchaResponse> saveCaptcha(CaptchaRequest captchaRequest, boolean retry) {
-        RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
-        //Step 2 : Generate Captcha Text
-        String captchaText = captchaProducer.createText();
-        //Step 3 : Generate Captcha Image and convert into Base 64
-        String base64Image = generateCaptchaImage(captchaText);
-        String base64Audio = generateCaptchaAudio(captchaText, captchaRequest.getRequestId());
-        //Step 3 : Save the Captcha into DB
-        CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry);
-        //Step 4 : Build the Merchant Response
-        logger.info("generate captcha completed for RequestId: {}", captchaRequest.getRequestId());
-        return MerchantResponse.<CaptchaResponse>builder().data(List.of(captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image, base64Audio))).status(RESPONSE_SUCCESS).build();
-    }
-
-   
-    public String generateCaptchaAudio(String captchaText, UUID requestId) {
-        logger.info("Started generateAudioCaptcha for requestId: {}", requestId);
-
-        return Optional.ofNullable(captchaText)
-                .map(text -> generateAudioCaptcha(text, requestId))
-                .map(data -> encodeToBase64(data, requestId))
-                .orElseGet(() -> {
-                    logger.warn("Captcha text is null for requestId: {}", requestId);
-                    return "";
-                });
-    }
-
-    public byte[] generateAudioCaptcha(String text, UUID requestId) {
-        if(StringUtils.isEmpty(System.getProperty(FREETTS_VOICES)))
-            System.setProperty(FREETTS_VOICES, merchantConfig.getVoiceDir());
-
-        logger.info("Generating audio captcha for requestId: {}", requestId);
-        File tempFile = createTempFile(requestId);
-        if (tempFile == null){
-            logger.error("Temp file creation failed for requestId: {}", requestId);
-            return new byte[0];
-        }
-
-        try {
-            Voice voice = initializeVoice();
-            if (voice == null) {
-                logger.error("Voice initialization failed for requestId: {}", requestId);
-                return new byte[0];
-            }
-
-            SingleFileAudioPlayer audioPlayer = configureAudioPlayer(tempFile);
-            voice.setAudioPlayer(audioPlayer);
-
-            speakCharacters(voice, text);
-            cleanupResources(voice, audioPlayer);
-
-            return validateAndReturnAudio(tempFile, requestId);
-        } catch (Exception e) {
-            logger.error("Error generating speech audio for requestId: {}", requestId, e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
-        } finally {
-            try {
-                Files.delete(tempFile.toPath());
-            } catch (IOException ioException) {
-                logger.warn("Failed to delete temporary file: {}, error: {}", tempFile.getAbsolutePath(), ioException.getMessage());
-            }
-        }
-    }
-
-  
-    private File createTempFile(UUID requestId) {
-        try {
-            File tempFile = File.createTempFile("speech_" + System.currentTimeMillis() + "_" + requestId, ".wav");
-            tempFile.deleteOnExit();
-            logger.debug("Temporary file created: {}", tempFile.getAbsolutePath());
-            return tempFile;
-        } catch (IOException e) {
-            logger.error("Failed to create temp file for requestId: {}", requestId, e);
-            return null;
-        }
-    }
-
- 
-    private Voice initializeVoice() {
-        Voice voice = VoiceManager.getInstance().getVoice(merchantConfig.getVoiceName());
-        if (voice == null) {
-            logger.error("Voice '{}' not found.", merchantConfig.getVoiceName());
-            return null;
-        }
-        voice.allocate();
-        voice.setRate(130);
-        voice.setPitch(100);
-        voice.setVolume(1.0f);
-        logger.debug("Voice '{}' initialized successfully.", merchantConfig.getVoiceName());
-        return voice;
-    }
-
-  
-    private SingleFileAudioPlayer configureAudioPlayer(File tempFile) {
-        return new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""), AudioFileFormat.Type.WAVE);
-    }
-
-
-  
-    private void speakCharacters(Voice voice, String text) {
-        logger.debug("Speaking text: {}", text);
-        text.chars().forEach(ch -> voice.speak(String.valueOf((char)ch)));
-    }
-
-    private void cleanupResources(Voice voice, SingleFileAudioPlayer audioPlayer) {
-        voice.deallocate();
-        audioPlayer.close();
-        logger.debug("Resources cleaned up successfully.");
-    }
-
- 
-    private byte[] validateAndReturnAudio(File tempFile, UUID requestId) {
-        if (!tempFile.exists() || tempFile.length() == 0) {
-            logger.error("Generated audio file is empty or missing for requestId: {}", requestId);
-            return new byte[0];
-        }
-        logger.info("Audio file successfully generated for requestId: {}", requestId);
-        return fileToByteArray(tempFile);
-    }
-
- 
-    private byte[] fileToByteArray(File file) {
-        try (FileInputStream fis = new FileInputStream(file);
-             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = fis.read(buffer)) != -1) {
-                byteArrayOutputStream.write(buffer, 0, bytesRead);
-            }
-            logger.debug("File successfully converted to byte array: {}", file.getAbsolutePath());
-            return byteArrayOutputStream.toByteArray();
-
-        } catch (IOException e) {
-            logger.error("Error reading file to byte array: {}", file.getAbsolutePath(), e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, file.getName()));
-        }
-    }
-
-  
-    public String encodeToBase64(byte[] data, UUID requestId) {
-        return Optional.ofNullable(data)
-                .filter(d -> d.length > 0)
-                .map(Base64.getEncoder()::encodeToString)
-                .orElseGet(() -> {
-                    logger.warn("Empty byte array for requestId: {}", requestId);
-                    return "";
-                });
-    }
+                return MerchantResponse.<CaptchaResponse>builder()
+                        .data(List.of(captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image, base64Audio)))
+                        .status(RESPONSE_SUCCESS)
+                        .build();
+            })
+            .block();  // Blocking here since the controller is non-reactive
 }
