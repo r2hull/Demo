@@ -1,42 +1,37 @@
-@Repository
-public interface MerchantPricingCacheRepository extends CrudRepository<MerchantPricingEntity, String> {
+public ResponseDto<MerchantPricingResponseDto> getMerchantPricing(MerchantPricingRequestDto pricingRequest) {
+    logger.info("Checking cache for merchant pricing.");
 
-    @Query("SELECT t FROM /Admin_Pricing_View t WHERE t.pricingRequestDto.mId = :mId AND t.pricingRequestDto.payModeCode = :payModeCode AND t.pricingRequestDto.gtwMapsId = :gtwMapsId AND t.pricingRequestDto.payProcType = :payProcType " +
-            "AND t.slabFrom <= :txnAmount AND t.slabTo >= :txnAmount")
-    List<MerchantPricing> getPricing(@Param("mId") String mId, @Param("payModeCode") String payModeCode, @Param("gtwMapsId") String gtwMapsId, @Param("payProcType") String payProcType, @Param("txnAmount") BigDecimal txnAmount);
+    // Check if data is in cache
+    List<MerchantPricing> cachedPricingList = merchantPricingCacheRepository.getPricing(
+            pricingRequest.getMId(),
+            pricingRequest.getPayModeCode(),
+            pricingRequest.getGtwMapsId(),
+            pricingRequest.getPayProcType(),
+            pricingRequest.getTransactionAmount());
 
-}
-@Component
-@AllArgsConstructor
-public class MerchantPricingDao {
-
-    private final MerchantPricingRepository merchantPricingRepository;
-
-    public Optional<MerchantPricing> getMerchantPricingById(MerchantPricingRequestDto merchantPricingRequestDto){
-
-        return merchantPricingRepository.findById(merchantPricingRequestDto);
+    if (!cachedPricingList.isEmpty()) {
+        logger.info("Merchant pricing found in cache.");
+        return buildSuccessResponse(cachedPricingList);
     }
 
-    public List<MerchantPricing> getMerchantPricing(MerchantPricingRequestDto req){
+    logger.info("Cache miss. Fetching merchant pricing from database.");
+    // If not in cache, fetch from DB
+    List<MerchantPricing> merchantPricingList = merchantPricingDao.getMerchantPricing(pricingRequest);
 
-        return merchantPricingRepository.getPricing(req.getMId(), req.getPayModeCode(), req.getGtwMapsId(), req.getPayProcType(), req.getTransactionAmount());
+    if (merchantPricingList.isEmpty()) {
+        logger.error("Merchant pricing not found in database.");
+        return buildErrorResponse();
     }
-}
 
-@Data
-@Region(
-    name = "Admin_Pricing_View"
-)
-public class MerchantPricingEntity implements Serializable {
-    @Id
-    private String merchGtwFeeId;
-}
+    // Save to cache
+    List<MerchantPricingEntity> pricingEntities = merchantPricingList.stream().map(pricing -> {
+        MerchantPricingEntity entity = new MerchantPricingEntity();
+        BeanUtils.copyProperties(pricing, entity);
+        return entity;
+    }).collect(Collectors.toList());
 
+    merchantPricingCacheRepository.saveAll(pricingEntities);
+    logger.info("Merchant pricing saved to cache.");
 
-
-@Repository
-public interface MerchantPayModeDownTimeCacheRepository extends CrudRepository<MerchantPayModeDownTimeEntity, String> {
-
-    @Query("SELECT payModeDownTime FROM /Admin_PayGateway_DownTime_DTLS payModeDownTime WHERE payModeDownTime.status = $1 AND payModeDownTime.recordStatus = $2")
-    List<MerchantPayModeDownTimeEntity> findByStatusAndRecordStatus(String status, String recordStatus);
+    return buildSuccessResponse(merchantPricingList);
 }
