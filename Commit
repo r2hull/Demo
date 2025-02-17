@@ -1,5 +1,9 @@
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
+private final ExecutorService executorService = Executors.newFixedThreadPool(3);
 
 private MerchantResponse<CaptchaResponse> saveCaptcha(CaptchaRequest captchaRequest, boolean retry) {
     RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
@@ -7,30 +11,30 @@ private MerchantResponse<CaptchaResponse> saveCaptcha(CaptchaRequest captchaRequ
     // Step 1: Generate Captcha Text
     String captchaText = captchaProducer.createText();
 
-    // Step 2: Execute image, audio, and DB save tasks reactively
-    Mono<String> imageMono = Mono.fromCallable(() -> generateCaptchaImage(captchaText))
-                                 .subscribeOn(Schedulers.boundedElastic()); // Run in a non-blocking thread pool
+    // Step 2: Execute image, audio, and DB save tasks in parallel
+    CompletableFuture<String> imageFuture = CompletableFuture.supplyAsync(() -> generateCaptchaImage(captchaText), executorService);
+    CompletableFuture<String> audioFuture = CompletableFuture.supplyAsync(() -> generateCaptchaAudio(captchaText, captchaRequest.getRequestId()), executorService);
+    CompletableFuture<CaptchaDto> captchaSaveFuture = CompletableFuture.supplyAsync(() -> 
+        captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry), executorService);
 
-    Mono<String> audioMono = Mono.fromCallable(() -> generateCaptchaAudio(captchaText, captchaRequest.getRequestId()))
-                                 .subscribeOn(Schedulers.boundedElastic());
+    // Step 3: Combine results
+    return CompletableFuture.allOf(imageFuture, audioFuture, captchaSaveFuture)
+            .thenApplyAsync(ignored -> {
+                try {
+                    String base64Image = imageFuture.get();
+                    String base64Audio = audioFuture.get();
+                    CaptchaDto captchaDto = captchaSaveFuture.get();
+                    
+                    logger.info("Captcha generation completed for RequestId: {}", captchaRequest.getRequestId());
 
-    Mono<CaptchaDto> captchaSaveMono = Mono.fromCallable(() -> 
-        captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry))
-                                 .subscribeOn(Schedulers.boundedElastic());
-
-    // Step 3: Combine results and block (since the controller is not reactive)
-    return Mono.zip(imageMono, audioMono, captchaSaveMono)
-            .map(tuple -> {
-                String base64Image = tuple.getT1();
-                String base64Audio = tuple.getT2();
-                CaptchaDto captchaDto = tuple.getT3();
-
-                logger.info("Captcha generation completed for RequestId: {}", captchaRequest.getRequestId());
-
-                return MerchantResponse.<CaptchaResponse>builder()
-                        .data(List.of(captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image, base64Audio)))
-                        .status(RESPONSE_SUCCESS)
-                        .build();
-            })
-            .block();  // Blocking here since the controller is non-reactive
+                    return MerchantResponse.<CaptchaResponse>builder()
+                            .data(List.of(captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image, base64Audio)))
+                            .status(RESPONSE_SUCCESS)
+                            .build();
+                } catch (Exception e) {
+                    logger.error("Error in parallel execution of captcha generation", e);
+                    throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE, 
+                        MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, captchaRequest.getRequestId()));
+                }
+            }).join();
 }
