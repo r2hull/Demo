@@ -28,6 +28,8 @@ private File createTempFile(UUID requestId) {
 }
 
 
+
+
 private byte[] fileToByteArray(File file) {
     try {
         // Ensure the file is within the secure directory
