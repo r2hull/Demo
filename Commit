@@ -1,15 +1,58 @@
-@Repository
-public interface MerchantPricingCacheRepository extends CrudRepository<MerchantPricingEntity, String> {
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-    @Query("SELECT t FROM /Admin_Pricing_View t WHERE t.mId = :mId " +
-            "AND t.payModeCode = :payModeCode " +
-            "AND t.gtwMapsId = :gtwMapsId " +
-            "AND t.payProcType = :payProcType " +
-            "AND t.slabFrom <= :txnAmount " +
-            "AND t.slabTo >= :txnAmount")
-    List<MerchantPricingEntity> getPricing(@Param("mId") String mId, 
-                                           @Param("payModeCode") String payModeCode, 
-                                           @Param("gtwMapsId") String gtwMapsId, 
-                                           @Param("payProcType") String payProcType, 
-                                           @Param("txnAmount") BigDecimal txnAmount);
+private File createTempFile(UUID requestId) {
+    try {
+        // Define a secure temp directory from configuration
+        Path tempDir = Paths.get(merchantConfig.getTempDir()).normalize().toAbsolutePath();
+        if (!Files.exists(tempDir)) {
+            Files.createDirectories(tempDir); // Ensure the directory exists
+        }
+
+        // Create a temporary file in the secured directory
+        Path tempFilePath = Files.createTempFile(tempDir, "speech_" + System.currentTimeMillis() + "_" + requestId, ".wav");
+
+        // Validate the created file to ensure it stays within the expected directory
+        if (!tempFilePath.startsWith(tempDir)) {
+            throw new SecurityException("Invalid temp file path detected!");
+        }
+
+        logger.debug("Temporary file created securely: {}", tempFilePath);
+        return tempFilePath.toFile();
+
+    } catch (IOException e) {
+        logger.error("Failed to create temp file securely for requestId: {}", requestId, e);
+        return null;
+    }
+}
+
+
+private byte[] fileToByteArray(File file) {
+    try {
+        // Ensure the file is within the secure directory
+        Path tempDir = Paths.get(merchantConfig.getTempDir()).normalize().toAbsolutePath();
+        Path filePath = file.toPath().normalize().toAbsolutePath();
+        if (!filePath.startsWith(tempDir)) {
+            throw new SecurityException("Unauthorized file access detected!");
+        }
+
+        try (FileInputStream fis = new FileInputStream(file);
+             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                byteArrayOutputStream.write(buffer, 0, bytesRead);
+            }
+
+            logger.debug("File successfully converted to byte array: {}", file.getAbsolutePath());
+            return byteArrayOutputStream.toByteArray();
+        }
+
+    } catch (IOException e) {
+        logger.error("Error reading file to byte array securely: {}", file.getAbsolutePath(), e);
+        throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, file.getName()));
+    }
 }
