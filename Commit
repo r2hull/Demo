@@ -1,41 +1,14 @@
-private File createTempFile(UUID requestId) {
-    try {
-        // Ensure temp directory is properly configured
-        String tempDirConfig = merchantConfig.getTempDir();
-        if (tempDirConfig == null || tempDirConfig.trim().isEmpty()) {
-            logger.warn("Temporary directory not configured, falling back to default.");
-            return null; // Return null, allowing the response to contain only the image
-        }
+public interface AggMerchantVolumeVelocityChacheRepository  extends CrudRepository<AggMerchantVolumeVelocityEntity, String> {
 
-        Path tempDir = Paths.get(tempDirConfig).normalize().toAbsolutePath();
-        if (!Files.exists(tempDir)) {
-            Files.createDirectories(tempDir); // Ensure directory exists
-        }
+    @Query(value = "select MERCHANT_ID as merchantId,PAY_MODE_CODE as payModeCode,VOLVEL_CHECK_ALLOWED as volumeCheckAllowed,MIN_TXN_LIMIT as minTxnLimit, MAX_TXN_LIMIT as maxTxnLimit, DAILY_TXN_AMT_LIMIT as dailyTxnAmountLimit, WEEKLY_TXN_AMT_LIMIT as WeeklyTxnAmountLimit, MONTHLY_TXN_AMT_LIMIT as monthlyTxnAmountLimit, " +
+            " QUARTERLY_TXN_AMT_LIMIT as quaterlyTxnAmountLimit, HALFYEARLY_TXN_NO_LIMIT as halfYearlyTxnAmountLimit, ANNUAL_TXN_AMT_LIMIT as annualTxnAmountLimit " +
+            " from MERCHANT_VVL_VIEW where merchant_id=:mid",nativeQuery = true)
+    List<Map<String, Object>> getMerchantVolumeDetails(@Param(value = "mid") String mid);
 
-        // Use SecureRandom for unpredictable file names
-        SecureRandom random = new SecureRandom();
-        String randomSuffix = Long.toHexString(random.nextLong());
 
-        Path tempFilePath = Files.createTempFile(tempDir, "speech_" + randomSuffix + "_", ".wav").normalize();
+//gem fire
+public interface MerchantPricingCacheRepository extends CrudRepository<MerchantPricingEntity, String> {
 
-        // Validate that tempFilePath is inside tempDir (prevent path traversal attacks)
-        if (!tempFilePath.startsWith(tempDir)) {
-            logger.warn("Unauthorized temp file path detected: {}", tempFilePath);
-            return null; // Return null, fallback to image-only response
-        }
-
-        // Set restrictive permissions (only for Unix/Linux)
-        try {
-            Files.setPosixFilePermissions(tempFilePath, PosixFilePermissions.fromString("rw-------"));
-        } catch (UnsupportedOperationException ignored) {
-            // Ignore if running on Windows
-        }
-
-        logger.debug("Temporary file securely created: {}", tempFilePath);
-        return tempFilePath.toFile();
-
-    } catch (IOException e) {
-        logger.warn("Failed to create secure temp file for requestId: {}", requestId, e);
-        return null; // Return null if file creation fails, image-only response
-    }
-}
+    @Query("SELECT t FROM /Admin_Pricing_View t WHERE t.mId = $1 AND t.payModeCode = $2 AND t.gtwMapsId = $3 AND t.payProcType = $4 " +
+            "AND t.slabFrom <= $5 AND t.slabTo >= $5")
+    List<MerchantPricingEntity> getPricing(@Param("mId") String mId, @Param("payModeCode") String payModeCode, @Param("gtwMapsId") String gtwMapsId, @Param("payProcType") String payProcType, @Param("txnAmount") BigDecimal txnAmount);
