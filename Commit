@@ -1,60 +1,41 @@
-private byte[] fileToByteArray(File file) {
+private File createTempFile(UUID requestId) {
     try {
-        // Validate and normalize paths
+        // Ensure temp directory is properly configured
         String tempDirConfig = merchantConfig.getTempDir();
         if (tempDirConfig == null || tempDirConfig.trim().isEmpty()) {
-            logger.warn("Temporary directory is not configured. Skipping audio file read.");
-            return new byte[0]; // Return empty byte array
+            logger.warn("Temporary directory not configured, falling back to default.");
+            return null; // Return null, allowing the response to contain only the image
         }
 
         Path tempDir = Paths.get(tempDirConfig).normalize().toAbsolutePath();
-        Path resolvedPath = tempDir.resolve(file.getName()).normalize();
-
-        // Ensure the file is within the secure directory
-        if (!resolvedPath.startsWith(tempDir)) {
-            logger.warn("Unauthorized file access detected: {}", resolvedPath);
-            return new byte[0]; // Return empty byte array instead of throwing an error
+        if (!Files.exists(tempDir)) {
+            Files.createDirectories(tempDir); // Ensure directory exists
         }
 
-        // Read file safely using Files API
-        try (InputStream fis = Files.newInputStream(resolvedPath);
-             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+        // Use SecureRandom for unpredictable file names
+        SecureRandom random = new SecureRandom();
+        String randomSuffix = Long.toHexString(random.nextLong());
 
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = fis.read(buffer)) != -1) {
-                byteArrayOutputStream.write(buffer, 0, bytesRead);
-            }
+        Path tempFilePath = Files.createTempFile(tempDir, "speech_" + randomSuffix + "_", ".wav").normalize();
 
-            logger.debug("File successfully converted to byte array: {}", file.getName());
-            return byteArrayOutputStream.toByteArray();
+        // Validate that tempFilePath is inside tempDir (prevent path traversal attacks)
+        if (!tempFilePath.startsWith(tempDir)) {
+            logger.warn("Unauthorized temp file path detected: {}", tempFilePath);
+            return null; // Return null, fallback to image-only response
         }
+
+        // Set restrictive permissions (only for Unix/Linux)
+        try {
+            Files.setPosixFilePermissions(tempFilePath, PosixFilePermissions.fromString("rw-------"));
+        } catch (UnsupportedOperationException ignored) {
+            // Ignore if running on Windows
+        }
+
+        logger.debug("Temporary file securely created: {}", tempFilePath);
+        return tempFilePath.toFile();
 
     } catch (IOException e) {
-        logger.warn("Error reading file to byte array: {}. Proceeding without audio.", file.getName());
-        return new byte[0]; // Return empty byte array instead of throwing an exception
+        logger.warn("Failed to create secure temp file for requestId: {}", requestId, e);
+        return null; // Return null if file creation fails, image-only response
     }
 }
-
-
-
-private byte[] validateAndReturnAudio(File tempFile, UUID requestId) {
-    if (!tempFile.exists() || tempFile.length() == 0) {
-        logger.warn("Generated audio file is empty or missing for requestId: {}. Proceeding without audio.", requestId);
-        return new byte[0]; // Return empty byte array instead of throwing an exception
-    }
-    logger.info("Audio file successfully generated for requestId: {}", requestId);
-    return fileToByteArray(tempFile);
-}
-
-
-public String encodeToBase64(byte[] data, UUID requestId) {
-    return Optional.ofNullable(data)
-            .filter(d -> d.length > 0)
-            .map(Base64.getEncoder()::encodeToString)
-            .orElseGet(() -> {
-                logger.warn("Empty byte array for requestId: {}. Proceeding without audio.", requestId);
-                return ""; // Return an empty string instead of throwing an error
-            });
-}
-
