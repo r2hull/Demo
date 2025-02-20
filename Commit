@@ -1,39 +1,33 @@
-  List<Map<String, Object>> merchantVolumeDetailsData = (List<Map<String, Object>>) aggMerchantVolumeVelocityRepository.getMerchantVolumeDetails(mid);
-        Optional.ofNullable(merchantVolumeDetailsData).filter(x -> !x.isEmpty()).orElseThrow(() -> new AdminException(ErrorConstants.VOLUME_ERROR_CODE, ErrorConstants.VOLUME_ERROR_MESSAGE));
+public List<Map<String, Object>> getMerchantVolumeDetails(String mid) {
+    // Fetch data from DB
+    List<Map<String, Object>> merchantVolumeDetailsData = aggMerchantVolumeVelocityRepository.getMerchantVolumeDetails(mid);
 
-        merchantVolumeDetailsData.stream().map(stringObjectMap -> {
-            stringObjectMap
-            
-            return null;
-        });
-        
-        AggMerchantVolumeVelocityEntity aggMerchantVolumeVelocityEntity=new AggMerchantVolumeVelocityEntity();
-        BeanUtils.copyProperties(merchantVolumeDetailsData, aggMerchantVolumeVelocityEntity);
-        // Cache the fetched data for future use
-        aggMerchantVolumeVelocityCacheRepository.saveAll(aggMerchantVolumeVelocityEntity);
-        return merchantVolumeDetailsData;
+    // If data is empty, throw an exception
+    Optional.ofNullable(merchantVolumeDetailsData)
+            .filter(x -> !x.isEmpty())
+            .orElseThrow(() -> new AdminException(ErrorConstants.VOLUME_ERROR_CODE, ErrorConstants.VOLUME_ERROR_MESSAGE));
 
+    // Convert List<Map<String, Object>> to List<AggMerchantVolumeVelocityEntity>
+    List<AggMerchantVolumeVelocityEntity> entityList = merchantVolumeDetailsData.stream().map(stringObjectMap -> {
+        AggMerchantVolumeVelocityEntity entity = new AggMerchantVolumeVelocityEntity();
 
-public class AggMerchantVolumeVelocityEntity {
-    @Id
-    private String merchant_Vvl_Id;
-    private String paymodeCode;
-    private char volvelcheckAllowed;
-    private BigDecimal minTxnLimit;
-    private BigDecimal max_txn_Limit;
-    private BigDecimal dailyTxnAmtLimit;
-    private BigDecimal weeklyTxnAmtLimit;
-    private BigDecimal monthlyTxnamtLimit;
-    private BigDecimal quarterlyTxnAamtLimit;
-    private BigDecimal halfyearlyTxnNoLimit;
-    private BigDecimal annualTxnAmtLimit;
+        entity.setMerchant_Vvl_Id((String) stringObjectMap.get("merchantId")); // Map merchantId to merchant_Vvl_Id
+        entity.setPaymodeCode((String) stringObjectMap.get("payModeCode"));
+        entity.setVolvelcheckAllowed(((String) stringObjectMap.get("volumeCheckAllowed")).charAt(0));
+        entity.setMinTxnLimit((BigDecimal) stringObjectMap.get("minTxnLimit"));
+        entity.setMax_txn_Limit((BigDecimal) stringObjectMap.get("maxTxnLimit"));
+        entity.setDailyTxnAmtLimit((BigDecimal) stringObjectMap.get("dailyTxnAmountLimit"));
+        entity.setWeeklyTxnAmtLimit((BigDecimal) stringObjectMap.get("WeeklyTxnAmountLimit"));
+        entity.setMonthlyTxnamtLimit((BigDecimal) stringObjectMap.get("monthlyTxnAmountLimit"));
+        entity.setQuarterlyTxnAamtLimit((BigDecimal) stringObjectMap.get("quaterlyTxnAmountLimit"));
+        entity.setHalfyearlyTxnNoLimit((BigDecimal) stringObjectMap.get("halfYearlyTxnAmountLimit"));
+        entity.setAnnualTxnAmtLimit((BigDecimal) stringObjectMap.get("annualTxnAmountLimit"));
 
-    public AggMerchantVolumeVelocityEntity() {
-    }
+        return entity;
+    }).collect(Collectors.toList());
+
+    // Save the list into the cache repository
+    aggMerchantVolumeVelocityCacheRepository.saveAll(entityList);
+
+    return merchantVolumeDetailsData;
 }
-
-
-  @Query(value = "select MERCHANT_ID as merchantId,PAY_MODE_CODE as payModeCode,VOLVEL_CHECK_ALLOWED as volumeCheckAllowed,MIN_TXN_LIMIT as minTxnLimit, MAX_TXN_LIMIT as maxTxnLimit, DAILY_TXN_AMT_LIMIT as dailyTxnAmountLimit, WEEKLY_TXN_AMT_LIMIT as WeeklyTxnAmountLimit, MONTHLY_TXN_AMT_LIMIT as monthlyTxnAmountLimit, " +
-           " QUARTERLY_TXN_AMT_LIMIT as quaterlyTxnAmountLimit, HALFYEARLY_TXN_NO_LIMIT as halfYearlyTxnAmountLimit, ANNUAL_TXN_AMT_LIMIT as annualTxnAmountLimit " +
-           " from MERCHANT_VVL_VIEW where merchant_id=:mid",nativeQuery = true)
-   List<Map<String, Object>> getMerchantVolumeDetails(@Param(value = "mid") String mid);
