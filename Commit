@@ -1,17 +1,35 @@
-
 @Component
 @AllArgsConstructor
 public class AggMerchantVolumeVelocityDao {
 
     private final AggMerchantVolumeVelocityRepository aggMerchantVolumeVelocityRepository;
+    private final AggMerchantVolumeVelocityCacheRepository aggMerchantVolumeVelocityCacheRepository;
 
-    public List<Map<String,Object>> getMerchantVolumeDetails(String mid) {
-        List<Map<String,Object>> merchantVolumeDetailsData= (List<Map<String, Object>>) aggMerchantVolumeVelocityRepository.getMerchantVolumeDetails(mid);
-        Optional.ofNullable(merchantVolumeDetailsData).filter(x->!x.isEmpty()).orElseThrow(()->new AdminException(ErrorConstants.VOLUME_ERROR_CODE,ErrorConstants.VOLUME_ERROR_MESSAGE));
-       return merchantVolumeDetailsData;
+    // Fetch merchant volume details from cache, if not found then from DB
+    public List<Map<String, Object>> getMerchantVolumeDetails(String mid) {
+        // Try fetching from cache
+        List<Map<String, Object>> cachedData = (List<Map<String, Object>>) aggMerchantVolumeVelocityCacheRepository.findByMerchantId(mid);
+
+        if (cachedData != null && !cachedData.isEmpty()) {
+            // Cache hit, return data
+            return cachedData;
+        }
+
+        // Cache miss, fetch from DB
+        List<Map<String, Object>> dbData = aggMerchantVolumeVelocityRepository.getMerchantVolumeDetails(mid);
+
+        if (dbData == null || dbData.isEmpty()) {
+            // Throw exception if no data found in DB
+            throw new AdminException(ErrorConstants.VOLUME_ERROR_CODE, ErrorConstants.VOLUME_ERROR_MESSAGE);
+        }
+
+        // Cache the fetched data for future use
+        aggMerchantVolumeVelocityCacheRepository.saveAll(dbData);
+
+        return dbData;
     }
-
 }
+
 
 
 @Service
@@ -19,15 +37,22 @@ public class AggMerchantVolumeVelocityDao {
 @AllArgsConstructor
 public class AggMerchantVolumeVelocityService {
 
-
     private final ModelMapper modelMapper;
-
     private final AggMerchantVolumeVelocityDao aggMerchantVolumeVelocityDao;
 
-       public ResponseDto<AggMerchantVolumeVelocityResponse> getMerchantVolumeVelocityDetails(String mid) {
-           List<Map<String,Object>> merchantVolumeDetailsData=  aggMerchantVolumeVelocityDao.getMerchantVolumeDetails(mid);
-           List<AggMerchantVolumeVelocityResponse> volumeDtoModelMapper = this.modelMapper.map(merchantVolumeDetailsData,new TypeReference<List<AggMerchantVolumeVelocityResponse>>() {}.getType());
-           return ResponseDto.<AggMerchantVolumeVelocityResponse>builder().data(volumeDtoModelMapper).status(1).count(1L).build();
-       }
+    // Service method to get merchant volume velocity details
+    public ResponseDto<AggMerchantVolumeVelocityResponse> getMerchantVolumeVelocityDetails(String mid) {
+        // Get merchant volume details (this will now check cache first, then DB if needed)
+        List<Map<String, Object>> merchantVolumeDetailsData = aggMerchantVolumeVelocityDao.getMerchantVolumeDetails(mid);
 
+        // Map the result to the response DTO using ModelMapper
+        List<AggMerchantVolumeVelocityResponse> volumeDtoModelMapper = modelMapper.map(merchantVolumeDetailsData, new TypeReference<List<AggMerchantVolumeVelocityResponse>>() {}.getType());
+
+        // Return response
+        return ResponseDto.<AggMerchantVolumeVelocityResponse>builder()
+                .data(volumeDtoModelMapper)
+                .status(1)  // Success status
+                .count(1L)
+                .build();
+    }
 }
