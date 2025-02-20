@@ -1,5 +1,28 @@
+public List<AggMerchantVolumeVelocity> getMerchantVolumeDetails(String mid) {
+        //fetching from cache
+        List<AggMerchantVolumeVelocityEntity> cachedData =aggMerchantVolumeVelocityCacheRepository.findByMerchantId(mid);
+        if (cachedData != null && !cachedData.isEmpty()) {
+            return cachedData.stream().map(entity -> {
+                AggMerchantVolumeVelocity volumeVelocity = new AggMerchantVolumeVelocity();
+                volumeVelocity.setMerchVolVelId(entity.getMerchantVvlId()); // Map merchantId to merchant_Vvl_Id
+                BeanUtils.copyProperties(entity, volumeVelocity);
+                return volumeVelocity;
+            }).toList();
+        }
 
-   @Query(value = "select MERCHANT_ID as merchantId,PAY_MODE_CODE as payModeCode,VOLVEL_CHECK_ALLOWED as volumeCheckAllowed,MIN_TXN_LIMIT as minTxnLimit, MAX_TXN_LIMIT as maxTxnLimit, DAILY_TXN_AMT_LIMIT as dailyTxnAmountLimit, WEEKLY_TXN_AMT_LIMIT as WeeklyTxnAmountLimit, MONTHLY_TXN_AMT_LIMIT as monthlyTxnAmountLimit, " +
-           " QUARTERLY_TXN_AMT_LIMIT as quaterlyTxnAmountLimit, HALFYEARLY_TXN_NO_LIMIT as halfYearlyTxnAmountLimit, ANNUAL_TXN_AMT_LIMIT as annualTxnAmountLimit " +
-           " from MERCHANT_VVL_VIEW where merchant_id=:mid",nativeQuery = true)
-   List<Map<String, Object>> getMerchantVolumeDetails(@Param(value = "mid") String mid);
+        // Not in Cache then fetch from DB
+        List<AggMerchantVolumeVelocity> merchantVolumeDetailsData =aggMerchantVolumeVelocityRepository.findByMerchantId(mid);
+        if (merchantVolumeDetailsData == null || merchantVolumeDetailsData.isEmpty())
+            throw new AdminException(ErrorConstants.VOLUME_ERROR_CODE, ErrorConstants.VOLUME_ERROR_MESSAGE);
+
+        List<AggMerchantVolumeVelocityEntity> entityList = merchantVolumeDetailsData.stream().map(volumeVelocity -> {
+            AggMerchantVolumeVelocityEntity entity = new AggMerchantVolumeVelocityEntity();
+            entity.setMerchantVvlId(volumeVelocity.getMerchVolVelId()); // Map merchantId to merchant_Vvl_Id
+            BeanUtils.copyProperties(volumeVelocity, entity);
+            return entity;
+        }).toList();
+
+        // Save the list into the cache
+        aggMerchantVolumeVelocityCacheRepository.saveAll(entityList);
+        return merchantVolumeDetailsData;
+    }
