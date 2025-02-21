@@ -1,54 +1,11 @@
-@ExceptionHandler(MethodArgumentNotValidException.class)
-protected ResponseEntity<Object> handleValidationException(MethodArgumentNotValidException ex) {
-    List<ErrorDto> errors = new ArrayList<>();
-    ex.getBindingResult().getFieldErrors().forEach(fieldError -> 
-        errors.add(ErrorDto.builder()
-                .errorCode(ErrorConstant.NOT_FOUND_ERROR_CODE)
-                .errorMessage(fieldError.getDefaultMessage()) // Removing field name
-                .build())
-    );
+public class CustomValidationException extends RuntimeException {
+    private final List<ErrorDto> errors;
 
-    return ResponseEntity.status(HttpStatus.OK)
-            .body(KMSResponse.builder().status(KmsConstant.RESPONSE_FAILURE).errors(errors).build());
-}
+    public CustomValidationException(List<ErrorDto> errors) {
+        this.errors = errors;
+    }
 
-
-@Service
-public class APIKeyValidationService {
-
-    public void validateAPIKeyRequest(APIKeyValidationRequest request) {
-        List<ErrorDto> errors = new ArrayList<>();
-
-        if (request.getApiKey().trim().isEmpty()) {
-            errors.add(ErrorDto.builder()
-                    .errorCode(ErrorConstant.VALIDATION_ERROR_CODE)
-                    .errorMessage("API Key cannot be empty or blank")
-                    .build());
-        }
-
-        if (request.getApiKey().length() < 8) { // Example length check
-            errors.add(ErrorDto.builder()
-                    .errorCode(ErrorConstant.VALIDATION_ERROR_CODE)
-                    .errorMessage("API Key must be at least 8 characters long")
-                    .build());
-        }
-
-        if (request.getApiKeySecret().trim().isEmpty()) {
-            errors.add(ErrorDto.builder()
-                    .errorCode(ErrorConstant.VALIDATION_ERROR_CODE)
-                    .errorMessage("API Key Secret cannot be empty or blank")
-                    .build());
-        }
-
-        if (request.getApiKeySecret().length() < 10) { // Example length check
-            errors.add(ErrorDto.builder()
-                    .errorCode(ErrorConstant.VALIDATION_ERROR_CODE)
-                    .errorMessage("API Key Secret must be at least 10 characters long")
-                    .build());
-        }
-
-        if (!errors.isEmpty()) {
-            throw new CustomValidationException(errors);
-        }
+    public List<ErrorDto> getErrors() {
+        return errors;
     }
 }
