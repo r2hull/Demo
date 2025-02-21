@@ -1,40 +1,27 @@
-@Data
-public class APIKeyValidationRequest {
-    @NotBlank(message = "API Key is mandatory")
-    @Pattern(regexp = "^(?! )[\\S]+( [\\S]+)*(?<! )$",
-            message = "must not have leading, trailing, or multiple spaces")
-    @Size(max = KmsConstant.APIKEY_ID_LENGTH, message = "must be 20 characters")
-    private String apiKey;
-    @NotBlank(message = "API KeySecret is mandatory")
-    @Pattern(regexp = "^(?! )[\\S]+( [\\S]+)*(?<! )$",
-            message = "must not have leading, trailing, or multiple spaces")
-    @Size(min = 128, max = 512, message = "must be between 128 and 512 characters")
-    private String apiKeySecret;
-}
+@ExceptionHandler(value = {MethodArgumentNotValidException.class})
+protected ResponseEntity<Object> handleValidationException(MethodArgumentNotValidException ex) {
+    Map<String, String> fieldErrors = new HashMap<>();
 
+    ex.getBindingResult().getFieldErrors().forEach(fieldError -> {
+        String fieldName = fieldError.getField();
+        String errorMessage = fieldError.getDefaultMessage();
 
- @ExceptionHandler(value = {MethodArgumentNotValidException.class})
-    protected ResponseEntity<Object> handleValidationException(MethodArgumentNotValidException ex) {
-        List<ErrorDto> errors = new ArrayList<>();
-        ex.getBindingResult().getFieldErrors().forEach(fieldError -> errors.add(ErrorDto.builder().errorCode(ErrorConstant.NOT_FOUND_ERROR_CODE).errorMessage(fieldError.getField() + ":" + fieldError.getDefaultMessage()).build()));
-        return ResponseEntity.status(HttpStatus.OK).body(KMSResponse.builder().status(KmsConstant.RESPONSE_FAILURE).errors(errors).build());
-    }
-
-
-{
-    "status": 0,
-    "errors": [
-        {
-            "errorCode": "1003",
-            "errorMessage": "apiKey:API Key be empty or blank"
-        },
-        {
-            "errorCode": "1003",
-            "errorMessage": "apiKey:must not have leading, trailing, or multiple spaces"
-        },
-        {
-            "errorCode": "1003",
-            "errorMessage": "apiKeySecret:must be between 10 and 100 characters"
+        // Ensure "must not have leading, trailing, or multiple spaces" error is prioritized
+        if (!fieldErrors.containsKey(fieldName) || errorMessage.contains("must not have leading, trailing, or multiple spaces")) {
+            fieldErrors.put(fieldName, errorMessage);
         }
-    ]
+    });
+
+    List<ErrorDto> errors = fieldErrors.entrySet().stream()
+        .map(entry -> ErrorDto.builder()
+            .errorCode(ErrorConstant.NOT_FOUND_ERROR_CODE)
+            .errorMessage(entry.getKey() + ": " + entry.getValue())
+            .build())
+        .collect(Collectors.toList());
+
+    return ResponseEntity.status(HttpStatus.OK)
+        .body(KMSResponse.builder()
+            .status(KmsConstant.RESPONSE_FAILURE)
+            .errors(errors)
+            .build());
 }
