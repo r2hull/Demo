@@ -6,8 +6,9 @@ protected ResponseEntity<Object> handleValidationException(MethodArgumentNotVali
         String fieldName = fieldError.getField();
         String errorMessage = fieldError.getDefaultMessage();
 
-        // Ensure "must not have leading, trailing, or multiple spaces" error is prioritized
-        if (!fieldErrors.containsKey(fieldName) || errorMessage.contains("must not have leading, trailing, or multiple spaces")) {
+        // Prioritize "API Key is mandatory" when empty, otherwise "no spaces allowed"
+        if (!fieldErrors.containsKey(fieldName) || 
+            (errorMessage.equals("API Key is mandatory") && fieldErrors.get(fieldName).contains("must not have"))) {
             fieldErrors.put(fieldName, errorMessage);
         }
     });
