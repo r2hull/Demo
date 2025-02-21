@@ -1,5 +1,33 @@
-{  
-     "apiKey":"            ", 
-   "apiKeySecret":"krB8Qd+kCq0zKKeKPAPqywiV+4tkznmmJdDIC88mgqQ="
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
-} 
+public class ApiRequest {
+
+    @NotBlank(message = "apiKey cannot be empty or blank")
+    @Size(min = 3, max = 50, message = "apiKey must be between 3 and 50 characters")
+    @Pattern(regexp = "^(?! )[\\S]+( [\\S]+)*(?<! )$", 
+             message = "apiKey must not have leading, trailing, or multiple spaces")
+    private String apiKey;
+
+    @NotBlank(message = "apiKeySecret cannot be empty or blank")
+    @Size(min = 10, max = 100, message = "apiKeySecret must be between 10 and 100 characters")
+    private String apiKeySecret;
+
+    // Getters and Setters
+    public String getApiKey() {
+        return apiKey;
+    }
+
+    public void setApiKey(String apiKey) {
+        this.apiKey = apiKey;
+    }
+
+    public String getApiKeySecret() {
+        return apiKeySecret;
+    }
+
+    public void setApiKeySecret(String apiKeySecret) {
+        this.apiKeySecret = apiKeySecret;
+    }
+}
