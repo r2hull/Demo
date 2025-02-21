@@ -1,21 +1,5 @@
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+{  
+     "apiKey":"            ", 
+   "apiKeySecret":"krB8Qd+kCq0zKKeKPAPqywiV+4tkznmmJdDIC88mgqQ="
 
-public class UserRequest {
-
-    @NotBlank(message = "Name cannot be empty")
-    @Size(min = 3, max = 20, message = "Name must be between 3 and 20 characters")
-    @Pattern(regexp = "^(?! )[\\S]+( [\\S]+)*(?<! )$", 
-             message = "Name must not have leading, trailing, or multiple spaces")
-    private String name;
-
-    // Getters and Setters
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-}
+} 
