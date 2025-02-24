@@ -1,10 +1,7 @@
 package com.epay.merchant.service;
 
 import com.epay.merchant.dao.AdminDao;
-import com.epay.merchant.dto.MerchantDto;
-import com.epay.merchant.dto.MerchantEntityGroupDto;
-import com.epay.merchant.dto.MerchantUserDto;
-import com.epay.merchant.dto.OnboardingDto;
+import com.epay.merchant.dto.*;
 import com.epay.merchant.mapper.MerchantEntityGroupMapper;
 import com.epay.merchant.mapper.MerchantMapper;
 import com.epay.merchant.model.request.*;
@@ -14,193 +11,193 @@ import com.epay.merchant.util.enums.MerchantStatus;
 import com.epay.merchant.util.enums.NotificationType;
 import com.epay.merchant.validator.AdminValidator;
 import com.epay.merchant.validator.OnboardingValidator;
-import com.sbi.epay.encryptdecrypt.util.enums.HashAlgorithm;
-import com.sbi.epay.logging.utility.LoggerFactoryUtility;
-import com.sbi.epay.logging.utility.LoggerUtility;
-import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
 
-import java.text.MessageFormat;
-import java.util.Arrays;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-/**
- * Class Name: AdminService
- * *
- * Description:AdminService serves as the business logic layer,validating incoming requests,
- * mapping data objects and forwarding processed requests to AdminDao for
- * database operations.
- * Author: Bhoopendra Rajput
- * <p>
- * Copyright (c) 2024 [State Bank of India]
- * All rights reserved
- * *
- * Version:1.0
- */
-@Service
-@RequiredArgsConstructor
-public class AdminService {
+@ExtendWith(MockitoExtension.class)
+class AdminServiceTest {
 
-    private final OnboardingValidator onboardingValidator;
-    private final AdminValidator adminValidator;
-    private final AdminDao adminDao;
-    private final MerchantEntityGroupMapper merchantEntityGroupMapper;
-    private final MerchantMapper merchantMapper;
-    private final HelpSupportService helpSupportService;
-    private final MerchantBankService merchantBankService;
-    private final LoggerUtility log = LoggerFactoryUtility.getLogger(this.getClass());
+    @Mock
+    private OnboardingValidator onboardingValidator;
+    
+    @Mock
+    private AdminValidator adminValidator;
+    
+    @Mock
+    private AdminDao adminDao;
+    
+    @Mock
+    private MerchantEntityGroupMapper merchantEntityGroupMapper;
+    
+    @Mock
+    private MerchantMapper merchantMapper;
+    
+    @Mock
+    private HelpSupportService helpSupportService;
+    
+    @Mock
+    private MerchantBankService merchantBankService;
+    
+    @InjectMocks
+    private AdminService adminService;
 
-    /**
-     * Onboard a merchant and merchant admin user.
-     * Destination: AdminDao.onboardingMerchantAndMerchantUser
-     *
-     * @param onboardingRequest OnboardingRequest
-     * @return MerchantResponse with OnboardingResponse
-     */
-    public MerchantResponse<OnboardingResponse> onboardingMerchant(OnboardingRequest onboardingRequest) {
-        log.info("Started onboardingRequest for merchant {}", onboardingRequest.getMerchant());
-        //Step 1 : OnboardingRequest validation
-        onboardingValidator.validateOnboardingRequest(onboardingRequest);
-        //Step 2 : Set up the default value for Merchant
-        setMerchantDefaultValues(onboardingRequest.getMerchant());
-        //Step 3 : Save the Merchant and Merchant User Data in DB
-        OnboardingDto onboardingDto = adminDao.onboardingMerchantAndMerchantUser(onboardingRequest);
-        //Step 5 : Build MerchantResponse and return to caller
-        log.info("Returning OnboardingResponse for merchant");
-        return MerchantResponse.<OnboardingResponse>builder().data(List.of(OnboardingResponse.builder().merchant(onboardingDto.getMerchant()).user(onboardingDto.getUser()).build())).status(MerchantConstant.RESPONSE_SUCCESS).count(1L).build();
+    private OnboardingRequest onboardingRequest;
+    private OnboardingDto onboardingDto;
+    private MerchantDto merchantDto;
+
+    @BeforeEach
+    void setUp() {
+        onboardingRequest = new OnboardingRequest();
+        merchantDto = new MerchantDto();
+        onboardingRequest.setMerchant(merchantDto);
+        
+        onboardingDto = new OnboardingDto();
+        onboardingDto.setMerchant(merchantDto);
     }
 
-    /**
-     * Create a merchant entity group.
-     * Destination: AdminDao.saveMerchantEntityGroup
-     *
-     * @param merchantEntityGroupRequest MerchantEntityGroupRequest
-     * @return MerchantResponse with MerchantEntityGroupResponse
-     */
-    public MerchantResponse<MerchantEntityGroupResponse> createMerchantEntityGroup(MerchantEntityGroupRequest merchantEntityGroupRequest) {
-        log.info("Method createMerchantEntityGroup started for EntityId {}", merchantEntityGroupRequest.getEntityId());
-        //Step 1 : MerchantEntityGroupRequest validation
-        adminValidator.entityValidator(merchantEntityGroupRequest);
-        MerchantEntityGroupDto merchantEntityGroupDto = merchantEntityGroupMapper.mapEntityRequestToMerchantEntityGroupDto(merchantEntityGroupRequest);
-        //Step 2 : Save Merchant Entity Group
-        merchantEntityGroupDto = adminDao.saveMerchantEntityGroup(merchantEntityGroupDto);
-        //Step 3 : Build MerchantResponse and return to caller
-        log.info("Method createMerchantEntityGroup completed for EntityId {}", merchantEntityGroupRequest.getEntityId());
-        return MerchantResponse.<MerchantEntityGroupResponse>builder().data(List.of(merchantEntityGroupMapper.mapMerchantEntityGroupDtoToEntityResponse(merchantEntityGroupDto))).status(MerchantConstant.RESPONSE_SUCCESS).count(1L).build();
+    @Test
+    void onboardingMerchant_ShouldReturnSuccessResponse() {
+        // Arrange
+        doNothing().when(onboardingValidator).validateOnboardingRequest(any());
+        when(adminDao.onboardingMerchantAndMerchantUser(any())).thenReturn(onboardingDto);
+
+        // Act
+        MerchantResponse<OnboardingResponse> response = adminService.onboardingMerchant(onboardingRequest);
+
+        // Assert
+        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
+        assertEquals(1L, response.getCount());
+        verify(onboardingValidator).validateOnboardingRequest(onboardingRequest);
+        verify(adminDao).onboardingMerchantAndMerchantUser(onboardingRequest);
     }
 
-    /**
-     * Get all users for a merchant.
-     * Destination: AdminDao.findAllMerchantUsersByMId
-     *
-     * @param mId      String
-     * @param pageable Pageable
-     * @return MerchantResponse with MerchantUserResponse
-     */
-    public MerchantResponse<MerchantUserResponse> getAllMerchantUsers(String mId, Pageable pageable) {
-        log.info("getting userList based on mId: {}", mId);
-        Page<MerchantUserDto> merchantUsers = adminDao.findAllMerchantUsersByMId(mId, pageable);
-        log.info("Mapping users for Merchant ID: {}", mId);
-        List<MerchantUserResponse> merchantUserResponseList = merchantMapper.mapMerchantUserDTOListToResponseList(merchantUsers.getContent());
-        return MerchantResponse.<MerchantUserResponse>builder().status(MerchantConstant.RESPONSE_SUCCESS).data(merchantUserResponseList).count(merchantUsers.stream().count()).total(merchantUsers.getTotalElements()).build();
+    @Test
+    void createMerchantEntityGroup_ShouldReturnSuccessResponse() {
+        // Arrange
+        MerchantEntityGroupRequest request = new MerchantEntityGroupRequest();
+        MerchantEntityGroupDto dto = new MerchantEntityGroupDto();
+        MerchantEntityGroupResponse responseObj = new MerchantEntityGroupResponse();
+
+        doNothing().when(adminValidator).entityValidator(any());
+        when(merchantEntityGroupMapper.mapEntityRequestToMerchantEntityGroupDto(any())).thenReturn(dto);
+        when(adminDao.saveMerchantEntityGroup(any())).thenReturn(dto);
+        when(merchantEntityGroupMapper.mapMerchantEntityGroupDtoToEntityResponse(any())).thenReturn(responseObj);
+
+        // Act
+        MerchantResponse<MerchantEntityGroupResponse> response = adminService.createMerchantEntityGroup(request);
+
+        // Assert
+        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
+        assertEquals(1L, response.getCount());
+        verify(adminValidator).entityValidator(request);
+        verify(adminDao).saveMerchantEntityGroup(dto);
     }
 
-    /**
-     * Map a user to an entity.
-     * Destination: AdminDao.updateUserRole
-     *
-     * @param userEntityMappingRequest UserEntityMappingRequest
-     * @return MerchantResponse with mapping status
-     */
-    public MerchantResponse<String> userEntityMapping(UserEntityMappingRequest userEntityMappingRequest) {
-        log.info("Received request to map entity with details: {}", userEntityMappingRequest);
+    @Test
+    void getAllMerchantUsers_ShouldReturnUsersList() {
+        // Arrange
+        String mId = "MID123";
+        Pageable pageable = mock(Pageable.class);
+        List<MerchantUserDto> userList = List.of(new MerchantUserDto());
+        Page<MerchantUserDto> page = new PageImpl<>(userList);
 
-        // Step 1: Validate the request
-        adminValidator.userEntityRequestValidator(userEntityMappingRequest);
+        when(adminDao.findAllMerchantUsersByMId(mId, pageable)).thenReturn(page);
+        when(merchantMapper.mapMerchantUserDTOListToResponseList(userList)).thenReturn(List.of(new MerchantUserResponse()));
 
-        // Step 2: Perform action based on user role
-        adminDao.updateUserRole(userEntityMappingRequest.getUserId(), userEntityMappingRequest.getUserName(), userEntityMappingRequest.getEntityId());
+        // Act
+        MerchantResponse<MerchantUserResponse> response = adminService.getAllMerchantUsers(mId, pageable);
 
-        // Step 3: Build and return the response
-        log.info("Returning merchant success response");
-        return MerchantResponse.<String>builder().status(MerchantConstant.RESPONSE_SUCCESS).data(List.of("role has been updated successfully")).count(1L).total(1L).build();
+        // Assert
+        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
+        assertEquals(1, response.getCount());
+        verify(adminDao).findAllMerchantUsersByMId(mId, pageable);
     }
 
-    /**
-     * Sets default values for a MerchantDto object if they are not present in the onboarding request.
-     *
-     * @param merchant MerchantDto
-     */
-    private void setMerchantDefaultValues(MerchantDto merchant) {
-        log.info("Method setMerchantDefaultValues started");
+    @Test
+    void userEntityMapping_ShouldReturnSuccessResponse() {
+        // Arrange
+        UserEntityMappingRequest request = new UserEntityMappingRequest();
+        request.setUserId("user1");
+        request.setUserName("testUser");
+        request.setEntityId("entity123");
 
-        if (Arrays.stream(NotificationType.values()).noneMatch(nt -> StringUtils.equalsAnyIgnoreCase(merchant.getNotification(), nt.name()))) {
-            merchant.setNotification(NotificationType.BOTH.name());
-        }
-        if (StringUtils.isEmpty(merchant.getEncryptedAlgo())) {
-            merchant.setEncryptedAlgo(HashAlgorithm.SHA_512.toString());
-        }
-        if (ObjectUtils.isEmpty(merchant.getStatus())) {
-            merchant.setStatus(MerchantStatus.ACTIVE);
-            log.info("Method setMerchantDefaultValues completed");
+        doNothing().when(adminValidator).userEntityRequestValidator(any());
+        doNothing().when(adminDao).updateUserRole(anyString(), anyString(), anyString());
 
-        }
+        // Act
+        MerchantResponse<String> response = adminService.userEntityMapping(request);
+
+        // Assert
+        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
+        assertEquals("role has been updated successfully", response.getData().get(0));
+        verify(adminValidator).userEntityRequestValidator(request);
+        verify(adminDao).updateUserRole(request.getUserId(), request.getUserName(), request.getEntityId());
     }
 
-    /**
-     * Update help and support details.
-     * Destination: AdminDao.updateHelpSupport
-     *
-     * @param mId                String
-     * @param helpSupportRequest HelpSupportRequest
-     * @return MerchantResponse with HelpSupportResponse
-     */
-    public MerchantResponse<HelpSupportResponse> saveHelpSupport(String mId, HelpSupportRequest helpSupportRequest) {
-        log.info("Method saveHelpSupport started for merchant ID: {}", mId);
-        return helpSupportService.saveHelpSupport(mId, helpSupportRequest);
+    @Test
+    void saveHelpSupport_ShouldReturnHelpSupportResponse() {
+        // Arrange
+        String mId = "MID123";
+        HelpSupportRequest request = new HelpSupportRequest();
+        HelpSupportResponse helpSupportResponse = new HelpSupportResponse();
+
+        when(helpSupportService.saveHelpSupport(mId, request)).thenReturn(MerchantResponse.<HelpSupportResponse>builder()
+                .status(MerchantConstant.RESPONSE_SUCCESS)
+                .data(List.of(helpSupportResponse))
+                .build());
+
+        // Act
+        MerchantResponse<HelpSupportResponse> response = adminService.saveHelpSupport(mId, request);
+
+        // Assert
+        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
+        verify(helpSupportService).saveHelpSupport(mId, request);
     }
 
+    @Test
+    void saveFooterInfo_ShouldReturnSuccessMessage() {
+        // Arrange
+        FotterRequest request = new FotterRequest();
+        doNothing().when(adminValidator).footerValidator(any());
+        doNothing().when(adminDao).saveFooterRequest(any());
 
-    /**
-     * Save Footer Labels
-     * @param footerRequest FooterRequest
-     * @return MerchantResponse
-     * Description - Merchant will use this API to create or Update Footer
-     **/
-    public MerchantResponse<String> saveFooterInfo(FotterRequest footerRequest) {
-        log.info("validating footerRequest {}", footerRequest);
-        //Step 1 : FooterUpdateRequest validation
-        adminValidator.footerValidator(footerRequest);
-        log.info("Saving footerRequest {}", footerRequest);
-        //Step 2 : Save Footer Entity
-        adminDao.saveFooterRequest(footerRequest);
-        log.info("Returning the MerchantResponse");
-        //Step 3 : Build FooterResponse and return to caller
-        return MerchantResponse.<String>builder().status(MerchantConstant.RESPONSE_SUCCESS).data(List.of(MessageFormat.format(MerchantConstant.SUCCESS_MESSAGE, " updated"))).build();
+        // Act
+        MerchantResponse<String> response = adminService.saveFooterInfo(request);
+
+        // Assert
+        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
+        verify(adminValidator).footerValidator(request);
+        verify(adminDao).saveFooterRequest(request);
     }
 
-    /**
-     * Approved bank account
-     * @param merchantBankAccountApprovalRequest MerchantBankAccountApprovalRequest
-     * @return MerchantResponse
-     */
-    public MerchantResponse<String> approvedBankAccount(MerchantBankAccountApprovalRequest merchantBankAccountApprovalRequest) {
-        return merchantBankService.approvedBankAccount(merchantBankAccountApprovalRequest);
+    @Test
+    void approvedBankAccount_ShouldReturnResponse() {
+        // Arrange
+        MerchantBankAccountApprovalRequest request = new MerchantBankAccountApprovalRequest();
+        when(merchantBankService.approvedBankAccount(any())).thenReturn(MerchantResponse.<String>builder()
+                .status(MerchantConstant.RESPONSE_SUCCESS)
+                .data(List.of("Approved"))
+                .build());
+
+        // Act
+        MerchantResponse<String> response = adminService.approvedBankAccount(request);
+
+        // Assert
+        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
+        verify(merchantBankService).approvedBankAccount(request);
     }
 
 }
-
-
-
-
-
-
-
-
-
-
