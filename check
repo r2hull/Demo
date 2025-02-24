@@ -1,20 +1,138 @@
-import java.util.UUID;
+package com.epay.merchant.validator;
 
-MerchantUserDto merchantUser = MerchantUserDto.builder()
-    .userName("john_doe")
-    .firstName("John")
-    .email("john.doe@example.com")
-    .emailMasked("j****@example.com")
-    .mobilePhone("9876543210")
-    .mobilePhoneMasked("98*****10")
-    .remark("Verified user")
-    .roleName("Admin")
-    .status(UserStatus.ACTIVE) // Assuming UserStatus is an Enum
-    .passwordExpiryTime(1704067200000L)
-    .createdBy("admin")
-    .createdAt(1672531200000L)
-    .updatedBy("admin")
-    .updatedAt(1672627600000L)
-    .isFirstLogin(true)
-    .lastSuccessLogin(1672627600000L)
-    .build();
+import com.epay.merchant.dao.AdminDao;
+import com.epay.merchant.dto.ErrorDto;
+import com.epay.merchant.model.request.FotterRequest;
+import com.epay.merchant.model.request.MerchantEntityGroupRequest;
+import com.epay.merchant.model.request.UserEntityMappingRequest;
+import com.epay.merchant.util.ErrorConstants;
+import com.epay.merchant.util.enums.MerchantUserRoles;
+import lombok.RequiredArgsConstructor;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.stereotype.Component;
+
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static com.epay.merchant.util.ErrorConstants.*;
+import static com.epay.merchant.util.MerchantConstant.*;
+
+
+@Component
+@RequiredArgsConstructor
+public class AdminValidator extends BaseValidator {
+
+    private final AdminDao adminDao;
+
+  
+    public void entityValidator(MerchantEntityGroupRequest merchantEntityGroupRequest) {
+        errorDtoList = new ArrayList<>();
+        validateMandatory(merchantEntityGroupRequest);
+        validatedEntityId(merchantEntityGroupRequest);
+        validatedMId(merchantEntityGroupRequest);
+    }
+
+    public void userEntityRequestValidator(UserEntityMappingRequest userEntityMappingRequest) {
+        errorDtoList = new ArrayList<>();
+        validateMandatoryFields(userEntityMappingRequest);
+        validateUserData(userEntityMappingRequest);
+        validateEntityId(userEntityMappingRequest.getEntityId());
+    }
+
+    
+    private void validateUserData(UserEntityMappingRequest userEntityMappingRequest) {
+        boolean isUserNamePresent = StringUtils.isNotEmpty(userEntityMappingRequest.getUserName());
+        boolean isUserIdPresent = ObjectUtils.isNotEmpty(userEntityMappingRequest.getUserId());
+        validateValues(isUserNamePresent, isUserIdPresent);
+        boolean isMerchantUserExist = false;
+        if (isUserNamePresent) {
+            isMerchantUserExist = adminDao.isMerchantUserExistWithRoles(userEntityMappingRequest.getUserName(), List.of(MerchantUserRoles.ADMIN.name(), MerchantUserRoles.SUPER_ADMIN.name()));
+        } else if (isUserIdPresent) {
+            isMerchantUserExist = adminDao.isMerchantUserExistWithRoles(userEntityMappingRequest.getUserId(), List.of(MerchantUserRoles.ADMIN.name(), MerchantUserRoles.SUPER_ADMIN.name()));
+        }
+        if (!isMerchantUserExist) {
+            errorDtoList.add(ErrorDto.builder().errorCode(ErrorConstants.INVALID_ERROR_CODE).errorMessage(MessageFormat.format(ErrorConstants.INVALID_ERROR_MESSAGE, ROLE, "Reason : only ADMIN and SUPER_ADMIN are allowed")).build());
+        }
+    }
+
+    
+    private void validatedMId(MerchantEntityGroupRequest merchantEntityGroupRequest) {
+        validateMappedEntityMIds(merchantEntityGroupRequest);
+        validateMIds(merchantEntityGroupRequest);
+    }
+
+   
+    private void validateMappedEntityMIds(MerchantEntityGroupRequest merchantEntityGroupRequest) {
+        List<String> mIdsAlreadyMapped = adminDao.findMappedEntityMIds(merchantEntityGroupRequest.getMIds());
+        if (CollectionUtils.isNotEmpty(mIdsAlreadyMapped)) {
+            errorDtoList.add(ErrorDto.builder().errorCode(ErrorConstants.ALREADY_EXIST_ERROR_CODE).errorMessage(MessageFormat.format(ErrorConstants.ALREADY_EXIST_ERROR_MESSAGE, "MId " + Arrays.toString(mIdsAlreadyMapped.toArray()) + " are already Mapped")).build());
+        }
+        throwIfErrors();
+    }
+
+ 
+    private void validateMIds(MerchantEntityGroupRequest merchantEntityGroupRequest) {
+        List<String> invalidsMIds = adminDao.findInvalidsMIds(merchantEntityGroupRequest.getMIds());
+        if (CollectionUtils.isNotEmpty(invalidsMIds)) {
+            errorDtoList.add(ErrorDto.builder().errorCode(ErrorConstants.INVALID_ERROR_CODE).errorMessage(MessageFormat.format(ErrorConstants.INVALID_ERROR_MESSAGE, "MId", "MId " + Arrays.toString(invalidsMIds.toArray()) + " are not valid")).build());
+        }
+        throwIfErrors();
+    }
+
+   
+    private void validatedEntityId(MerchantEntityGroupRequest merchantEntityGroupRequest) {
+        boolean entityIdPresent = adminDao.isEntityIdPresent(merchantEntityGroupRequest.getEntityId());
+        if (entityIdPresent) {
+            errorDtoList.add(ErrorDto.builder().errorCode(ErrorConstants.ALREADY_EXIST_ERROR_CODE).errorMessage(MessageFormat.format(ErrorConstants.ALREADY_EXIST_ERROR_MESSAGE, "EntityId")).build());
+        }
+        throwIfErrors();
+    }
+
+    private void validateMandatory(MerchantEntityGroupRequest merchantEntityGroupRequest) {
+        checkMandatoryField(merchantEntityGroupRequest.getEntityId(), ENTITY_ID);
+        checkMandatoryCollection(merchantEntityGroupRequest.getMIds(), MID_MAPPING_LIST);
+        throwIfErrors();
+    }
+
+    
+    private void validateMandatoryFields(UserEntityMappingRequest userEntityMappingRequest) {
+        checkMandatoryField(userEntityMappingRequest.getEntityId(), ENTITY_ID);
+        throwIfErrors();
+    }
+
+   
+    private void validateValues(boolean isUserNamePresent, boolean isUserIdPresent) {
+        if (isUserNamePresent == isUserIdPresent) {
+            errorDtoList.add(ErrorDto.builder().errorCode(ErrorConstants.MANDATORY_ERROR_CODE).errorMessage(MessageFormat.format(ErrorConstants.MANDATORY_ERROR_MESSAGE, "value of userName or UserId")).build());
+        }
+    }
+
+  
+    private void validateEntityId(String entityId) {
+        if (!adminDao.isEntityIdPresent(entityId)) {
+            errorDtoList.add(ErrorDto.builder().errorCode(ErrorConstants.INVALID_ERROR_CODE).errorMessage(MessageFormat.format(ErrorConstants.INVALID_ERROR_MESSAGE, ENTITY_ID, ENTITY_ID_NOT_VALID)).build());
+        }
+        throwIfErrors();
+    }
+
+   
+    public void footerValidator(FotterRequest footerRequest) {
+        errorDtoList = new ArrayList<>();
+        if(CollectionUtils.isEmpty(footerRequest.getFooterLabels())) {
+            errorDtoList.add(ErrorDto.builder()
+                    .errorCode(MANDATORY_ERROR_CODE)
+                    .errorMessage(MessageFormat.format(ErrorConstants.MANDATORY_ERROR_MESSAGE,FOOTER))
+                    .build());
+        } else {
+            footerRequest.getFooterLabels().forEach(footerLabelDto -> {
+                checkMandatoryField(footerLabelDto.getLabel(), "Label");
+                checkMandatoryField(footerLabelDto.getValue(), "Value");
+            });
+        }
+        throwIfErrors();
+    }
+}
