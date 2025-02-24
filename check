@@ -1,11 +1,5 @@
-public class CustomValidationException extends RuntimeException {
-    private final List<ErrorDto> errors;
+D:\Report\Utility\captcha>git clone https://gitlab.epay.test/ejava/epay_java_utilities.git
+Cloning into 'epage_java_utilities'...
+fatal: unable to access 'https://gitlab.epay.test/ejava/epage_java_utilities.git/': SSL certificate problem: self-signed certificate in certificate chain
 
-    public CustomValidationException(List<ErrorDto> errors) {
-        this.errors = errors;
-    }
-
-    public List<ErrorDto> getErrors() {
-        return errors;
-    }
-}
+D:\Report\Utility\captcha>
