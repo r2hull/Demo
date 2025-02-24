@@ -1,203 +1,112 @@
-package com.epay.merchant.service;
+package com.epay.merchant.validator;
 
 import com.epay.merchant.dao.AdminDao;
-import com.epay.merchant.dto.*;
-import com.epay.merchant.mapper.MerchantEntityGroupMapper;
-import com.epay.merchant.mapper.MerchantMapper;
-import com.epay.merchant.model.request.*;
-import com.epay.merchant.model.response.*;
+import com.epay.merchant.dto.ErrorDto;
+import com.epay.merchant.dto.MerchantDto;
+import com.epay.merchant.dto.MerchantUserDto;
+import com.epay.merchant.model.request.OnboardingRequest;
+import com.epay.merchant.util.ErrorConstants;
 import com.epay.merchant.util.MerchantConstant;
-import com.epay.merchant.util.enums.MerchantStatus;
-import com.epay.merchant.util.enums.NotificationType;
-import com.epay.merchant.validator.AdminValidator;
-import com.epay.merchant.validator.OnboardingValidator;
-import org.apache.commons.lang3.StringUtils;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import com.sbi.epay.logging.utility.LoggerFactoryUtility;
+import com.sbi.epay.logging.utility.LoggerUtility;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
-import java.util.List;
+import java.text.MessageFormat;
+import java.util.ArrayList;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static com.epay.merchant.util.ErrorConstants.FORMAT;
+import static com.epay.merchant.util.ErrorConstants.FORMAT_OR_MAX_LENGTH;
 
-@ExtendWith(MockitoExtension.class)
-class AdminServiceTest {
 
-    @Mock
-    private OnboardingValidator onboardingValidator;
+@Component
+@RequiredArgsConstructor
+public class OnboardingValidator extends BaseValidator {
+    private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
+
+    private final AdminDao adminDao;
+
     
-    @Mock
-    private AdminValidator adminValidator;
+    public void validateOnboardingRequest(OnboardingRequest onboardingRequest) {
+        errorDtoList = new ArrayList<>();
+        logger.info("Validating Merchant onboardingRequest", onboardingRequest);
+        validateMandatoryFields(onboardingRequest);
+        validateFieldsValue(onboardingRequest);
+        validatedAlreadyPresent(onboardingRequest);
+    }
+
+ 
+    void validateMandatoryFields(OnboardingRequest onboardingRequest) {
+        logger.debug("Validating Merchant-validateMandatoryFields {}", onboardingRequest.getMerchant());
+        validateMandatoryFields(onboardingRequest.getMerchant());
+        logger.debug("Validating Merchant User-validateMandatoryFields {}", onboardingRequest.getUser());
+        validateMandatoryFields(onboardingRequest.getUser());
+        throwIfErrors();
+    }
+
     
-    @Mock
-    private AdminDao adminDao;
+    void validateFieldsValue(OnboardingRequest onboardingRequest) {
+        logger.debug("Validating Merchant-validateFieldsValue {}", onboardingRequest.getMerchant());
+        validateFieldsValue(onboardingRequest.getMerchant());
+        logger.debug("Validating Merchant User-validateFieldsValue {}", onboardingRequest.getUser());
+        validateFieldsValue(onboardingRequest.getUser());
+    }
+
+  
+    void validatedAlreadyPresent(OnboardingRequest onboardingRequest) {
+        if (adminDao.isMerchantExistByMId(onboardingRequest.getMerchant().getMId())) {
+            errorDtoList.add(ErrorDto.builder().errorCode(ErrorConstants.ALREADY_EXIST_ERROR_CODE).errorMessage(MessageFormat.format(ErrorConstants.ALREADY_EXIST_ERROR_MESSAGE, "MId")).build());
+        }
+        if (adminDao.isMerchantUserExist(onboardingRequest.getUser().getUserName(), onboardingRequest.getUser().getEmail(), onboardingRequest.getUser().getMobilePhone())) {
+            errorDtoList.add(ErrorDto.builder().errorCode(ErrorConstants.ALREADY_EXIST_ERROR_CODE).errorMessage(MessageFormat.format(ErrorConstants.ALREADY_EXIST_ERROR_MESSAGE, "Merchant User")).build());
+        }
+        throwIfErrors();
+    }
+
+  
+    void validateMandatoryFields(MerchantDto merchantDto) {
+        checkMandatoryField(merchantDto.getMId(), "Merchant.MId");
+        checkMandatoryField(merchantDto.getMerchantName(), "Merchant.Merchant Name");
+        checkMandatoryField(merchantDto.getAddressline1(), "Merchant.Address Line1");
+        checkMandatoryField(merchantDto.getCity(), "Merchant.City");
+        checkMandatoryField(merchantDto.getState(), "Merchant.State");
+        checkMandatoryField(merchantDto.getCountry(), "Merchant.Country");
+        checkMandatoryField(merchantDto.getPincode(), "Merchant.Pin Code");
+        checkMandatoryField(merchantDto.getMobileNumber(), "Merchant.Mobile Number");
+        checkMandatoryField(merchantDto.getPrimaryEmail(), "Merchant.Primary Email");
+        checkMandatoryDateField(merchantDto.getValidityStartTime(), "Merchant.Validity Start Time");
+        checkMandatoryDateField(merchantDto.getValidityEndTime(), "Merchant.Validity End Time");
+        checkMandatoryDateField(merchantDto.getOnboardingTime(), "Merchant.Onboarding Time");
+        checkMandatoryField(merchantDto.getRmName(), "Merchant.RM Name");
+        checkMandatoryField(merchantDto.getBankCode(), "Merchant.BankCode");
+        checkMandatoryField(merchantDto.getBranchCode(), "Merchant.Branch Code");
+        checkMandatoryField(merchantDto.getAggregator(), "Merchant.Aggregator Id");
+    }
+
+  
+    void validateMandatoryFields(MerchantUserDto user) {
+        checkMandatoryField(user.getUserName(), "User.User Name");
+        checkMandatoryField(user.getFirstName(), "User.First Name");
+        checkMandatoryField(user.getEmail(), "User.Email");
+        checkMandatoryField(user.getMobilePhone(), "User.Mobile Phone");
+    }
+
     
-    @Mock
-    private MerchantEntityGroupMapper merchantEntityGroupMapper;
-    
-    @Mock
-    private MerchantMapper merchantMapper;
-    
-    @Mock
-    private HelpSupportService helpSupportService;
-    
-    @Mock
-    private MerchantBankService merchantBankService;
-    
-    @InjectMocks
-    private AdminService adminService;
-
-    private OnboardingRequest onboardingRequest;
-    private OnboardingDto onboardingDto;
-    private MerchantDto merchantDto;
-
-    @BeforeEach
-    void setUp() {
-        onboardingRequest = new OnboardingRequest();
-        merchantDto = new MerchantDto();
-        onboardingRequest.setMerchant(merchantDto);
-        
-        onboardingDto = new OnboardingDto();
-        onboardingDto.setMerchant(merchantDto);
+    void validateFieldsValue(MerchantDto merchantDto) {
+        validateFieldWithRegex(merchantDto.getPrimaryEmail(), MerchantConstant.EMAIL_LENGTH, MerchantConstant.EMAIL_REGEX, "Merchant.Primary Email", FORMAT_OR_MAX_LENGTH);
+        validateFieldWithRegex(merchantDto.getSecondaryEmail(), MerchantConstant.EMAIL_LENGTH, MerchantConstant.EMAIL_REGEX, "Merchant.Secondary Email", FORMAT_OR_MAX_LENGTH);
+        validateFieldWithRegex(merchantDto.getMobileNumber(), MerchantConstant.PHONE_REGEX, "Merchant.Mobile Number", FORMAT);
+        validateFieldWithRegex(merchantDto.getPhoneNumber(), MerchantConstant.PHONE_REGEX, "Merchant.Phone Number", FORMAT);
+        validateFieldWithRegex(merchantDto.getPincode(), MerchantConstant.PIN_REGEX, "Merchant.PinCode", FORMAT);
+        validateDateFieldForPastDate(merchantDto.getValidityStartTime(), "Merchant.Validity Start Time");
+        validateDateFieldForPastDate(merchantDto.getOnboardingTime(), "Merchant.Onboarding Time");
+        validateDateFieldForFutureDate(merchantDto.getValidityEndTime(), "Merchant.Validity End Time");
     }
 
-    @Test
-    void onboardingMerchant_ShouldReturnSuccessResponse() {
-        // Arrange
-        doNothing().when(onboardingValidator).validateOnboardingRequest(any());
-        when(adminDao.onboardingMerchantAndMerchantUser(any())).thenReturn(onboardingDto);
 
-        // Act
-        MerchantResponse<OnboardingResponse> response = adminService.onboardingMerchant(onboardingRequest);
-
-        // Assert
-        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
-        assertEquals(1L, response.getCount());
-        verify(onboardingValidator).validateOnboardingRequest(onboardingRequest);
-        verify(adminDao).onboardingMerchantAndMerchantUser(onboardingRequest);
+    void validateFieldsValue(MerchantUserDto user) {
+        validateFieldLength(user.getFirstName(), MerchantConstant.NAME_LENGTH, "User.First Name");
+        validateFieldWithRegex(user.getEmail(), MerchantConstant.EMAIL_LENGTH, MerchantConstant.EMAIL_REGEX, "User.Primary Email", FORMAT_OR_MAX_LENGTH);
+        validateFieldWithRegex(user.getMobilePhone(), MerchantConstant.PHONE_REGEX, "User.Mobile Number", FORMAT);
     }
-
-    @Test
-    void createMerchantEntityGroup_ShouldReturnSuccessResponse() {
-        // Arrange
-        MerchantEntityGroupRequest request = new MerchantEntityGroupRequest();
-        MerchantEntityGroupDto dto = new MerchantEntityGroupDto();
-        MerchantEntityGroupResponse responseObj = new MerchantEntityGroupResponse();
-
-        doNothing().when(adminValidator).entityValidator(any());
-        when(merchantEntityGroupMapper.mapEntityRequestToMerchantEntityGroupDto(any())).thenReturn(dto);
-        when(adminDao.saveMerchantEntityGroup(any())).thenReturn(dto);
-        when(merchantEntityGroupMapper.mapMerchantEntityGroupDtoToEntityResponse(any())).thenReturn(responseObj);
-
-        // Act
-        MerchantResponse<MerchantEntityGroupResponse> response = adminService.createMerchantEntityGroup(request);
-
-        // Assert
-        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
-        assertEquals(1L, response.getCount());
-        verify(adminValidator).entityValidator(request);
-        verify(adminDao).saveMerchantEntityGroup(dto);
-    }
-
-    @Test
-    void getAllMerchantUsers_ShouldReturnUsersList() {
-        // Arrange
-        String mId = "MID123";
-        Pageable pageable = mock(Pageable.class);
-        List<MerchantUserDto> userList = List.of(new MerchantUserDto());
-        Page<MerchantUserDto> page = new PageImpl<>(userList);
-
-        when(adminDao.findAllMerchantUsersByMId(mId, pageable)).thenReturn(page);
-        when(merchantMapper.mapMerchantUserDTOListToResponseList(userList)).thenReturn(List.of(new MerchantUserResponse()));
-
-        // Act
-        MerchantResponse<MerchantUserResponse> response = adminService.getAllMerchantUsers(mId, pageable);
-
-        // Assert
-        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
-        assertEquals(1, response.getCount());
-        verify(adminDao).findAllMerchantUsersByMId(mId, pageable);
-    }
-
-    @Test
-    void userEntityMapping_ShouldReturnSuccessResponse() {
-        // Arrange
-        UserEntityMappingRequest request = new UserEntityMappingRequest();
-        request.setUserId("user1");
-        request.setUserName("testUser");
-        request.setEntityId("entity123");
-
-        doNothing().when(adminValidator).userEntityRequestValidator(any());
-        doNothing().when(adminDao).updateUserRole(anyString(), anyString(), anyString());
-
-        // Act
-        MerchantResponse<String> response = adminService.userEntityMapping(request);
-
-        // Assert
-        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
-        assertEquals("role has been updated successfully", response.getData().get(0));
-        verify(adminValidator).userEntityRequestValidator(request);
-        verify(adminDao).updateUserRole(request.getUserId(), request.getUserName(), request.getEntityId());
-    }
-
-    @Test
-    void saveHelpSupport_ShouldReturnHelpSupportResponse() {
-        // Arrange
-        String mId = "MID123";
-        HelpSupportRequest request = new HelpSupportRequest();
-        HelpSupportResponse helpSupportResponse = new HelpSupportResponse();
-
-        when(helpSupportService.saveHelpSupport(mId, request)).thenReturn(MerchantResponse.<HelpSupportResponse>builder()
-                .status(MerchantConstant.RESPONSE_SUCCESS)
-                .data(List.of(helpSupportResponse))
-                .build());
-
-        // Act
-        MerchantResponse<HelpSupportResponse> response = adminService.saveHelpSupport(mId, request);
-
-        // Assert
-        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
-        verify(helpSupportService).saveHelpSupport(mId, request);
-    }
-
-    @Test
-    void saveFooterInfo_ShouldReturnSuccessMessage() {
-        // Arrange
-        FotterRequest request = new FotterRequest();
-        doNothing().when(adminValidator).footerValidator(any());
-        doNothing().when(adminDao).saveFooterRequest(any());
-
-        // Act
-        MerchantResponse<String> response = adminService.saveFooterInfo(request);
-
-        // Assert
-        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
-        verify(adminValidator).footerValidator(request);
-        verify(adminDao).saveFooterRequest(request);
-    }
-
-    @Test
-    void approvedBankAccount_ShouldReturnResponse() {
-        // Arrange
-        MerchantBankAccountApprovalRequest request = new MerchantBankAccountApprovalRequest();
-        when(merchantBankService.approvedBankAccount(any())).thenReturn(MerchantResponse.<String>builder()
-                .status(MerchantConstant.RESPONSE_SUCCESS)
-                .data(List.of("Approved"))
-                .build());
-
-        // Act
-        MerchantResponse<String> response = adminService.approvedBankAccount(request);
-
-        // Assert
-        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
-        verify(merchantBankService).approvedBankAccount(request);
-    }
-
 }
