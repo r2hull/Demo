@@ -1,76 +1,35 @@
-@Data
-@Builder
-@JsonInclude(JsonInclude.Include.NON_NULL)
-@NoArgsConstructor
-@AllArgsConstructor
-public class MerchantDto implements Serializable {
-
-    @Schema(description = "Merchant ID", example = "MID7")
-    @JsonProperty("mId")
-    private String mId;
-    @Schema(description = "Name of the merchant", example = "John Doe Enterprises")
-    private String merchantName;
-    @Schema(description = "Business name", example = "John's Electronics")
-    private String businessName;
-    @Schema(description = "Brand name associated with the merchant", example = "J-Electro")
-    private String brandName;
-    @Schema(description = "Business category", example = "Retail")
-    private String businessCategory;
-    @Schema(description = "Category code", example = "R123")
-    private String categoryCode;
-    @Schema(description = "Address line 1", example = "123 Main Street")
-    private String addressline1;
-    @Schema(description = "Address line 2", example = "Suite 456")
-    private String addressline2;
-    @Schema(description = "State", example = "California")
-    private String state;
-    @Schema(description = "City", example = "Los Angeles")
-    private String city;
-    @Schema(description = "Country", example = "USA")
-    private String country;
-    @Schema(description = "Pincode", example = "123456")
-    private String pincode;
-    @Schema(description = "Mobile number", example = "9876543210")
-    private String mobileNumber;
-    @Schema(description = "Phone number", example = "9876543210")
-    private String phoneNumber;
-    @Schema(description = "Primary email address", example = "primary@example.com")
-    private String primaryEmail;
-    @Schema(description = "Secondary email address", example = "secondary@example.com")
-    private String secondaryEmail;
-    @Schema(description = "Merchant website URL", example = "https://www.j-electro.com")
-    private String merchantUrl;
-    @Schema(name = "status",description = "MerchantStatus Valid MerchantStatus are ACTIVE, INACTIVE, BLOCKED, EXPIRED",example = "ACTIVE")
-    private MerchantStatus status;
-    @Schema(description = "Validity start time (epoch time)", example = "1737366148271")
-    private Long validityStartTime;
-    @Schema(description = "Validity end time (epoch time)", example = "1747366148271")
-    private Long validityEndTime;
-    @Schema(description = "Onboarding time (epoch time)", example = "1672531200000")
-    private Long onboardingTime;
-    @Schema(description = "Encryption algorithm used", example = "AES256")
-    private String encryptedAlgo;
-    @Schema(description = "Relationship Manager's name", example = "Alice Johnson")
-    private String rmName;
-    @Schema(description = "Bank code", example = "BANK123")
-    private String bankCode;
-    @Schema(description = "Branch code", example = "BR123")
-    private String branchCode;
-    @Schema(description = "GST number", example = "27ABCDE1234F1Z5")
-    private String gstNumber;
-    @JsonProperty("isChargebackAllowed")
-    @Schema(description = "Chargeback allowed flag", example = "true")
-    private boolean isChargebackAllowed;
-    @Schema(description = "Aggregator name", example = "SBIEPAY")
-    private String aggregator;
-    @Schema(description = "Notification preferences", example = "EMAIL")
-    private String notification;
-    @Schema(description = "Created by user", example = "admin")
-    private String createdBy;
-    @Schema(description = "Creation timestamp (epoch time)", example = "1672531200000")
-    private Long createdAt;
-    @Schema(description = "Updated by user", example = "admin")
-    private String updatedBy;
-    @Schema(description = "Updated timestamp (epoch time)", example = "1672627600000")
-    private Long updatedAt;
-}
+MerchantDto merchantDto = MerchantDto.builder()
+    .mId("MID7")
+    .merchantName("John Doe Enterprises")
+    .businessName("John's Electronics")
+    .brandName("J-Electro")
+    .businessCategory("Retail")
+    .categoryCode("R123")
+    .addressline1("123 Main Street")
+    .addressline2("Suite 456")
+    .state("California")
+    .city("Los Angeles")
+    .country("USA")
+    .pincode("123456")
+    .mobileNumber("9876543210")
+    .phoneNumber("9876543210")
+    .primaryEmail("primary@example.com")
+    .secondaryEmail("secondary@example.com")
+    .merchantUrl("https://www.j-electro.com")
+    .status(MerchantStatus.ACTIVE) // Assuming MerchantStatus is an Enum
+    .validityStartTime(1737366148271L)
+    .validityEndTime(1747366148271L)
+    .onboardingTime(1672531200000L)
+    .encryptedAlgo("AES256")
+    .rmName("Alice Johnson")
+    .bankCode("BANK123")
+    .branchCode("BR123")
+    .gstNumber("27ABCDE1234F1Z5")
+    .isChargebackAllowed(true)
+    .aggregator("SBIEPAY")
+    .notification("EMAIL")
+    .createdBy("admin")
+    .createdAt(1672531200000L)
+    .updatedBy("admin")
+    .updatedAt(1672627600000L)
+    .build();
