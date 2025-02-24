@@ -1,35 +1,54 @@
-MerchantDto merchantDto = MerchantDto.builder()
-    .mId("MID7")
-    .merchantName("John Doe Enterprises")
-    .businessName("John's Electronics")
-    .brandName("J-Electro")
-    .businessCategory("Retail")
-    .categoryCode("R123")
-    .addressline1("123 Main Street")
-    .addressline2("Suite 456")
-    .state("California")
-    .city("Los Angeles")
-    .country("USA")
-    .pincode("123456")
-    .mobileNumber("9876543210")
-    .phoneNumber("9876543210")
-    .primaryEmail("primary@example.com")
-    .secondaryEmail("secondary@example.com")
-    .merchantUrl("https://www.j-electro.com")
-    .status(MerchantStatus.ACTIVE) // Assuming MerchantStatus is an Enum
-    .validityStartTime(1737366148271L)
-    .validityEndTime(1747366148271L)
-    .onboardingTime(1672531200000L)
-    .encryptedAlgo("AES256")
-    .rmName("Alice Johnson")
-    .bankCode("BANK123")
-    .branchCode("BR123")
-    .gstNumber("27ABCDE1234F1Z5")
-    .isChargebackAllowed(true)
-    .aggregator("SBIEPAY")
-    .notification("EMAIL")
-    .createdBy("admin")
-    .createdAt(1672531200000L)
-    .updatedBy("admin")
-    .updatedAt(1672627600000L)
-    .build();
+
+@Data
+@Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@AllArgsConstructor
+@NoArgsConstructor
+public class MerchantUserDto implements Serializable {
+    @JsonIgnore
+    private UUID id;
+    @JsonIgnore
+    private UUID parentUserId;
+    @JsonIgnore
+    private int version;
+    @Schema(description = "Unique user name")
+    private String userName;
+    @Schema(description = "User first name")
+    private String firstName;
+    @Schema(description = "User email address")
+    private String email;
+    @Schema(description = "User mask email address")
+    private String emailMasked;
+    @Schema(description = "User mobile number which will be unique in the system")
+    private String mobilePhone;
+    @Schema(description = "Mask mobile number")
+    private String mobilePhoneMasked;
+    @Schema(description = "Remarks or notes", example = "Verified user")
+    private String remark;
+    @JsonIgnore
+    private UUID role;
+    @Schema(description = "Role Name", example = "Admin/SuperAdmin/User")
+    private String roleName;
+    @Schema(name = "status", description = "UserStatus e.g. ACTIVE, BLOCKED", example = "ACTIVE")
+    private UserStatus status;
+    @JsonIgnore
+    @Schema(description = "Encrypted Password")
+    private String password;
+    @Schema(description = "Password expiry time (epoch time)", example = "1704067200000")
+    private Long passwordExpiryTime;
+    @JsonIgnore
+    @Schema(description = "Login failure attempt count", example = "2")
+    private int loginFailAttempt;
+    @Schema(description = "Created by user")
+    private String createdBy;
+    @Schema(description = "Creation timestamp (epoch time)", example = "1672531200000")
+    private Long createdAt;
+    @Schema(description = "Updated by user")
+    private String updatedBy;
+    @Schema(description = "Updated timestamp (epoch time)", example = "1672627600000")
+    private Long updatedAt;
+    @Schema(description = "User doing first Login")
+    private boolean isFirstLogin;
+    @Schema(description = "User last success login")
+    private Long lastSuccessLogin;
+}
