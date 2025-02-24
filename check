@@ -1,240 +1,79 @@
 package com.epay.merchant.validator;
 
 import com.epay.merchant.dao.AdminDao;
-import com.epay.merchant.dto.ErrorDto;
 import com.epay.merchant.dto.MerchantDto;
 import com.epay.merchant.dto.MerchantUserDto;
-import com.epay.merchant.model.request.OnboardingRequest;
-import com.epay.merchant.util.ErrorConstants;
-import com.epay.merchant.util.MerchantConstant;
-import com.sbi.epay.logging.utility.LoggerFactoryUtility;
-import com.sbi.epay.logging.utility.LoggerUtility;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
-
-import java.text.MessageFormat;
-import java.util.ArrayList;
-
-import static com.epay.merchant.util.ErrorConstants.FORMAT;
-import static com.epay.merchant.util.ErrorConstants.FORMAT_OR_MAX_LENGTH;
-
-
-@Component
-@RequiredArgsConstructor
-public class OnboardingValidator extends BaseValidator {
-    private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
-
-    private final AdminDao adminDao;
-
-    
-    public void validateOnboardingRequest(OnboardingRequest onboardingRequest) {
-        errorDtoList = new ArrayList<>();
-        logger.info("Validating Merchant onboardingRequest", onboardingRequest);
-        validateMandatoryFields(onboardingRequest);
-        validateFieldsValue(onboardingRequest);
-        validatedAlreadyPresent(onboardingRequest);
-    }
-
- 
-    void validateMandatoryFields(OnboardingRequest onboardingRequest) {
-        logger.debug("Validating Merchant-validateMandatoryFields {}", onboardingRequest.getMerchant());
-        validateMandatoryFields(onboardingRequest.getMerchant());
-        logger.debug("Validating Merchant User-validateMandatoryFields {}", onboardingRequest.getUser());
-        validateMandatoryFields(onboardingRequest.getUser());
-        throwIfErrors();
-    }
-
-    
-    void validateFieldsValue(OnboardingRequest onboardingRequest) {
-        logger.debug("Validating Merchant-validateFieldsValue {}", onboardingRequest.getMerchant());
-        validateFieldsValue(onboardingRequest.getMerchant());
-        logger.debug("Validating Merchant User-validateFieldsValue {}", onboardingRequest.getUser());
-        validateFieldsValue(onboardingRequest.getUser());
-    }
-
-  
-    void validatedAlreadyPresent(OnboardingRequest onboardingRequest) {
-        if (adminDao.isMerchantExistByMId(onboardingRequest.getMerchant().getMId())) {
-            errorDtoList.add(ErrorDto.builder().errorCode(ErrorConstants.ALREADY_EXIST_ERROR_CODE).errorMessage(MessageFormat.format(ErrorConstants.ALREADY_EXIST_ERROR_MESSAGE, "MId")).build());
-        }
-        if (adminDao.isMerchantUserExist(onboardingRequest.getUser().getUserName(), onboardingRequest.getUser().getEmail(), onboardingRequest.getUser().getMobilePhone())) {
-            errorDtoList.add(ErrorDto.builder().errorCode(ErrorConstants.ALREADY_EXIST_ERROR_CODE).errorMessage(MessageFormat.format(ErrorConstants.ALREADY_EXIST_ERROR_MESSAGE, "Merchant User")).build());
-        }
-        throwIfErrors();
-    }
-
-  
-    void validateMandatoryFields(MerchantDto merchantDto) {
-        checkMandatoryField(merchantDto.getMId(), "Merchant.MId");
-        checkMandatoryField(merchantDto.getMerchantName(), "Merchant.Merchant Name");
-        checkMandatoryField(merchantDto.getAddressline1(), "Merchant.Address Line1");
-        checkMandatoryField(merchantDto.getCity(), "Merchant.City");
-        checkMandatoryField(merchantDto.getState(), "Merchant.State");
-        checkMandatoryField(merchantDto.getCountry(), "Merchant.Country");
-        checkMandatoryField(merchantDto.getPincode(), "Merchant.Pin Code");
-        checkMandatoryField(merchantDto.getMobileNumber(), "Merchant.Mobile Number");
-        checkMandatoryField(merchantDto.getPrimaryEmail(), "Merchant.Primary Email");
-        checkMandatoryDateField(merchantDto.getValidityStartTime(), "Merchant.Validity Start Time");
-        checkMandatoryDateField(merchantDto.getValidityEndTime(), "Merchant.Validity End Time");
-        checkMandatoryDateField(merchantDto.getOnboardingTime(), "Merchant.Onboarding Time");
-        checkMandatoryField(merchantDto.getRmName(), "Merchant.RM Name");
-        checkMandatoryField(merchantDto.getBankCode(), "Merchant.BankCode");
-        checkMandatoryField(merchantDto.getBranchCode(), "Merchant.Branch Code");
-        checkMandatoryField(merchantDto.getAggregator(), "Merchant.Aggregator Id");
-    }
-
-  
-    void validateMandatoryFields(MerchantUserDto user) {
-        checkMandatoryField(user.getUserName(), "User.User Name");
-        checkMandatoryField(user.getFirstName(), "User.First Name");
-        checkMandatoryField(user.getEmail(), "User.Email");
-        checkMandatoryField(user.getMobilePhone(), "User.Mobile Phone");
-    }
-
-    
-    void validateFieldsValue(MerchantDto merchantDto) {
-        validateFieldWithRegex(merchantDto.getPrimaryEmail(), MerchantConstant.EMAIL_LENGTH, MerchantConstant.EMAIL_REGEX, "Merchant.Primary Email", FORMAT_OR_MAX_LENGTH);
-        validateFieldWithRegex(merchantDto.getSecondaryEmail(), MerchantConstant.EMAIL_LENGTH, MerchantConstant.EMAIL_REGEX, "Merchant.Secondary Email", FORMAT_OR_MAX_LENGTH);
-        validateFieldWithRegex(merchantDto.getMobileNumber(), MerchantConstant.PHONE_REGEX, "Merchant.Mobile Number", FORMAT);
-        validateFieldWithRegex(merchantDto.getPhoneNumber(), MerchantConstant.PHONE_REGEX, "Merchant.Phone Number", FORMAT);
-        validateFieldWithRegex(merchantDto.getPincode(), MerchantConstant.PIN_REGEX, "Merchant.PinCode", FORMAT);
-        validateDateFieldForPastDate(merchantDto.getValidityStartTime(), "Merchant.Validity Start Time");
-        validateDateFieldForPastDate(merchantDto.getOnboardingTime(), "Merchant.Onboarding Time");
-        validateDateFieldForFutureDate(merchantDto.getValidityEndTime(), "Merchant.Validity End Time");
-    }
-
-
-    void validateFieldsValue(MerchantUserDto user) {
-        validateFieldLength(user.getFirstName(), MerchantConstant.NAME_LENGTH, "User.First Name");
-        validateFieldWithRegex(user.getEmail(), MerchantConstant.EMAIL_LENGTH, MerchantConstant.EMAIL_REGEX, "User.Primary Email", FORMAT_OR_MAX_LENGTH);
-        validateFieldWithRegex(user.getMobilePhone(), MerchantConstant.PHONE_REGEX, "User.Mobile Number", FORMAT);
-    }
-}
-
-
-package com.epay.merchant.validator;
-
-import com.epay.merchant.dto.ErrorDto;
 import com.epay.merchant.exception.ValidationException;
-import com.epay.merchant.util.ErrorConstants;
-import com.epay.merchant.util.MerchantConstant;
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.EnumUtils;
-import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.StringUtils;
+import com.epay.merchant.model.request.OnboardingRequest;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.text.MessageFormat;
-import java.util.*;
-import java.util.regex.Pattern;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-import static com.epay.merchant.util.ErrorConstants.INVALID_ERROR_CODE;
-import static com.epay.merchant.util.ErrorConstants.INVALID_ERROR_MESSAGE;
+@ExtendWith(MockitoExtension.class)
+class OnboardingValidatorTest {
 
+    @InjectMocks
+    private OnboardingValidator onboardingValidator;
 
-public class BaseValidator {
+    @Mock
+    private AdminDao adminDao;
 
-    List<ErrorDto> errorDtoList;
+    private OnboardingRequest onboardingRequest;
 
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        onboardingRequest = new OnboardingRequest();
+        MerchantDto merchant = new MerchantDto();
+        MerchantUserDto user = new MerchantUserDto();
+        
+        merchant.setMId("123");
+        merchant.setMerchantName("Test Merchant");
+        merchant.setMobileNumber("9876543210");
+        merchant.setPrimaryEmail("test@example.com");
 
-   protected void checkMandatoryField(String value, String fieldName) {
-        if (StringUtils.isEmpty(value) || StringUtils.equals(value,"null")) {
-            addError(fieldName, ErrorConstants.MANDATORY_ERROR_CODE, ErrorConstants.MANDATORY_ERROR_MESSAGE);
-        }
+        user.setUserName("testuser");
+        user.setEmail("user@example.com");
+        user.setMobilePhone("9999999999");
+
+        onboardingRequest.setMerchant(merchant);
+        onboardingRequest.setUser(user);
     }
 
-   
-    protected void checkMandatoryField(UUID value, String fieldName) {
-        if (ObjectUtils.isEmpty(value)) {
-            addError(fieldName, ErrorConstants.MANDATORY_ERROR_CODE, ErrorConstants.MANDATORY_ERROR_MESSAGE);
-        }
+    @Test
+    void testValidateOnboardingRequest_Success() {
+        when(adminDao.isMerchantExistByMId(anyString())).thenReturn(false);
+        when(adminDao.isMerchantUserExist(anyString(), anyString(), anyString())).thenReturn(false);
+
+        assertDoesNotThrow(() -> onboardingValidator.validateOnboardingRequest(onboardingRequest));
     }
 
+    @Test
+    void testValidateOnboardingRequest_MerchantExists() {
+        when(adminDao.isMerchantExistByMId(anyString())).thenReturn(true);
 
-    protected void checkMandatoryCollection(Collection<?> collection, String fieldName) {
-        if (CollectionUtils.isEmpty(collection)) {
-            addError(fieldName, ErrorConstants.MANDATORY_ERROR_CODE, ErrorConstants.MANDATORY_ERROR_MESSAGE);
-        }
+        ValidationException exception = assertThrows(ValidationException.class, () -> onboardingValidator.validateOnboardingRequest(onboardingRequest));
+        assertTrue(exception.getErrors().stream().anyMatch(e -> e.getErrorMessage().contains("MId")));
     }
 
+    @Test
+    void testValidateOnboardingRequest_UserExists() {
+        when(adminDao.isMerchantUserExist(anyString(), anyString(), anyString())).thenReturn(true);
 
-    protected void checkMandatoryFields(String fieldName, String... values) {
-        boolean allEmpty = Arrays.stream(values).allMatch(StringUtils::isEmpty);
-        if (allEmpty) {
-            addError(fieldName, ErrorConstants.MANDATORY_ERROR_CODE, ErrorConstants.MANDATORY_ERROR_MESSAGE);
-        }
+        ValidationException exception = assertThrows(ValidationException.class, () -> onboardingValidator.validateOnboardingRequest(onboardingRequest));
+        assertTrue(exception.getErrors().stream().anyMatch(e -> e.getErrorMessage().contains("Merchant User")));
     }
 
-    protected void checkMandatoryDateField(Long date, String fieldName) {
-        if (ObjectUtils.isEmpty(date) || date < 0) {
-            addError(fieldName, ErrorConstants.MANDATORY_ERROR_CODE, ErrorConstants.MANDATORY_ERROR_MESSAGE);
-        }
-    }
-
-    protected void validateFieldLength(String value, int maxLength, String fieldName) {
-        if (StringUtils.isNotEmpty(value) && value.length() > maxLength) {
-            addError(fieldName, ErrorConstants.INVALID_ERROR_CODE, ErrorConstants.MAX_ALLOWED_LENGTH_IS + maxLength);
-        }
-    }
-
-    protected void validateDateFieldForPastDate(Long date, String fieldName) {
-        if (date < MerchantConstant.MIN_TIMESTAMP || System.currentTimeMillis() < date) {
-            addError(ErrorConstants.INVALID_ERROR_CODE, ErrorConstants.INVALID_ERROR_MESSAGE, fieldName, ErrorConstants.GREATER_THEN_CURRENT_DATE_OR_NOT_HAVING_FORMAT);
-        }
-    }
-
-    protected void validateDateFieldForFutureDate(Long date, String fieldName) {
-        if (date > MerchantConstant.MAX_TIMESTAMP || System.currentTimeMillis() > date) {
-            addError(ErrorConstants.INVALID_ERROR_CODE, ErrorConstants.INVALID_ERROR_MESSAGE, fieldName, ErrorConstants.LESS_THEN_CURRENT_DATE_OR_NOT_HAVING_FORMAT);
-        }
-    }
-
-    protected void validateFieldWithRegex(String value, int maxLength, String regex, String fieldName, String message) {
-        if (StringUtils.isNotEmpty(value) && (value.length() > maxLength || validate(value, regex))) {
-            addError(fieldName, ErrorConstants.INVALID_ERROR_CODE, message + " " + maxLength);
-        }
-    }
-
-    protected void validateFieldWithRegex(String value, String regex, String fieldName, String message) {
-        if (StringUtils.isNotEmpty(value) && validate(value, regex)) {
-            addError(fieldName, ErrorConstants.INVALID_ERROR_CODE, MessageFormat.format(message, fieldName, value));
-        }
-    }
-
-    protected void validateFieldValue(String value, String validValue, String fieldName) {
-        if (!validValue.equalsIgnoreCase(value)) {
-            addError(INVALID_ERROR_CODE, INVALID_ERROR_MESSAGE, fieldName, ErrorConstants.VALID_VALUES_ARE + validValue);
-        }
-    }
-
-    protected void validateFieldValue(String value, List<String> validValues, String fieldName) {
-        boolean isValid = validValues.stream().anyMatch(validValue -> validValue.equalsIgnoreCase(value));
-        if (!isValid) {
-            addError(INVALID_ERROR_CODE, INVALID_ERROR_MESSAGE, fieldName, ErrorConstants.VALID_VALUES_ARE + validValues);
-        }
-
-    }
-
-    protected <E extends Enum<E>> void  validateFieldValue(Enum<E> value, String fieldName, Class<E> enumName) {
-        if (Objects.isNull(value)) {
-            addError(ErrorConstants.INVALID_ERROR_CODE, ErrorConstants.INVALID_ERROR_MESSAGE, fieldName, "Valid values are " + EnumUtils.getEnumList(enumName));
-        }
-    }
-
-    protected void addError(String fieldName, String errorCode, String errorMessage) {
-        errorDtoList.add(ErrorDto.builder().errorCode(errorCode).errorMessage(MessageFormat.format(errorMessage, fieldName)).build());
-    }
-
-    protected void addError(String errorCode, String errorMessage, Object... fieldNames) {
-        errorDtoList.add(ErrorDto.builder().errorCode(errorCode).errorMessage(MessageFormat.format(errorMessage, fieldNames)).build());
-    }
-
-    protected void throwIfErrors() {
-        if (CollectionUtils.isNotEmpty(errorDtoList)) {
-            throw new ValidationException(errorDtoList);
-        }
-    }
-
-    protected boolean validate(String value, String regex) {
-        return !Pattern.matches(regex, value);
+    @Test
+    void testValidateMandatoryFields_MissingFields() {
+        onboardingRequest.getMerchant().setMerchantName(null);
+        assertThrows(ValidationException.class, () -> onboardingValidator.validateOnboardingRequest(onboardingRequest));
     }
 }
