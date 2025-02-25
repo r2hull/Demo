@@ -8,346 +8,141 @@ import com.epay.merchant.mapper.CaptchaMapper;
 import com.epay.merchant.model.request.CaptchaRequest;
 import com.epay.merchant.model.response.CaptchaResponse;
 import com.epay.merchant.model.response.MerchantResponse;
-import com.epay.merchant.util.ErrorConstants;
 import com.epay.merchant.util.MerchantUtil;
 import com.epay.merchant.util.enums.RequestType;
 import com.epay.merchant.validator.CaptchaValidator;
 import com.sbi.epay.captcha.impl.DefaultKaptcha;
-import com.sbi.epay.logging.utility.LoggerFactoryUtility;
 import com.sbi.epay.logging.utility.LoggerUtility;
-import com.sun.speech.freetts.Voice;
-import com.sun.speech.freetts.VoiceManager;
-import com.sun.speech.freetts.audio.SingleFileAudioPlayer;
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.stereotype.Service;
-
-import javax.sound.sampled.AudioFileFormat;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.security.SecureRandom;
-import java.text.MessageFormat;
 import java.util.Base64;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-import static com.epay.merchant.util.MerchantConstant.FREETTS_VOICES;
-import static com.epay.merchant.util.MerchantConstant.RESPONSE_SUCCESS;
+@ExtendWith(MockitoExtension.class)
+class CaptchaServiceTest {
 
-
-@Service
-@RequiredArgsConstructor
-public class CaptchaService {
-
-    private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
-
-    private final MerchantConfig merchantConfig;
-    private final CaptchaDao captchaDao;
-    private final DefaultKaptcha captchaProducer;
-    private final CaptchaValidator captchaValidator;
-    private final CaptchaMapper captchaMapper;
-    private final SecureRandom random;
-
-   
-    public MerchantResponse<CaptchaResponse> generateCaptcha(CaptchaRequest captchaRequest) {
-        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
-        //Step 1 : Validate Captcha Request
-        captchaValidator.requestValidator(captchaRequest);
-        return saveCaptcha(captchaRequest, false);
-    }
-
-
-    
-    public MerchantResponse<CaptchaResponse> regenerateCaptcha(CaptchaRequest captchaRequest) {
-        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
-        //Step 1 : Validate Captcha Request
-        captchaValidator.regenerateValidator(captchaRequest);
-        return saveCaptcha(captchaRequest, true);
-    }
-
-    
-    private String generateCaptchaImage(String captchaText) {
-        logger.info("generated captcha text: {}", captchaText);
-        BufferedImage image = captchaProducer.createImage(captchaText);
-        return MerchantUtil.convertImageToBase64(image, "Captcha");//static method
-    }
-
-    private MerchantResponse<CaptchaResponse> saveCaptcha(CaptchaRequest captchaRequest, boolean retry) {
-        RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
-        //Step 2 : Generate Captcha Text
-        String captchaText = captchaProducer.createText();
-        //Step 3 : Generate Captcha Image and convert into Base 64
-        String base64Image = generateCaptchaImage(captchaText);
-        String base64Audio = generateCaptchaAudio(captchaText, captchaRequest.getRequestId());
-        //Step 3 : Save the Captcha into DB
-        CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry);
-        //Step 4 : Build the Merchant Response
-        logger.info("generate captcha completed for RequestId: {}", captchaRequest.getRequestId());
-        return MerchantResponse.<CaptchaResponse>builder().data(List.of(captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image, base64Audio))).status(RESPONSE_SUCCESS).build();
-    }
-
+    @Mock private LoggerUtility logger;
+    @Mock private MerchantConfig merchantConfig;
+    @Mock private CaptchaDao captchaDao;
+    @Mock private DefaultKaptcha captchaProducer;
+    @Mock private CaptchaValidator captchaValidator;
+    @Mock private CaptchaMapper captchaMapper;
   
-    public String generateCaptchaAudio(String captchaText, UUID requestId) {
-        logger.info("Started generateAudioCaptcha for requestId: {}", requestId);
+    @InjectMocks private CaptchaService captchaService;
 
-        return Optional.ofNullable(captchaText)
-                .map(text -> generateAudioCaptcha(text, requestId))
-                .map(data -> encodeToBase64(data, requestId))
-                .orElseGet(() -> {
-                    logger.warn("Captcha text is null for requestId: {}", requestId);
-                    return "";
-                });
+    private CaptchaRequest captchaRequest;
+    private UUID requestId;
+    private CaptchaDto captchaDto;
+
+    @BeforeEach
+    void setUp() {
+        requestId = UUID.randomUUID();
+        captchaRequest = new CaptchaRequest();
+        captchaRequest.setRequestId(requestId);
+        captchaRequest.setRequestType(RequestType.NEW.name());
+
+        captchaDto = new CaptchaDto();
     }
 
-  
-    public byte[] generateAudioCaptcha(String text, UUID requestId) {
-        if(StringUtils.isEmpty(System.getProperty(FREETTS_VOICES)))
-            System.setProperty(FREETTS_VOICES, merchantConfig.getVoiceDir());
+    @Test
+    void testGenerateCaptcha_Success() {
+        when(captchaProducer.createText()).thenReturn("ABCD");
+        when(captchaDao.save(anyString(), any(), any(), anyBoolean())).thenReturn(captchaDto);
+        when(captchaMapper.mapCaptchaDtoToCaptchaResponse(any(), anyString(), anyString())).thenReturn(new CaptchaResponse());
 
-        logger.info("Generating audio captcha for requestId: {}", requestId);
-        File tempFile = createTempFile(requestId);
-        if (tempFile == null){
-            logger.error("Temp file creation failed for requestId: {}", requestId);
-            return new byte[0];
-        }
+        MerchantResponse<CaptchaResponse> response = captchaService.generateCaptcha(captchaRequest);
 
-        try {
-            Voice voice = initializeVoice();
-            if (voice == null) {
-                logger.error("Voice initialization failed for requestId: {}", requestId);
-                return new byte[0];
-            }
-
-            SingleFileAudioPlayer audioPlayer = configureAudioPlayer(tempFile);
-            voice.setAudioPlayer(audioPlayer);
-
-            speakCharacters(voice, text);
-            cleanupResources(voice, audioPlayer);
-
-            return validateAndReturnAudio(tempFile, requestId);
-        } catch (Exception e) {
-            logger.error("Error generating speech audio for requestId: {}", requestId, e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
-        } finally {
-            try {
-                Files.delete(tempFile.toPath());
-            } catch (IOException ioException) {
-                logger.warn("Failed to delete temporary file: {}, error: {}", tempFile.getAbsolutePath(), ioException.getMessage());
-            }
-        }
+        assertNotNull(response);
+        assertEquals(1, response.getData().size());
+        verify(captchaValidator, times(1)).requestValidator(captchaRequest);
+        verify(captchaDao, times(1)).save(anyString(), any(), any(), anyBoolean());
     }
 
-    private File createTempFile(UUID requestId) {
-        try {
-            // Ensure temp directory is properly configured
-            String tempDirConfig = merchantConfig.getTempDir();
-            if (tempDirConfig == null || tempDirConfig.trim().isEmpty()) {
-                throw new IllegalStateException("Temporary directory is not configured!");
-            }
+    @Test
+    void testRegenerateCaptcha_Success() {
+        when(captchaProducer.createText()).thenReturn("XYZ");
+        when(captchaDao.save(anyString(), any(), any(), anyBoolean())).thenReturn(captchaDto);
+        when(captchaMapper.mapCaptchaDtoToCaptchaResponse(any(), anyString(), anyString())).thenReturn(new CaptchaResponse());
 
-            Path tempDir = Paths.get(tempDirConfig).normalize().toAbsolutePath();
-            if (!Files.exists(tempDir)) {
-                Files.createDirectories(tempDir); // Ensure directory exists
-            }
+        MerchantResponse<CaptchaResponse> response = captchaService.regenerateCaptcha(captchaRequest);
 
-            // Use SecureRandom for unpredictable file names
-            String randomSuffix = Long.toHexString(random.nextLong());
-            Path tempFilePath = Files.createTempFile(tempDir, "speech_" + randomSuffix + "_", ".wav").normalize();
-
-            // Validate that tempFilePath is inside tempDir (prevent path traversal attacks)
-            if (!tempFilePath.startsWith(tempDir)) {
-                throw new SecurityException("Unauthorized temp file path detected: " + tempFilePath);
-            }
-            logger.debug("Temporary file securely created: {}", tempFilePath);
-            return tempFilePath.toFile();
-
-        } catch (Exception e) {
-            logger.error("Failed to create secure temp file for requestId: {}", requestId, e);
-            return null;
-        }
+        assertNotNull(response);
+        assertEquals(1, response.getData().size());
+        verify(captchaValidator, times(1)).regenerateValidator(captchaRequest);
     }
 
+    @Test
+    void testGenerateCaptcha_Failure_InvalidRequest() {
+        doThrow(new MerchantException("400", "Invalid request")).when(captchaValidator).requestValidator(captchaRequest);
 
-    
-    private Voice initializeVoice() {
-        Voice voice = VoiceManager.getInstance().getVoice(merchantConfig.getVoiceName());
-        if (voice == null) {
-            logger.error("Voice '{}' not found.", merchantConfig.getVoiceName());
-            return null;
-        }
-        voice.allocate();
-        voice.setRate(130);
-        voice.setPitch(100);
-        voice.setVolume(1.0f);
-        logger.debug("Voice '{}' initialized successfully.", merchantConfig.getVoiceName());
-        return voice;
+        assertThrows(MerchantException.class, () -> captchaService.generateCaptcha(captchaRequest));
+        verify(captchaValidator, times(1)).requestValidator(captchaRequest);
     }
 
-    
-    private SingleFileAudioPlayer configureAudioPlayer(File tempFile) {
-        return new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""), AudioFileFormat.Type.WAVE);
+    @Test
+    void testGenerateCaptchaAudio_Success() {
+        when(merchantConfig.getVoiceDir()).thenReturn("/voiceDir");
+        when(merchantConfig.getVoiceName()).thenReturn("kevin16");
+        when(merchantConfig.getTempDir()).thenReturn("/tmp");
+
+        byte[] mockAudio = "audioData".getBytes();
+        doReturn(mockAudio).when(captchaService).generateAudioCaptcha(anyString(), any());
+
+        String base64Audio = captchaService.generateCaptchaAudio("ABCD", requestId);
+
+        assertNotNull(base64Audio);
+        assertFalse(base64Audio.isEmpty());
     }
 
-  
-    private void speakCharacters(Voice voice, String text) {
-        logger.debug("Speaking text: {}", text);
-        text.chars().forEach(ch -> voice.speak(String.valueOf((char)ch)));
+    @Test
+    void testGenerateCaptchaAudio_Failure() {
+        when(merchantConfig.getTempDir()).thenReturn(null);
+
+        Exception exception = assertThrows(MerchantException.class, () -> captchaService.generateCaptchaAudio("1234", requestId));
+        assertTrue(exception.getMessage().contains("Temporary directory is not configured"));
     }
 
-    
-    private void cleanupResources(Voice voice, SingleFileAudioPlayer audioPlayer) {
-        voice.deallocate();
-        audioPlayer.close();
-        logger.debug("Resources cleaned up successfully.");
+    @Test
+    void testGenerateCaptchaImage_Success() {
+        BufferedImage mockImage = mock(BufferedImage.class);
+        when(captchaProducer.createImage(anyString())).thenReturn(mockImage);
+        when(MerchantUtil.convertImageToBase64(any(), anyString())).thenReturn(Base64.getEncoder().encodeToString("testImage".getBytes()));
+
+        String base64Image = captchaService.generateCaptchaImage("1234");
+
+        assertNotNull(base64Image);
+        verify(captchaProducer, times(1)).createImage("1234");
     }
 
-    private byte[] validateAndReturnAudio(File tempFile, UUID requestId) {
-        if (!tempFile.exists() || tempFile.length() == 0) {
-            logger.error("Generated audio file is empty or missing for requestId: {}", requestId);
-            return new byte[0];
-        }
-        logger.info("Audio file successfully generated for requestId: {}", requestId);
-        return fileToByteArray(tempFile);
+    @Test
+    void testGenerateCaptchaImage_Failure() {
+        when(captchaProducer.createImage(anyString())).thenThrow(new RuntimeException("Image generation failed"));
+
+        assertThrows(RuntimeException.class, () -> captchaService.generateCaptchaImage("1234"));
     }
 
- 
-    private byte[] fileToByteArray(File file) {
-        try {
-            // Validate and normalize paths
-            String tempDirConfig = merchantConfig.getTempDir();
-            if (tempDirConfig == null || tempDirConfig.trim().isEmpty()) {
-                throw new IllegalStateException("Temporary directory is not configured!");
-            }
+    @Test
+    void testEncodeToBase64_Success() {
+        byte[] sampleData = "testData".getBytes();
+        String encoded = captchaService.encodeToBase64(sampleData, requestId);
 
-            Path tempDir = Paths.get(tempDirConfig).normalize().toAbsolutePath();
-            Path resolvedPath = tempDir.resolve(file.getName()).normalize();
-
-            // Ensure the file is within the secure directory
-            if (!resolvedPath.startsWith(tempDir)) {
-                throw new SecurityException("Unauthorized file access detected: " + resolvedPath);
-            }
-
-            // Read file safely using Files API
-            try (InputStream fis = Files.newInputStream(resolvedPath);
-                 ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-
-                byte[] buffer = new byte[1024];
-                int bytesRead;
-                while ((bytesRead = fis.read(buffer)) != -1) {
-                    byteArrayOutputStream.write(buffer, 0, bytesRead);
-                }
-
-                logger.debug("File successfully converted to byte array: {}", file.getName());
-                return byteArrayOutputStream.toByteArray();
-            }
-
-        } catch (IOException e) {
-            logger.error("Error reading file to byte array securely: {}", file.getName(), e);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
-                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, file.getName()));
-        }
+        assertNotNull(encoded);
+        assertFalse(encoded.isEmpty());
     }
 
- 
-    public String encodeToBase64(byte[] data, UUID requestId) {
-        return Optional.ofNullable(data)
-                .filter(d -> d.length > 0)
-                .map(Base64.getEncoder()::encodeToString)
-                .orElseGet(() -> {
-                    logger.warn("Empty byte array for requestId: {}", requestId);
-                    return "";
-                });
-    }
-}
-
-
-
-
-package com.epay.merchant.util;
-
-import com.epay.merchant.exception.MerchantException;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
-import org.apache.commons.text.StringEscapeUtils;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.web.multipart.MultipartFile;
-
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.text.MessageFormat;
-import java.util.Base64;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import static com.epay.merchant.util.MerchantConstant.*;
-
-
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class MerchantUtil {
-
-    private static final int OTP_LENGTH = 6;
-    private static final long MIN = 100_000_000_000L;
-    private static final long MAX = 999_999_999_999L;
-
-    public static String convertImageToBase64(BufferedImage image, String imageType) {
-        try {
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            ImageIO.write(image, JPG, outputStream);
-            return Base64.getEncoder().encodeToString(outputStream.toByteArray());
-        } catch (IOException e) {
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE, MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, imageType));
-        }
-    }
-
-   
-    public static String generateOtp() {
-        SecureRandom secureRandom = new SecureRandom();
-        return IntStream.range(0, OTP_LENGTH).map(i -> secureRandom.nextInt(10)).mapToObj(String::valueOf).collect(Collectors.joining());
-    }
-
-    
-    public static String getBase64(MultipartFile logoFile) {
-        String base64Image = null;
-        //Convert File to base 64 string
-        if (null != logoFile && !logoFile.isEmpty()) {
-            byte[] image;
-            try {
-                image = Base64.getEncoder().encode(logoFile.getBytes());
-            } catch (IOException e) {
-                throw new MerchantException(ErrorConstants.INVALID_ERROR_CODE, MessageFormat.format(ErrorConstants.INVALID_ERROR_MESSAGE, LOGO_FILE, ErrorConstants.UNABLE_TO_PROCESS_LOGO_FILE));
-            }
-            base64Image = new String(image, StandardCharsets.UTF_8);
-        }
-        return base64Image;
-    }
-
-    public static long generateUnique12DigitNumber() {
-        SecureRandom secureRandom = new SecureRandom();
-        long randomPart = secureRandom.nextLong();
-        return MIN + Math.abs(randomPart) % (MAX - MIN + 1);
-    }
-    
-    public static void setHeader(HttpServletResponse response, String contentType, String fileName) {
-        response.setContentType(contentType);
-        response.setCharacterEncoding(String.valueOf(StandardCharsets.UTF_8));
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, StringEscapeUtils.escapeJava("attachment;filename=" + fileName));
-        HttpHeaders headers = new HttpHeaders();
-        ContentDisposition contentDisposition = ContentDisposition.attachment().filename(fileName).build();
-        headers.setContentDisposition(contentDisposition);
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, headers.getFirst(HttpHeaders.CONTENT_DISPOSITION));
-        response.setHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION);
+    @Test
+    void testEncodeToBase64_EmptyArray() {
+        String encoded = captchaService.encodeToBase64(new byte[0], requestId);
+        assertTrue(encoded.isEmpty());
     }
 }
