@@ -1,92 +1,123 @@
-package com.epay.merchant.service;
+package com.epay.merchant.dao;
 
-import com.epay.merchant.dao.AlertDao;
 import com.epay.merchant.dto.AlertManagementDto;
 import com.epay.merchant.dto.AlertMasterDto;
 import com.epay.merchant.dto.ReportAlertDto;
+import com.epay.merchant.entity.AlertManagement;
+import com.epay.merchant.entity.AlertMaster;
+import com.epay.merchant.exception.MerchantException;
+import com.epay.merchant.mapper.AlertMapper;
 import com.epay.merchant.model.response.AlertManagementResponse;
-import com.epay.merchant.model.response.MerchantResponse;
+import com.epay.merchant.repository.AlertManagementRepository;
+import com.epay.merchant.repository.AlertMasterRepository;
+import com.epay.merchant.util.DateTimeUtils;
+import com.epay.merchant.util.EPayIdentityUtil;
+import com.epay.merchant.util.ErrorConstants;
 import com.epay.merchant.util.MerchantConstant;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import com.epay.merchant.util.MerchantUtil;
+import com.epay.merchant.util.enums.MerchantUserRoles;
+import com.sbi.epay.logging.utility.LoggerFactoryUtility;
+import com.sbi.epay.logging.utility.LoggerUtility;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.apache.commons.collections4.CollectionUtils;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Repository;
+
+import java.text.MessageFormat;
 import java.util.List;
 import java.util.Map;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
-@ExtendWith(MockitoExtension.class)
-class AlertServiceTest {
+import static com.epay.merchant.util.MerchantConstant.ACCOUNT_EXPIRY;
 
-    @Mock
-    private AlertDao alertDao;
+@Repository
+@RequiredArgsConstructor
+public class AlertDao {
+    private final LoggerUtility log = LoggerFactoryUtility.getLogger(this.getClass());
+    private final AlertMasterRepository alertMasterRepository;
+    private final AlertManagementRepository alertManagementRepository;
+    private final MerchantInfoDao merchantInfoDao;
+    private final AlertMapper alertMapper;
 
-    @InjectMocks
-    private AlertService alertService;
+  
+    public List<AlertManagementResponse> getLatest50UnreadAlertDescription(String mId) {
+        // Fetch alerts based on MID with pagination (latest 50)
+        List<AlertManagement> alertManagementList = alertManagementRepository.findAlertsByMId(mId, PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "createdAt")));
 
-    private AlertMasterDto alertMasterDto;
-    private ReportAlertDto reportAlertDto;
+        // Get user roles
+        List<String> userRoles = EPayIdentityUtil.getUserPrincipal().getUserRole();
 
-    @BeforeEach
-    void setUp() {
-        alertMasterDto = new AlertMasterDto();
-        alertMasterDto.setId(1L);
-        alertMasterDto.setValue("7");
-        alertMasterDto.setDescription("Account Expiry in 7 days");
-
-        reportAlertDto = new ReportAlertDto();
-        reportAlertDto.setMId("MID123");
-        reportAlertDto.setReportName("Daily Report");
+        // If user role is "USER", filter alerts accordingly
+        if( checkIsUserRole( userRoles ) ) {
+            List<AlertMasterDto> accountExpiryAlerts = findAllAlertByName(ACCOUNT_EXPIRY);
+            return alertMapper.alertManagementEntityToResponse(filterAlertsForUserRole(alertManagementList, collectAlertMasterId(accountExpiryAlerts)));
+        }
+        // Default return if no filtering is needed
+        return alertMapper.alertManagementEntityToResponse(alertManagementList);
     }
 
-    @Test
-    void shouldReturnAlertsByMId() {
-        when(alertDao.getLatest50UnreadAlertDescription("MID123"))
-                .thenReturn(List.of(new AlertManagementResponse()));
-
-        MerchantResponse<AlertManagementResponse> response = alertService.getAlertsByMId("MID123");
-
-        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
-        assertEquals(1, response.getCount());
-        verify(alertDao, times(1)).getLatest50UnreadAlertDescription("MID123");
+    
+    @Transactional
+    public void updateViewStatus(String mId, long alertIdentifier) {
+        alertManagementRepository.updateAlertViewStatus(mId, alertIdentifier);
     }
 
-    @Test
-    void shouldUpdateAlertViewStatus() {
-        doNothing().when(alertDao).updateViewStatus("MID123", 1001L);
-
-        MerchantResponse<String> response = alertService.updateAlertViewStatus("MID123", 1001L);
-
-        assertEquals("View updated successfully", response.getData().get(0));
-        verify(alertDao, times(1)).updateViewStatus("MID123", 1001L);
+    
+    public void saveAllToAlertManagement(List<AlertManagementDto> alertManagementDtoList) {
+        List<AlertManagement> alertManagementList = alertMapper.mapDtoListToEntityList(alertManagementDtoList);
+        alertManagementRepository.saveAll(alertManagementList);
     }
 
-    @Test
-    void shouldGenerateAlertForMerchantAccountExpiry() {
-        when(alertDao.findAllAlertByName(MerchantConstant.ACCOUNT_EXPIRY))
-                .thenReturn(List.of(alertMasterDto));
-
-        when(alertDao.getMIdsWithExpiryDays(anyList()))
-                .thenReturn(Map.of("7", "MID123"));
-
-        doNothing().when(alertDao).saveAllToAlertManagement(anyList());
-
-        alertService.generateAlertForMerchantAccountExpiry();
-
-        verify(alertDao, times(1)).findAllAlertByName(MerchantConstant.ACCOUNT_EXPIRY);
-        verify(alertDao, times(1)).getMIdsWithExpiryDays(anyList());
-        verify(alertDao, times(1)).saveAllToAlertManagement(anyList());
+    public Map<String, String> getMIdsWithExpiryDays(List<String> validityEndTime) {
+        return merchantInfoDao.getMIdsWithExpiryDays(validityEndTime);
     }
 
-    @Test
-    void shouldGenerateAlertForReport() {
-        doNothing().when(alertDao).generateAlertForReport(reportAlertDto);
-
-        alertService.generateAlertForReport(reportAlertDto);
-
-        verify(alertDao, times(1)).generateAlertForReport(reportAlertDto);
+    
+    public List<AlertMasterDto> findAllAlertByName(String name) {
+        List<AlertMaster> alertMasterList = alertMasterRepository.findAllByName(name);
+        return alertMapper.mapAlertMasterEntityListToDtoList(alertMasterList);
     }
+
+    
+    public void generateAlertForBankAccountApproval(String mid, String accountName) {
+        List<AlertMaster> alertMasterList = alertMasterRepository.findAllByName(MerchantConstant.BANK_ACCOUNT);
+        if (CollectionUtils.isNotEmpty(alertMasterList)) {
+            AlertMaster alertMaster = alertMasterList.getFirst();
+            AlertManagement alertManagement = AlertManagement.builder().alertId(alertMaster.getId()).alertDescription(MessageFormat.format(alertMaster.getDescription(), accountName, DateTimeUtils.getCurrentDate())).alertIdentifier(MerchantUtil.generateUnique12DigitNumber()).isViewed(false).mId(mid).build();
+            alertManagementRepository.save(alertManagement);
+        }
+
+    }
+
+  
+    private boolean checkIsUserRole(List<String> userRoles) {
+        return userRoles.stream().anyMatch(MerchantUserRoles.USER.name()::equals);
+    }
+
+  
+    private List<AlertManagement> filterAlertsForUserRole(List<AlertManagement> alertManagements, List<UUID> excludeAlertIds) {
+        return alertManagements.stream()
+                .filter(alert -> !excludeAlertIds.contains(alert.getAlertId()))
+                .collect(Collectors.toList());
+    }
+
+  
+    private List<UUID> collectAlertMasterId(List<AlertMasterDto> alertMasterDtoList) {
+        return alertMasterDtoList.stream().map(master -> master.getId())
+                .collect(Collectors.toList());
+    }
+
+
+
+ 
+    public void generateAlertForReport(ReportAlertDto reportAlertDto) {
+        AlertMaster alertMasterData = alertMasterRepository.findByName(MerchantConstant.REPORT_GENERATION).orElseThrow(()-> new MerchantException(ErrorConstants.NOT_FOUND_ERROR_CODE, MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Alert name  "+  MerchantConstant.REPORT_GENERATION)));
+        AlertManagement alertManagement = AlertManagement.builder().alertId(alertMasterData.getId()).alertDescription(MessageFormat.format(alertMasterData.getDescription(), reportAlertDto.getReportName())).alertIdentifier(MerchantUtil.generateUnique12DigitNumber()).isViewed(false).mId(reportAlertDto.getMId()).build();
+        log.info("generated Alert for ReportName: {}, mid : {}",reportAlertDto.getReportName(),reportAlertDto.getMId());
+        alertManagementRepository.save(alertManagement);
+    }
+
 }
