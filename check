@@ -1,83 +1,80 @@
-package com.epay.merchant.validator;
+package com.epay.merchant.service;
 
-import com.epay.merchant.dao.AdminDao;
-import com.epay.merchant.dto.ErrorDto;
-import com.epay.merchant.model.request.MerchantEntityGroupRequest;
-import com.epay.merchant.model.request.UserEntityMappingRequest;
-import com.epay.merchant.util.enums.MerchantUserRoles;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import com.epay.merchant.dao.AlertDao;
+import com.epay.merchant.dto.AlertManagementDto;
+import com.epay.merchant.dto.AlertMasterDto;
+import com.epay.merchant.dto.ReportAlertDto;
+import com.epay.merchant.model.response.AlertManagementResponse;
+import com.epay.merchant.model.response.MerchantResponse;
+import com.epay.merchant.util.MerchantConstant;
+import com.epay.merchant.util.MerchantUtil;
+import com.sbi.epay.logging.utility.LoggerFactoryUtility;
+import com.sbi.epay.logging.utility.LoggerUtility;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
 import java.util.List;
-import java.util.UUID;
+import java.util.Map;
+import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.*;
+import static com.epay.merchant.util.MerchantConstant.ACCOUNT_EXPIRY;
 
-@ExtendWith(MockitoExtension.class)
-class AdminValidatorTest {
+@Service
+@RequiredArgsConstructor
+public class AlertService {
+    private final LoggerUtility log = LoggerFactoryUtility.getLogger(this.getClass());
 
-    @Mock
-    private AdminDao adminDao;
+    private final AlertDao alertDao;
 
-    @InjectMocks
-    private AdminValidator adminValidator;
-
-    private MerchantEntityGroupRequest merchantEntityGroupRequest;
-    private UserEntityMappingRequest userEntityMappingRequest;
-
-    @BeforeEach
-    void setUp() {
-        merchantEntityGroupRequest = new MerchantEntityGroupRequest();
-        merchantEntityGroupRequest.setEntityId("E123");
-        merchantEntityGroupRequest.setMIds(List.of("MID123"));
-
-        userEntityMappingRequest = new UserEntityMappingRequest();
-        userEntityMappingRequest.setUserName("testUser");
-        userEntityMappingRequest.setEntityId("E123");
+    private static AlertManagementDto buildAlertManagementDto(String value, AlertMasterDto alertMasterDto) {
+        return AlertManagementDto.builder().alertId(alertMasterDto.getId()).mId(value).alertIdentifier(MerchantUtil.generateUnique12DigitNumber()).alertDescription(alertMasterDto.getDescription()).build();
     }
 
-    @Test
-    void shouldValidateUserEntityRequest_WhenUserExists() {
-        when(adminDao.isMerchantUserExistWithRoles(eq("testUser"), anyList()))
-                .thenReturn(true);
+    
+    public MerchantResponse<AlertManagementResponse> getAlertsByMId(String mId) {
+        log.info("Fetching unread alert descriptions for mId: {}", mId);
+        List<AlertManagementResponse> alertManagementResponses = alertDao.getLatest50UnreadAlertDescription(mId);
+        return MerchantResponse.<AlertManagementResponse>builder().data(alertManagementResponses).status(MerchantConstant.RESPONSE_SUCCESS).count((long) alertManagementResponses.size()).build();
 
-        adminValidator.userEntityRequestValidator(userEntityMappingRequest);
-        
-        verify(adminDao, times(1)).isMerchantUserExistWithRoles(eq("testUser"), anyList());
     }
 
-    @Test
-    void shouldThrowError_WhenUserDoesNotExist() {
-        when(adminDao.isMerchantUserExistWithRoles(eq("testUser"), anyList()))
-                .thenReturn(false);
+   
+    public MerchantResponse<String> updateAlertViewStatus(String mId, long alertIdentifier) {
 
-        Exception exception = assertThrows(RuntimeException.class, 
-            () -> adminValidator.userEntityRequestValidator(userEntityMappingRequest));
-
-        assertEquals("INVALID_ERROR_CODE", ((ErrorDto) exception).getErrorCode());
+        log.info("Marking alert Identifier '{}' as viewed for mID '{}'", alertIdentifier, mId);
+        alertDao.updateViewStatus(mId, alertIdentifier);
+        return MerchantResponse.<String>builder().data(List.of("View updated successfully")).status(MerchantConstant.RESPONSE_SUCCESS).count(1L).total(1L).build();
     }
 
-    @Test
-    void shouldValidateMIds_WhenValid() {
-        when(adminDao.findInvalidsMIds(anyList())).thenReturn(List.of());
+    public void generateAlertForMerchantAccountExpiry() {
+        log.info("Starting execution of generateAlertForMerchantAccountExpiry");
 
-        adminValidator.entityValidator(merchantEntityGroupRequest);
+        //Step 1 : Fetch Alert Master Data for Account Expiry and build Map as per Alert Master value
+        List<AlertMasterDto> alertMasterDtoList = alertDao.findAllAlertByName(ACCOUNT_EXPIRY);
+        Map<String, AlertMasterDto> alertMasterDtoMap = alertMasterDtoList.stream().collect(Collectors.toMap(AlertMasterDto::getValue, dto -> dto));
 
-        verify(adminDao, times(1)).findInvalidsMIds(anyList());
+        //Step 2 : Fetch MId list with Alert Master Value data
+        Map<String, String> mIdsWithExpiryDays = alertDao.getMIdsWithExpiryDays(alertMasterDtoMap.keySet().stream().toList());
+
+        if (mIdsWithExpiryDays.isEmpty()) {
+            log.info("No MIds found for the specified alert days. Exiting.");
+            return;
+        }
+
+        //Step 3 : Build Alert Management For fetched MIds and Save Data in DB
+        log.info("Total {} MIDs found for Alter generation", mIdsWithExpiryDays.size());
+        List<AlertManagementDto> alertManagementDtoList = createAlertManagementDtoList(alertMasterDtoMap, mIdsWithExpiryDays);
+        alertDao.saveAllToAlertManagement(alertManagementDtoList);
+        log.info("Completed execution of generateAlertForMerchantAccountExpiry. Total alerts count {0}.", alertManagementDtoList.size());
     }
 
-    @Test
-    void shouldThrowError_WhenMIdsAreInvalid() {
-        when(adminDao.findInvalidsMIds(anyList())).thenReturn(List.of("MID999"));
+    private List<AlertManagementDto> createAlertManagementDtoList(Map<String, AlertMasterDto> alertMasterDtoMap, Map<String, String> mIdsWithExpiryDays) {
+        return mIdsWithExpiryDays.entrySet().stream().map(entry -> buildAlertManagementDto(entry.getValue(), alertMasterDtoMap.get(entry.getKey()))).collect(Collectors.toList());
+    }
 
-        Exception exception = assertThrows(RuntimeException.class,
-            () -> adminValidator.entityValidator(merchantEntityGroupRequest));
-
-        assertEquals("INVALID_ERROR_CODE", ((ErrorDto) exception).getErrorCode());
+  
+    public void generateAlertForReport(ReportAlertDto reportAlertDto) {
+        log.info("Updating reportStatus '{}'  for mID '{}'", reportAlertDto.getReportName(), reportAlertDto.getMId());
+        alertDao.generateAlertForReport(reportAlertDto);
     }
 }
