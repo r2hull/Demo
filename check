@@ -1,199 +1,459 @@
-package com.epay.merchant.dao;
+package com.epay.merchant.service;
 
-import com.epay.merchant.dto.AlertManagementDto;
-import com.epay.merchant.dto.AlertMasterDto;
-import com.epay.merchant.dto.ReportAlertDto;
-import com.epay.merchant.entity.AlertManagement;
-import com.epay.merchant.entity.AlertMaster;
+import com.epay.merchant.config.MerchantConfig;
+import com.epay.merchant.dao.CaptchaDao;
+import com.epay.merchant.dto.CaptchaDto;
 import com.epay.merchant.exception.MerchantException;
-import com.epay.merchant.mapper.AlertMapper;
-import com.epay.merchant.model.response.AlertManagementResponse;
-import com.epay.merchant.repository.AlertManagementRepository;
-import com.epay.merchant.repository.AlertMasterRepository;
-import com.epay.merchant.util.MerchantConstant;
-import org.apache.commons.collections4.CollectionUtils;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
+import com.epay.merchant.mapper.CaptchaMapper;
+import com.epay.merchant.model.request.CaptchaRequest;
+import com.epay.merchant.model.response.CaptchaResponse;
+import com.epay.merchant.model.response.MerchantResponse;
+import com.epay.merchant.util.ErrorConstants;
+import com.epay.merchant.util.MerchantUtil;
+import com.epay.merchant.util.enums.RequestType;
+import com.epay.merchant.validator.CaptchaValidator;
+import com.sbi.epay.captcha.impl.DefaultKaptcha;
+import com.sbi.epay.logging.utility.LoggerFactoryUtility;
+import com.sbi.epay.logging.utility.LoggerUtility;
+import com.sun.speech.freetts.Voice;
+import com.sun.speech.freetts.VoiceManager;
+import com.sun.speech.freetts.audio.SingleFileAudioPlayer;
+import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.stereotype.Service;
 
-import java.util.Collections;
+import javax.sound.sampled.AudioFileFormat;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.SecureRandom;
+import java.text.MessageFormat;
+import java.util.Base64;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static com.epay.merchant.util.MerchantConstant.FREETTS_VOICES;
+import static com.epay.merchant.util.MerchantConstant.RESPONSE_SUCCESS;
 
-@ExtendWith(MockitoExtension.class)
-class AlertDaoTest {
+/**
+ * Class Name: CaptchaService
+ * *
+ * Description:
+ * *
+ * Author: Subhra Goswami
+ * <p>
+ * Copyright (c) 2024 [State Bank of India]
+ * All rights reserved
+ * *
+ * Version:1.0
+ */
+@Service
+@RequiredArgsConstructor
+public class CaptchaService {
 
-    @Mock
-    private AlertMasterRepository alertMasterRepository;
+    private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
 
-    @Mock
-    private AlertManagementRepository alertManagementRepository;
+    private final MerchantConfig merchantConfig;
+    private final CaptchaDao captchaDao;
+    private final DefaultKaptcha captchaProducer;
+    private final CaptchaValidator captchaValidator;
+    private final CaptchaMapper captchaMapper;
+    private final SecureRandom random;
 
-    @Mock
-    private MerchantInfoDao merchantInfoDao;
-
-    @Mock
-    private AlertMapper alertMapper;
-
-    @InjectMocks
-    private AlertDao alertDao;
-
-    private AlertMasterDto alertMasterDto;
-    private AlertMaster alertMaster;
-    private AlertManagement alertManagement;
-    private AlertManagementDto alertManagementDto;
-    private ReportAlertDto reportAlertDto;
-
-    @BeforeEach
-    void setUp() {
-        alertMaster = new AlertMaster();
-        alertMaster.setId(UUID.randomUUID());
-        alertMaster.setName(MerchantConstant.ACCOUNT_EXPIRY);
-        alertMaster.setDescription("Your account will expire in {0} days.");
-
-        alertMasterDto = new AlertMasterDto();
-        alertMasterDto.setId(alertMaster.getId());
-        alertMasterDto.setValue("7");
-        alertMasterDto.setDescription(alertMaster.getDescription());
-
-        alertManagement = new AlertManagement();
-        alertManagement.setAlertId(alertMaster.getId());
-        alertManagement.setMId("MID123");
-        alertManagement.setAlertIdentifier(123456789012L);
-        alertManagement.setAlertDescription("Account Expiry Alert");
-        alertManagement.setIsViewed(false);
-
-        alertManagementDto = new AlertManagementDto();
-        alertManagementDto.setAlertId(alertMaster.getId());
-        alertManagementDto.setMId("MID123");
-        alertManagementDto.setAlertIdentifier("123456789012");
-        alertManagementDto.setAlertDescription("Account Expiry Alert");
-
-        reportAlertDto = new ReportAlertDto();
-        reportAlertDto.setMId("MID123");
-        reportAlertDto.setReportName("Daily Report");
+    /**
+     * Generates a captcha and save it to the DB and returns a response.
+     *
+     * @param captchaRequest CaptchaRequest
+     * @return merchantResponse containing CaptchaResponse
+     */
+    public MerchantResponse<CaptchaResponse> generateCaptcha(CaptchaRequest captchaRequest) {
+        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
+        //Step 1 : Validate Captcha Request
+        captchaValidator.requestValidator(captchaRequest);
+        return saveCaptcha(captchaRequest, false);
     }
 
-    @Test
-    void shouldReturnLatest50UnreadAlertDescriptions() {
-        when(alertManagementRepository.findAlertsByMId(eq("MID123"), any(PageRequest.class)))
-                .thenReturn(List.of(alertManagement));
-        when(alertMapper.alertManagementEntityToResponse(anyList()))
-                .thenReturn(List.of(new AlertManagementResponse()));
 
-        List<AlertManagementResponse> response = alertDao.getLatest50UnreadAlertDescription("MID123");
-
-        assertNotNull(response);
-        assertEquals(1, response.size());
-        verify(alertManagementRepository, times(1)).findAlertsByMId(eq("MID123"), any(PageRequest.class));
+    /**
+     * ReGenerates a captcha and save it to the DB and returns a response.
+     *
+     * @param captchaRequest CaptchaRequest
+     * @return merchantResponse containing CaptchaResponse
+     */
+    public MerchantResponse<CaptchaResponse> regenerateCaptcha(CaptchaRequest captchaRequest) {
+        logger.info("generate captcha for RequestId: {}", captchaRequest.getRequestId());
+        //Step 1 : Validate Captcha Request
+        captchaValidator.regenerateValidator(captchaRequest);
+        return saveCaptcha(captchaRequest, true);
     }
 
-    @Test
-    void shouldUpdateAlertViewStatus() {
-        doNothing().when(alertManagementRepository).updateAlertViewStatus("MID123", 123456789012L);
-
-        alertDao.updateViewStatus("MID123", 123456789012L);
-
-        verify(alertManagementRepository, times(1)).updateAlertViewStatus("MID123", 123456789012L);
+    /**
+     * Generates the captcha image and encodes it in Base64
+     *
+     * @param captchaText String
+     * @return Captcha
+     */
+    private String generateCaptchaImage(String captchaText) {
+        logger.info("generated captcha text: {}", captchaText);
+        BufferedImage image = captchaProducer.createImage(captchaText);
+        return MerchantUtil.convertImageToBase64(image, "Captcha");//static method
     }
 
-    @Test
-    void shouldSaveAllToAlertManagement() {
-        when(alertMapper.mapDtoListToEntityList(anyList())).thenReturn(List.of(alertManagement));
-        doNothing().when(alertManagementRepository).saveAll(anyList());
-
-        alertDao.saveAllToAlertManagement(List.of(alertManagementDto));
-
-        verify(alertManagementRepository, times(1)).saveAll(anyList());
+    private MerchantResponse<CaptchaResponse> saveCaptcha(CaptchaRequest captchaRequest, boolean retry) {
+        RequestType requestType = RequestType.getRequestType(captchaRequest.getRequestType());
+        //Step 2 : Generate Captcha Text
+        String captchaText = captchaProducer.createText();
+        //Step 3 : Generate Captcha Image and convert into Base 64
+        String base64Image = generateCaptchaImage(captchaText);
+        String base64Audio = generateCaptchaAudio(captchaText, captchaRequest.getRequestId());
+        //Step 3 : Save the Captcha into DB
+        CaptchaDto captchaDto = captchaDao.save(captchaText, captchaRequest.getRequestId(), requestType, retry);
+        //Step 4 : Build the Merchant Response
+        logger.info("generate captcha completed for RequestId: {}", captchaRequest.getRequestId());
+        return MerchantResponse.<CaptchaResponse>builder().data(List.of(captchaMapper.mapCaptchaDtoToCaptchaResponse(captchaDto, base64Image, base64Audio))).status(RESPONSE_SUCCESS).build();
     }
 
-    @Test
-    void shouldGetMIdsWithExpiryDays() {
-        when(merchantInfoDao.getMIdsWithExpiryDays(anyList()))
-                .thenReturn(Map.of("7", "MID123"));
+    /**
+     * Generates an audio CAPTCHA and returns it as a Base64-encoded string.
+     *
+     * @param captchaText The text to convert into an audio CAPTCHA.
+     * @param requestId   Unique identifier for tracking the request.
+     * @return Base64-encoded string of the audio CAPTCHA.
+     */
+    public String generateCaptchaAudio(String captchaText, UUID requestId) {
+        logger.info("Started generateAudioCaptcha for requestId: {}", requestId);
 
-        Map<String, String> result = alertDao.getMIdsWithExpiryDays(List.of("7"));
-
-        assertFalse(result.isEmpty());
-        assertEquals("MID123", result.get("7"));
-        verify(merchantInfoDao, times(1)).getMIdsWithExpiryDays(anyList());
+        return Optional.ofNullable(captchaText)
+                .map(text -> generateAudioCaptcha(text, requestId))
+                .map(data -> encodeToBase64(data, requestId))
+                .orElseGet(() -> {
+                    logger.warn("Captcha text is null for requestId: {}", requestId);
+                    return "";
+                });
     }
 
-    @Test
-    void shouldFindAllAlertByName() {
-        when(alertMasterRepository.findAllByName(MerchantConstant.ACCOUNT_EXPIRY))
-                .thenReturn(List.of(alertMaster));
-        when(alertMapper.mapAlertMasterEntityListToDtoList(anyList()))
-                .thenReturn(List.of(alertMasterDto));
+    /**
+     * Converts the given text into speech and returns the generated audio as a byte array.
+     *
+     * @param text      The input text to be converted into speech.
+     * @param requestId Unique identifier for tracking requests.
+     * @return Byte array containing the generated speech audio.
+     */
+    public byte[] generateAudioCaptcha(String text, UUID requestId) {
+        if(StringUtils.isEmpty(System.getProperty(FREETTS_VOICES)))
+            System.setProperty(FREETTS_VOICES, merchantConfig.getVoiceDir());
 
-        List<AlertMasterDto> response = alertDao.findAllAlertByName(MerchantConstant.ACCOUNT_EXPIRY);
+        logger.info("Generating audio captcha for requestId: {}", requestId);
+        File tempFile = createTempFile(requestId);
+        if (tempFile == null){
+            logger.error("Temp file creation failed for requestId: {}", requestId);
+            return new byte[0];
+        }
 
-        assertNotNull(response);
-        assertEquals(1, response.size());
-        assertEquals("7", response.get(0).getValue());
-        verify(alertMasterRepository, times(1)).findAllByName(MerchantConstant.ACCOUNT_EXPIRY);
+        try {
+            Voice voice = initializeVoice();
+            if (voice == null) {
+                logger.error("Voice initialization failed for requestId: {}", requestId);
+                return new byte[0];
+            }
+
+            SingleFileAudioPlayer audioPlayer = configureAudioPlayer(tempFile);
+            voice.setAudioPlayer(audioPlayer);
+
+            speakCharacters(voice, text);
+            cleanupResources(voice, audioPlayer);
+
+            return validateAndReturnAudio(tempFile, requestId);
+        } catch (Exception e) {
+            logger.error("Error generating speech audio for requestId: {}", requestId, e);
+            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, requestId));
+        } finally {
+            try {
+                Files.delete(tempFile.toPath());
+            } catch (IOException ioException) {
+                logger.warn("Failed to delete temporary file: {}, error: {}", tempFile.getAbsolutePath(), ioException.getMessage());
+            }
+        }
     }
 
-    @Test
-    void shouldGenerateAlertForBankAccountApproval() {
-        when(alertMasterRepository.findAllByName(MerchantConstant.BANK_ACCOUNT))
-                .thenReturn(List.of(alertMaster));
-        doNothing().when(alertManagementRepository).save(any(AlertManagement.class));
+    /**
+     * Creates a temporary file for storing the generated audio.
+     *
+     * @param requestId Unique identifier for the request.
+     * @return A File object representing the temporary file.
+     */
+    private File createTempFile(UUID requestId) {
+        try {
+            // Ensure temp directory is properly configured
+            String tempDirConfig = merchantConfig.getTempDir();
+            if (tempDirConfig == null || tempDirConfig.trim().isEmpty()) {
+                throw new IllegalStateException("Temporary directory is not configured!");
+            }
 
-        alertDao.generateAlertForBankAccountApproval("MID123", "Bank of America");
+            Path tempDir = Paths.get(tempDirConfig).normalize().toAbsolutePath();
+            if (!Files.exists(tempDir)) {
+                Files.createDirectories(tempDir); // Ensure directory exists
+            }
 
-        verify(alertMasterRepository, times(1)).findAllByName(MerchantConstant.BANK_ACCOUNT);
-        verify(alertManagementRepository, times(1)).save(any(AlertManagement.class));
+            // Use SecureRandom for unpredictable file names
+            String randomSuffix = Long.toHexString(random.nextLong());
+            Path tempFilePath = Files.createTempFile(tempDir, "speech_" + randomSuffix + "_", ".wav").normalize();
+
+            // Validate that tempFilePath is inside tempDir (prevent path traversal attacks)
+            if (!tempFilePath.startsWith(tempDir)) {
+                throw new SecurityException("Unauthorized temp file path detected: " + tempFilePath);
+            }
+            logger.debug("Temporary file securely created: {}", tempFilePath);
+            return tempFilePath.toFile();
+
+        } catch (Exception e) {
+            logger.error("Failed to create secure temp file for requestId: {}", requestId, e);
+            return null;
+        }
     }
 
-    @Test
-    void shouldFilterAlertsForUserRole() {
-        List<UUID> excludeAlertIds = List.of(alertMaster.getId());
-        List<AlertManagement> filteredAlerts = alertDao.filterAlertsForUserRole(List.of(alertManagement), excludeAlertIds);
 
-        assertTrue(filteredAlerts.isEmpty());
+    /**
+     * Initializes the voice engine with predefined settings.
+     *
+     * @return A Voice object if successful, otherwise null.
+     */
+    private Voice initializeVoice() {
+        Voice voice = VoiceManager.getInstance().getVoice(merchantConfig.getVoiceName());
+        if (voice == null) {
+            logger.error("Voice '{}' not found.", merchantConfig.getVoiceName());
+            return null;
+        }
+        voice.allocate();
+        voice.setRate(130);
+        voice.setPitch(100);
+        voice.setVolume(1.0f);
+        logger.debug("Voice '{}' initialized successfully.", merchantConfig.getVoiceName());
+        return voice;
     }
 
-    @Test
-    void shouldCollectAlertMasterIds() {
-        List<UUID> ids = alertDao.collectAlertMasterId(List.of(alertMasterDto));
-
-        assertEquals(1, ids.size());
-        assertEquals(alertMaster.getId(), ids.get(0));
+    /**
+     * Configures the audio player for generating speech output.
+     *
+     * @param tempFile Temporary file to store the audio.
+     * @return Configured SingleFileAudioPlayer instance.
+     */
+    private SingleFileAudioPlayer configureAudioPlayer(File tempFile) {
+        return new SingleFileAudioPlayer(tempFile.getAbsolutePath().replace(".wav", ""), AudioFileFormat.Type.WAVE);
     }
 
-    @Test
-    void shouldGenerateAlertForReport() {
-        when(alertMasterRepository.findByName(MerchantConstant.REPORT_GENERATION))
-                .thenReturn(Optional.of(alertMaster));
-        doNothing().when(alertManagementRepository).save(any(AlertManagement.class));
-
-        alertDao.generateAlertForReport(reportAlertDto);
-
-        verify(alertMasterRepository, times(1)).findByName(MerchantConstant.REPORT_GENERATION);
-        verify(alertManagementRepository, times(1)).save(any(AlertManagement.class));
+    /**
+     * Converts each character in the given text into speech.
+     *
+     * @param voice The initialized voice object.
+     * @param text  The text to be spoken.
+     */
+    private void speakCharacters(Voice voice, String text) {
+        logger.debug("Speaking text: {}", text);
+        text.chars().forEach(ch -> voice.speak(String.valueOf((char)ch)));
     }
 
-    @Test
-    void shouldThrowExceptionWhenReportAlertMasterNotFound() {
-        when(alertMasterRepository.findByName(MerchantConstant.REPORT_GENERATION))
-                .thenReturn(Optional.empty());
+    /**
+     * Cleans up the resources used by the voice engine.
+     *
+     * @param voice       The Voice object to be deallocated.
+     * @param audioPlayer The AudioPlayer instance to be closed.
+     */
+    private void cleanupResources(Voice voice, SingleFileAudioPlayer audioPlayer) {
+        voice.deallocate();
+        audioPlayer.close();
+        logger.debug("Resources cleaned up successfully.");
+    }
 
-        MerchantException exception = assertThrows(MerchantException.class, () -> alertDao.generateAlertForReport(reportAlertDto));
+    /**
+     * Validates the generated audio file and converts it into a byte array.
+     *
+     * @param tempFile  The generated audio file.
+     * @param requestId Unique request identifier.
+     * @return Byte array containing the audio file data.
+     */
+    private byte[] validateAndReturnAudio(File tempFile, UUID requestId) {
+        if (!tempFile.exists() || tempFile.length() == 0) {
+            logger.error("Generated audio file is empty or missing for requestId: {}", requestId);
+            return new byte[0];
+        }
+        logger.info("Audio file successfully generated for requestId: {}", requestId);
+        return fileToByteArray(tempFile);
+    }
 
-        assertEquals("E0001", exception.getErrorCode());
-        assertTrue(exception.getMessage().contains("Alert name  REPORT_GENERATION"));
-        verify(alertMasterRepository, times(1)).findByName(MerchantConstant.REPORT_GENERATION);
+    /**
+     * Reads the contents of a file and returns it as a byte array.
+     *
+     * @param file The file to read.
+     * @return Byte array containing the file contents.
+     */
+    private byte[] fileToByteArray(File file) {
+        try {
+            // Validate and normalize paths
+            String tempDirConfig = merchantConfig.getTempDir();
+            if (tempDirConfig == null || tempDirConfig.trim().isEmpty()) {
+                throw new IllegalStateException("Temporary directory is not configured!");
+            }
+
+            Path tempDir = Paths.get(tempDirConfig).normalize().toAbsolutePath();
+            Path resolvedPath = tempDir.resolve(file.getName()).normalize();
+
+            // Ensure the file is within the secure directory
+            if (!resolvedPath.startsWith(tempDir)) {
+                throw new SecurityException("Unauthorized file access detected: " + resolvedPath);
+            }
+
+            // Read file safely using Files API
+            try (InputStream fis = Files.newInputStream(resolvedPath);
+                 ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+
+                byte[] buffer = new byte[1024];
+                int bytesRead;
+                while ((bytesRead = fis.read(buffer)) != -1) {
+                    byteArrayOutputStream.write(buffer, 0, bytesRead);
+                }
+
+                logger.debug("File successfully converted to byte array: {}", file.getName());
+                return byteArrayOutputStream.toByteArray();
+            }
+
+        } catch (IOException e) {
+            logger.error("Error reading file to byte array securely: {}", file.getName(), e);
+            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE,
+                    MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, file.getName()));
+        }
+    }
+
+    /**
+     * Encodes a byte array to a Base64 string
+     *
+     * @param data      The byte array to encode.
+     * @param requestId The request ID for logging.
+     * @return The Base64-encoded string.
+     */
+    public String encodeToBase64(byte[] data, UUID requestId) {
+        return Optional.ofNullable(data)
+                .filter(d -> d.length > 0)
+                .map(Base64.getEncoder()::encodeToString)
+                .orElseGet(() -> {
+                    logger.warn("Empty byte array for requestId: {}", requestId);
+                    return "";
+                });
+    }
+}
+
+
+
+
+package com.epay.merchant.util;
+
+import com.epay.merchant.exception.MerchantException;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+import org.apache.commons.text.StringEscapeUtils;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.web.multipart.MultipartFile;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.text.MessageFormat;
+import java.util.Base64;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import static com.epay.merchant.util.MerchantConstant.*;
+
+/**
+ * Class Name:MerchantUtil
+ * *
+ * Description:
+ * *
+ * Author:Bhoopendra Rajput
+ * <p>
+ * Copyright (c) 2024 [State Bank of India]
+ * All right reserved
+ * *
+ * Version:1.0
+ */
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public class MerchantUtil {
+
+    private static final int OTP_LENGTH = 6;
+    private static final long MIN = 100_000_000_000L;
+    private static final long MAX = 999_999_999_999L;
+
+    public static String convertImageToBase64(BufferedImage image, String imageType) {
+        try {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            ImageIO.write(image, JPG, outputStream);
+            return Base64.getEncoder().encodeToString(outputStream.toByteArray());
+        } catch (IOException e) {
+            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE, MessageFormat.format(ErrorConstants.GENERATION_ERROR_MESSAGE, imageType));
+        }
+    }
+
+    /**
+     * It will create a random 6 digit otp value
+     *
+     * @return Otp String
+     */
+    public static String generateOtp() {
+        SecureRandom secureRandom = new SecureRandom();
+        return IntStream.range(0, OTP_LENGTH).map(i -> secureRandom.nextInt(10)).mapToObj(String::valueOf).collect(Collectors.joining());
+    }
+
+    /**
+     * Convert MultipartFile to Base64 image
+     *
+     * @param logoFile MultipartFile
+     * @return String
+     */
+    public static String getBase64(MultipartFile logoFile) {
+        String base64Image = null;
+        //Convert File to base 64 string
+        if (null != logoFile && !logoFile.isEmpty()) {
+            byte[] image;
+            try {
+                image = Base64.getEncoder().encode(logoFile.getBytes());
+            } catch (IOException e) {
+                throw new MerchantException(ErrorConstants.INVALID_ERROR_CODE, MessageFormat.format(ErrorConstants.INVALID_ERROR_MESSAGE, LOGO_FILE, ErrorConstants.UNABLE_TO_PROCESS_LOGO_FILE));
+            }
+            base64Image = new String(image, StandardCharsets.UTF_8);
+        }
+        return base64Image;
+    }
+
+    public static long generateUnique12DigitNumber() {
+        SecureRandom secureRandom = new SecureRandom();
+        long randomPart = secureRandom.nextLong();
+        return MIN + Math.abs(randomPart) % (MAX - MIN + 1);
+    }
+    /**
+     * Set the response headers for a downloadable file
+     * @param response HttpServletResponse
+     * @param contentType String
+     * @param fileName String
+     */
+    public static void setHeader(HttpServletResponse response, String contentType, String fileName) {
+        response.setContentType(contentType);
+        response.setCharacterEncoding(String.valueOf(StandardCharsets.UTF_8));
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, StringEscapeUtils.escapeJava("attachment;filename=" + fileName));
+        HttpHeaders headers = new HttpHeaders();
+        ContentDisposition contentDisposition = ContentDisposition.attachment().filename(fileName).build();
+        headers.setContentDisposition(contentDisposition);
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, headers.getFirst(HttpHeaders.CONTENT_DISPOSITION));
+        response.setHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION);
     }
 }
