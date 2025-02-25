@@ -7,74 +7,86 @@ import com.epay.merchant.dto.ReportAlertDto;
 import com.epay.merchant.model.response.AlertManagementResponse;
 import com.epay.merchant.model.response.MerchantResponse;
 import com.epay.merchant.util.MerchantConstant;
-import com.epay.merchant.util.MerchantUtil;
-import com.sbi.epay.logging.utility.LoggerFactoryUtility;
-import com.sbi.epay.logging.utility.LoggerUtility;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-import static com.epay.merchant.util.MerchantConstant.ACCOUNT_EXPIRY;
+@ExtendWith(MockitoExtension.class)
+class AlertServiceTest {
 
-@Service
-@RequiredArgsConstructor
-public class AlertService {
-    private final LoggerUtility log = LoggerFactoryUtility.getLogger(this.getClass());
+    @Mock
+    private AlertDao alertDao;
 
-    private final AlertDao alertDao;
+    @InjectMocks
+    private AlertService alertService;
 
-    private static AlertManagementDto buildAlertManagementDto(String value, AlertMasterDto alertMasterDto) {
-        return AlertManagementDto.builder().alertId(alertMasterDto.getId()).mId(value).alertIdentifier(MerchantUtil.generateUnique12DigitNumber()).alertDescription(alertMasterDto.getDescription()).build();
+    private AlertMasterDto alertMasterDto;
+    private ReportAlertDto reportAlertDto;
+
+    @BeforeEach
+    void setUp() {
+        alertMasterDto = new AlertMasterDto();
+        alertMasterDto.setId(1L);
+        alertMasterDto.setValue("7");
+        alertMasterDto.setDescription("Account Expiry in 7 days");
+
+        reportAlertDto = new ReportAlertDto();
+        reportAlertDto.setMId("MID123");
+        reportAlertDto.setReportName("Daily Report");
     }
 
-    
-    public MerchantResponse<AlertManagementResponse> getAlertsByMId(String mId) {
-        log.info("Fetching unread alert descriptions for mId: {}", mId);
-        List<AlertManagementResponse> alertManagementResponses = alertDao.getLatest50UnreadAlertDescription(mId);
-        return MerchantResponse.<AlertManagementResponse>builder().data(alertManagementResponses).status(MerchantConstant.RESPONSE_SUCCESS).count((long) alertManagementResponses.size()).build();
+    @Test
+    void shouldReturnAlertsByMId() {
+        when(alertDao.getLatest50UnreadAlertDescription("MID123"))
+                .thenReturn(List.of(new AlertManagementResponse()));
 
+        MerchantResponse<AlertManagementResponse> response = alertService.getAlertsByMId("MID123");
+
+        assertEquals(MerchantConstant.RESPONSE_SUCCESS, response.getStatus());
+        assertEquals(1, response.getCount());
+        verify(alertDao, times(1)).getLatest50UnreadAlertDescription("MID123");
     }
 
-   
-    public MerchantResponse<String> updateAlertViewStatus(String mId, long alertIdentifier) {
+    @Test
+    void shouldUpdateAlertViewStatus() {
+        doNothing().when(alertDao).updateViewStatus("MID123", 1001L);
 
-        log.info("Marking alert Identifier '{}' as viewed for mID '{}'", alertIdentifier, mId);
-        alertDao.updateViewStatus(mId, alertIdentifier);
-        return MerchantResponse.<String>builder().data(List.of("View updated successfully")).status(MerchantConstant.RESPONSE_SUCCESS).count(1L).total(1L).build();
+        MerchantResponse<String> response = alertService.updateAlertViewStatus("MID123", 1001L);
+
+        assertEquals("View updated successfully", response.getData().get(0));
+        verify(alertDao, times(1)).updateViewStatus("MID123", 1001L);
     }
 
-    public void generateAlertForMerchantAccountExpiry() {
-        log.info("Starting execution of generateAlertForMerchantAccountExpiry");
+    @Test
+    void shouldGenerateAlertForMerchantAccountExpiry() {
+        when(alertDao.findAllAlertByName(MerchantConstant.ACCOUNT_EXPIRY))
+                .thenReturn(List.of(alertMasterDto));
 
-        //Step 1 : Fetch Alert Master Data for Account Expiry and build Map as per Alert Master value
-        List<AlertMasterDto> alertMasterDtoList = alertDao.findAllAlertByName(ACCOUNT_EXPIRY);
-        Map<String, AlertMasterDto> alertMasterDtoMap = alertMasterDtoList.stream().collect(Collectors.toMap(AlertMasterDto::getValue, dto -> dto));
+        when(alertDao.getMIdsWithExpiryDays(anyList()))
+                .thenReturn(Map.of("7", "MID123"));
 
-        //Step 2 : Fetch MId list with Alert Master Value data
-        Map<String, String> mIdsWithExpiryDays = alertDao.getMIdsWithExpiryDays(alertMasterDtoMap.keySet().stream().toList());
+        doNothing().when(alertDao).saveAllToAlertManagement(anyList());
 
-        if (mIdsWithExpiryDays.isEmpty()) {
-            log.info("No MIds found for the specified alert days. Exiting.");
-            return;
-        }
+        alertService.generateAlertForMerchantAccountExpiry();
 
-        //Step 3 : Build Alert Management For fetched MIds and Save Data in DB
-        log.info("Total {} MIDs found for Alter generation", mIdsWithExpiryDays.size());
-        List<AlertManagementDto> alertManagementDtoList = createAlertManagementDtoList(alertMasterDtoMap, mIdsWithExpiryDays);
-        alertDao.saveAllToAlertManagement(alertManagementDtoList);
-        log.info("Completed execution of generateAlertForMerchantAccountExpiry. Total alerts count {0}.", alertManagementDtoList.size());
+        verify(alertDao, times(1)).findAllAlertByName(MerchantConstant.ACCOUNT_EXPIRY);
+        verify(alertDao, times(1)).getMIdsWithExpiryDays(anyList());
+        verify(alertDao, times(1)).saveAllToAlertManagement(anyList());
     }
 
-    private List<AlertManagementDto> createAlertManagementDtoList(Map<String, AlertMasterDto> alertMasterDtoMap, Map<String, String> mIdsWithExpiryDays) {
-        return mIdsWithExpiryDays.entrySet().stream().map(entry -> buildAlertManagementDto(entry.getValue(), alertMasterDtoMap.get(entry.getKey()))).collect(Collectors.toList());
-    }
+    @Test
+    void shouldGenerateAlertForReport() {
+        doNothing().when(alertDao).generateAlertForReport(reportAlertDto);
 
-  
-    public void generateAlertForReport(ReportAlertDto reportAlertDto) {
-        log.info("Updating reportStatus '{}'  for mID '{}'", reportAlertDto.getReportName(), reportAlertDto.getMId());
-        alertDao.generateAlertForReport(reportAlertDto);
+        alertService.generateAlertForReport(reportAlertDto);
+
+        verify(alertDao, times(1)).generateAlertForReport(reportAlertDto);
     }
 }
