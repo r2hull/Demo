@@ -1,8 +1,51 @@
-  private byte[] validateAndReturnAudio(File tempFile, UUID requestId) {
-        if (!tempFile.exists() || tempFile.length() == 0) {
-            logger.error("Generated audio file is empty or missing for requestId: {}", requestId);
-            return new byte[0];
-        }
-        logger.info("Audio file successfully generated for requestId: {}", requestId);
-        return fileToByteArray(tempFile);
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.io.File;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class CaptchaServiceTest {
+
+    @InjectMocks
+    private CaptchaService captchaService;
+
+    @Mock
+    private File tempFile;
+
+    private UUID requestId;
+
+    @BeforeEach
+    void setUp() {
+        requestId = UUID.randomUUID();
     }
+
+    @Test
+    void validateAndReturnAudio_ShouldReturnEmptyByteArray_WhenFileDoesNotExist() {
+        // Mock file does not exist
+        when(tempFile.exists()).thenReturn(false);
+
+        byte[] result = captchaService.validateAndReturnAudio(tempFile, requestId);
+
+        assertArrayEquals(new byte[0], result, "Should return an empty byte array when file does not exist");
+        verify(tempFile, never()).length(); // Ensure length() is never called
+    }
+
+    @Test
+    void validateAndReturnAudio_ShouldReturnEmptyByteArray_WhenFileIsEmpty() {
+        // Mock file exists but length is 0
+        when(tempFile.exists()).thenReturn(true);
+        when(tempFile.length()).thenReturn(0L);
+
+        byte[] result = captchaService.validateAndReturnAudio(tempFile, requestId);
+
+        assertArrayEquals(new byte[0], result, "Should return an empty byte array when file is empty");
+    }
+}
