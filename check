@@ -10,3 +10,18 @@ public class UserValidationRequest {
     @Schema(name = "userName", example = "user5")
     private String userName;
 }
+
+
+@Getter
+@AllArgsConstructor
+public enum RequestType {
+
+    LOGIN("LOGIN"), RESET_PASSWORD("RESET_PASSWORD"), CHANGE_PASSWORD("CHANGE_PASSWORD"),
+    PROFILE_EDIT("PROFILE_EDIT");
+
+    public final String name;
+
+    public static RequestType getRequestType(String requestType) {
+        return Arrays.stream(values()).filter(rt -> rt.name().equalsIgnoreCase(requestType)).findFirst().orElseThrow(() -> new MerchantException(ErrorConstants.INVALID_ERROR_CODE, MessageFormat.format(ErrorConstants.INVALID_ERROR_MESSAGE, "RequestType", "Valid RequestType are " + Arrays.toString(RequestType.values()))));
+    }
+}
