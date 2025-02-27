@@ -1,4 +1,42 @@
-  @GetMapping("/access/{userName}/{mId}")
+
+@AllArgsConstructor
+public class UserValidationRequest {
+    @NotBlank(message = " is mandatory")
+    @Schema(name = "requestType", example = "LOGIN")
+    private String requestType;
+    @NotBlank(message = " is mandatory")
+    @Schema(name = "userName", example = "user5")
+    private String userName;
+}
+@ControllerAdvice
+public class MerchantExceptionHandler extends ResponseEntityExceptionHandler {
+   
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+
+        List<ErrorDto> errors = new ArrayList<>();
+        ex.getBindingResult().getFieldErrors().forEach(fieldError ->
+                errors.add(ErrorDto.builder()
+                        .errorCode(ErrorConstants.MANDATORY_ERROR_CODE)
+                        .errorMessage(fieldError.getField() + fieldError.getDefaultMessage())
+                        .build())
+        );
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(MerchantResponse.builder().status(MerchantConstant.RESPONSE_FAILURE).errors(errors).build());
+    }
+}
+
+
+@Operation(summary = "Merchant User Validation during Login", description = "Merchant User Validation during Login via userName,Email or MobileNumber fields")
+    public MerchantResponse<String> validateUser(@Valid @RequestBody UserValidationRequest userValidationRequest) {
+        log.info("Received request for User Validation {}", userValidationRequest);
+        return validationService.validateUser(userValidationRequest);
+    }
+
+
+@GetMapping("/access/{userName}/{mId}")
     @Operation(summary = "Merchant User MID Access validation for Logged in User")
     public MerchantResponse<String> validateMIdAccess(@Parameter(description = "Username of the logged-in user", required = true) @PathVariable String userName, @Parameter(description = "MID of the merchant to be validated", required = true) @PathVariable String mId) {
         log.info("Received request for MId access Validation");
