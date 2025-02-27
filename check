@@ -25,3 +25,6 @@ public enum RequestType {
         return Arrays.stream(values()).filter(rt -> rt.name().equalsIgnoreCase(requestType)).findFirst().orElseThrow(() -> new MerchantException(ErrorConstants.INVALID_ERROR_CODE, MessageFormat.format(ErrorConstants.INVALID_ERROR_MESSAGE, "RequestType", "Valid RequestType are " + Arrays.toString(RequestType.values()))));
     }
 }
+
+
+            "errorMessage": "[ACTIVE, INACTIVE, BLOCKED, EXPIRED] Merchant user is not found."
