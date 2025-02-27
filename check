@@ -1,15 +1,12 @@
-@Override
-protected ResponseEntity<Object> handleMethodArgumentNotValid(
-        MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-    
-    List<ErrorDto> errors = new ArrayList<>();
-    ex.getBindingResult().getFieldErrors().forEach(fieldError ->
-            errors.add(ErrorDto.builder()
-                    .errorCode(ErrorConstants.NOT_FOUND_ERROR_CODE)
-                    .errorMessage(fieldError.getField() + ":" + fieldError.getDefaultMessage())
-                    .build())
-    );
-
-    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(MerchantResponse.builder().status(MerchantConstant.RESPONSE_FAILURE).errors(errors).build());
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class UserValidationRequest {
+    @NotBlank(message = " is mandatory")
+    @Schema(name = "requestType", example = "LOGIN")
+    private String requestType;
+    @NotBlank(message = " is mandatory")
+    @Schema(name = "userName", example = "user5")
+    private String userName;
 }
