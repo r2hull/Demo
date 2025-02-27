@@ -1,30 +1,6 @@
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class UserValidationRequest {
-    @NotBlank(message = " is mandatory")
-    @Schema(name = "requestType", example = "LOGIN")
-    private String requestType;
-    @NotBlank(message = " is mandatory")
-    @Schema(name = "userName", example = "user5")
-    private String userName;
-}
-
-
-@Getter
-@AllArgsConstructor
-public enum RequestType {
-
-    LOGIN("LOGIN"), RESET_PASSWORD("RESET_PASSWORD"), CHANGE_PASSWORD("CHANGE_PASSWORD"),
-    PROFILE_EDIT("PROFILE_EDIT");
-
-    public final String name;
-
-    public static RequestType getRequestType(String requestType) {
-        return Arrays.stream(values()).filter(rt -> rt.name().equalsIgnoreCase(requestType)).findFirst().orElseThrow(() -> new MerchantException(ErrorConstants.INVALID_ERROR_CODE, MessageFormat.format(ErrorConstants.INVALID_ERROR_MESSAGE, "RequestType", "Valid RequestType are " + Arrays.toString(RequestType.values()))));
+  @GetMapping("/access/{userName}/{mId}")
+    @Operation(summary = "Merchant User MID Access validation for Logged in User")
+    public MerchantResponse<String> validateMIdAccess(@Parameter(description = "Username of the logged-in user", required = true) @PathVariable String userName, @Parameter(description = "MID of the merchant to be validated", required = true) @PathVariable String mId) {
+        log.info("Received request for MId access Validation");
+        return validationService.validateMId(userName, mId);
     }
-}
-
-
-            "errorMessage": "Invalid Request Type. Reason : Valid values are  [LOGIN, RESET_PASSWORD, CHANGE_PASSWORD, PROFILE_EDIT]"
