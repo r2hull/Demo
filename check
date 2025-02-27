@@ -27,4 +27,4 @@ public enum RequestType {
 }
 
 
-            "errorMessage": "[ACTIVE, INACTIVE, BLOCKED, EXPIRED] Merchant user is not found."
+            "errorMessage": "Invalid Request Type. Reason : Valid values are  [LOGIN, RESET_PASSWORD, CHANGE_PASSWORD, PROFILE_EDIT]"
