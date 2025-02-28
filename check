@@ -1,27 +1,8 @@
-@Target({ElementType.FIELD, ElementType.PARAMETER})
-@Retention(RetentionPolicy.RUNTIME)
-@Constraint(validatedBy = EnumValidator.class)
-@Documented
-public @interface ValidEnum {
-    Class<? extends Enum<?>> enumClass();
-    String message() default "Invalid value";
-    Class<?>[] groups() default {};
-    Class<? extends Payload>[] payload() default {};
-}
-
-
-public class EnumValidator implements ConstraintValidator<ValidEnum, String> {
-    private Set<String> allowedValues;
-
-    @Override
-    public void initialize(ValidEnum constraintAnnotation) {
-        allowedValues = Arrays.stream(constraintAnnotation.enumClass().getEnumConstants())
-                              .map(Enum::name)
-                              .collect(Collectors.toSet());
-    }
-
-    @Override
-    public boolean isValid(String value, ConstraintValidatorContext context) {
-        return value != null && allowedValues.contains(value);
-    }
+public class MerchantUserStatusRequest {
+    @Schema(description = "userName", example = "user6+")
+    private String userName;
+    @Schema(name = "userStatus",description = "UserStatus Valid Status are ACTIVE, INACTIVE, BLOCKED, EXPIRED",example = "ACTIVE")
+    private UserStatus userStatus;
+    @Schema(description = "remark", example = "User status updated successfully")
+    private String remark;
 }
