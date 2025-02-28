@@ -1,8 +1,16 @@
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 public class MerchantUserStatusRequest {
+    
     @Schema(description = "userName", example = "user6+")
+    @NotBlank(message = "userName is mandatory")
     private String userName;
-    @Schema(name = "userStatus",description = "UserStatus Valid Status are ACTIVE, INACTIVE, BLOCKED, EXPIRED",example = "ACTIVE")
+
+    @Schema(name = "userStatus", description = "UserStatus Valid Status are ACTIVE, INACTIVE, BLOCKED, EXPIRED", example = "ACTIVE")
+    @NotNull(message = "userStatus is mandatory")
     private UserStatus userStatus;
+
     @Schema(description = "remark", example = "User status updated successfully")
     private String remark;
 }
