@@ -1,12 +1,14 @@
-@GetMapping("/access/{userName}/{mId}")
-@Operation(summary = "Merchant User MID Access validation for Logged in User")
-public MerchantResponse<String> validateMIdAccess(
-        @Parameter(description = "Username of the logged-in user", required = true) 
-        @PathVariable @NotBlank(message = "userName is mandatory") String userName, 
-        
-        @Parameter(description = "MID of the merchant to be validated", required = true) 
-        @PathVariable @NotBlank(message = "mId is mandatory") String mId) {
+@AllArgsConstructor
+public class UserValidationRequest {
+    @NotBlank(message = "requestType is mandatory")
+    @Schema(name = "requestType", example = "LOGIN")
+    private String requestType;
 
-    log.info("Received request for MId access Validation");
-    return validationService.validateMId(userName, mId);
+    @NotBlank(message = "userName is mandatory")
+    @Schema(name = "userName", example = "user5")
+    private String userName;
+
+    @NotNull(message = "reqId is mandatory")
+    @Schema(name = "reqId", example = "550e8400-e29b-41d4-a716-446655440000")
+    private UUID reqId;
 }
