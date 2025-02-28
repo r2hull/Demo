@@ -9,6 +9,11 @@ public class UserValidationRequest {
     private String userName;
 
     @NotNull(message = "reqId is mandatory")
-    @Schema(name = "reqId", example = "550e8400-e29b-41d4-a716-446655440000")
-    private UUID reqId;
+    @Schema(name = "reqId", example = "123456789")
+    @Min(value = 1, message = "reqId must be greater than 0")
+    private Long reqId;
+
+    @NotEmpty(message = "assignedMIds list cannot be empty")
+    @Size(min = 1, message = "At least one assignedMId is required")
+    private List<@NotBlank(message = "assignedMId cannot be blank") String> assignedMIds;
 }
