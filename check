@@ -1,19 +1,6 @@
-@AllArgsConstructor
-public class UserValidationRequest {
-    @NotBlank(message = "requestType is mandatory")
-    @Schema(name = "requestType", example = "LOGIN")
-    private String requestType;
-
-    @NotBlank(message = "userName is mandatory")
-    @Schema(name = "userName", example = "user5")
-    private String userName;
-
-    @NotNull(message = "reqId is mandatory")
-    @Schema(name = "reqId", example = "123456789")
-    @Min(value = 1, message = "reqId must be greater than 0")
-    private Long reqId;
-
-    @NotEmpty(message = "assignedMIds list cannot be empty")
-    @Size(min = 1, message = "At least one assignedMId is required")
-    private List<@NotBlank(message = "assignedMId cannot be blank") String> assignedMIds;
-}
+   @PostMapping("/mid/mapping/{userName}")
+    @Operation(summary = "Assigned MIDs to Users", description = "Get Assigned and UnAssigned Merchant Info for given User")
+    public MerchantResponse<String> assignedMIdsToUser(@Parameter(description = "Username of the merchant user", required = true) @PathVariable String userName, @Parameter(description = "List of MIDs to be assigned", required = true) @NotEmpty(message = ErrorConstants.MANDATORY_FIELD) @RequestBody List<String> assignedMIds) {
+        log.info("Received request to assign MIDs to User");
+        return merchantUserService.assignedMIdsToUser(userName, assignedMIds);
+    }
