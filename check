@@ -21,30 +21,23 @@ class ReportScheduleManagementValidatorTest {
 
     @InjectMocks
     private ReportScheduleManagementValidator validator;
+    private final String mId="12345";
 
     @Mock
     private MIdValidator mIdValidator;
 
     private ReportScheduleManagementRequest validRequest() {
-        return ReportScheduleManagementRequest.builder()
-                .mId("12345")
-                .report(Report.ORDER.name())
-                .frequency(Frequency.DAILY.name())
-                .format(ReportFormat.CSV.name())
-                .scheduleExecutionTime("2025-02-25T10:00:00Z")
-                .build();
+        return ReportScheduleManagementRequest.builder().mId(mId).report(Report.ORDER.name()).frequency(Frequency.DAILY.name()).format(ReportFormat.CSV.name()).scheduleExecutionTime("9:00 PM").build();
     }
 
     private ReportScheduleManagementSearchRequest validSearchRequest() {
-        return ReportScheduleManagementSearchRequest.builder()
-                .mId("12345")
-                .build();
+        return ReportScheduleManagementSearchRequest.builder().mId(mId).build();
     }
 
     @Test
     void shouldValidateRequestSuccessfully() {
         assertDoesNotThrow(() -> validator.validateRequest(validRequest()));
-        verify(mIdValidator).validateActiveMId("12345");
+        verify(mIdValidator).validateActiveMId(mId);
     }
 
     @Test
@@ -55,11 +48,10 @@ class ReportScheduleManagementValidatorTest {
 
     @Test
     void shouldThrowExceptionForInvalidValues() {
-        ReportScheduleManagementRequest request = validRequest().toBuilder()
-                .report("INVALID")
-                .frequency("INVALID")
-                .format("INVALID")
-                .build();
+        ReportScheduleManagementRequest request = validRequest();
+        request.setReport("INVALID");
+        request.setFrequency("INVALID");
+        request.setFormat("INVALID");
         assertThrows(ValidationException.class, () -> validator.validateRequest(request));
     }
 
