@@ -1,170 +1,97 @@
-import com.epay.reporting.config.ReportingConfig;
-import com.epay.reporting.dao.ReportManagementDao;
-import com.epay.reporting.dao.ReportMasterDao;
-import com.epay.reporting.dto.ReportScheduleManagementDto;
-import com.epay.reporting.entity.ReportManagement;
-import com.epay.reporting.entity.ReportScheduleManagement;
-import com.epay.reporting.exception.ReportingException;
-import com.epay.reporting.mapper.ReportScheduleManagementMapper;
+package com.epay.reporting.validator;
+
+import com.epay.reporting.exception.ValidationException;
+import com.epay.reporting.model.request.ReportScheduleManagementRequest;
 import com.epay.reporting.model.request.ReportScheduleManagementSearchRequest;
-import com.epay.reporting.model.request.ReportScheduleManagementUpdateRequest;
-import com.epay.reporting.repository.ReportScheduleManagementRepository;
-import com.epay.reporting.util.DateTimeUtils;
-import com.epay.reporting.util.enums.ReportScheduledStatus;
-import com.epay.reporting.util.enums.ReportStatus;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
+import com.epay.reporting.util.enums.Frequency;
+import com.epay.reporting.util.enums.Report;
+import com.epay.reporting.util.enums.ReportFormat;
+import com.sbi.epay.logging.utility.LoggerFactoryUtility;
+import com.sbi.epay.logging.utility.LoggerUtility;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
-class ReportScheduleManagementDaoTest {
+@Component
+@RequiredArgsConstructor
+public class ReportScheduleManagementValidator extends BaseValidator {
 
-    @InjectMocks
-    private ReportScheduleManagementDao reportScheduleManagementDao;
+    private final MIdValidator mIdValidator;
+    private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
 
-    @Mock
-    private ReportScheduleManagementRepository reportScheduleManagementRepository;
 
-    @Mock
-    private ReportScheduleManagementMapper mapper;
-
-    @Mock
-    private ReportMasterDao reportMasterDao;
-
-    @Mock
-    private ReportManagementDao reportManagementDao;
-
-    @Mock
-    private ReportingConfig reportingConfig;
-
-    private UUID reportId;
-    private UUID scheduleId;
-    private ReportScheduleManagementDto reportScheduleDto;
-    private ReportScheduleManagement reportScheduleEntity;
-
-    @BeforeEach
-    void setUp() {
-        reportId = UUID.randomUUID();
-        scheduleId = UUID.randomUUID();
-
-        reportScheduleDto = new ReportScheduleManagementDto();
-        reportScheduleDto.setReportId(reportId);
-        reportScheduleDto.setReport("TEST_REPORT");
-        reportScheduleDto.setFrequency("DAILY");
-        reportScheduleDto.setScheduleExecutionTime(LocalDateTime.now());
-
-        reportScheduleEntity = new ReportScheduleManagement();
-        reportScheduleEntity.setId(scheduleId);
-        reportScheduleEntity.setReportId(reportId);
-        reportScheduleEntity.setFrequency("DAILY");
-        reportScheduleEntity.setScheduleExecutionTime(LocalDateTime.now());
-        reportScheduleEntity.setStatus(ReportScheduledStatus.TO_BE_START);
+  
+    public void validateRequest(ReportScheduleManagementRequest reportScheduleManagementRequest) {
+        logger.debug("Request Validation start for {}", reportScheduleManagementRequest);
+        errorDtoList = new ArrayList<>();
+        validationMandatory(reportScheduleManagementRequest);
+        validateFieldValue(reportScheduleManagementRequest);
+        mIdValidator.validateActiveMId(reportScheduleManagementRequest.getMId());//mock
+        logger.debug("Request Validation end for {}", reportScheduleManagementRequest);
+    }
+ 
+    public void validateRequest(ReportScheduleManagementSearchRequest searchRequest) {
+        logger.debug("SearchRequest Validation start for {}", searchRequest);
+        errorDtoList = new ArrayList<> ();
+        validationMandatory(searchRequest);
+        // mIdValidator.validatedMId(searchRequest.getMId());
+        logger.debug("SearchRequest Validation end for {}", searchRequest);
     }
 
-    @Test
-    void save_ShouldSaveReportScheduleSuccessfully() {
-        when(reportMasterDao.getReportIdByName(any())).thenReturn(reportId);
-        when(mapper.mapDtoToEntity(any())).thenReturn(reportScheduleEntity);
-        when(reportScheduleManagementRepository.save(any())).thenReturn(reportScheduleEntity);
 
-        assertDoesNotThrow(() -> reportScheduleManagementDao.save(reportScheduleDto));
-
-        verify(reportScheduleManagementRepository, times(1)).save(any());
+    private void validationMandatory(ReportScheduleManagementRequest reportScheduleManagementRequest) {
+        checkMandatoryField(reportScheduleManagementRequest.getMId(), "MId");
+        checkMandatoryField(reportScheduleManagementRequest.getReport(), "Report");
+        checkMandatoryField(reportScheduleManagementRequest.getScheduleExecutionTime(), "Schedule Time");
+        checkMandatoryField(reportScheduleManagementRequest.getFormat(), "Format");
+        checkMandatoryField(reportScheduleManagementRequest.getFrequency(), "Frequency");
+        throwIfErrors();
     }
 
-    @Test
-    void executeReportBySchedule_ShouldUpdateAndSaveReports() {
-        when(reportingConfig.getReportScheduleExecutionWindow()).thenReturn(30L);
-        when(reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(any(), anyLong()))
-                .thenReturn(List.of(reportScheduleEntity));
 
-        assertDoesNotThrow(() -> reportScheduleManagementDao.executeReportBySchedule());
 
-        verify(reportScheduleManagementRepository, times(1)).saveAll(any());
-        verify(reportManagementDao, times(1)).saveAll(any());
+    private void validateFieldValue(ReportScheduleManagementRequest reportScheduleManagementRequest) {
+        validateFieldValue(reportScheduleManagementRequest.getReport(), List.of(Report.ORDER.name(), Report.REFUNDS.name(), Report.TRANSACTION.name(), Report.SETTLEMENTS.name(), Report.CHARGEBACK.name()), "Report");
+        validateFieldValue(reportScheduleManagementRequest.getFrequency(), List.of(Frequency.DAILY.name(), Frequency.MONTHLY.name(), Frequency.YEARLY.name()), "Frequency");
+        validateFieldValue(reportScheduleManagementRequest.getFormat(), List.of(ReportFormat.CSV.name(), ReportFormat.XLS.name(), ReportFormat.PDF.name()), "Format");
     }
 
-    @Test
-    void searchAndGetAll_ShouldReturnPagedResults() {
-        Page<ReportScheduleManagement> mockPage = new PageImpl<>(List.of(reportScheduleEntity));
-        when(reportScheduleManagementRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(mockPage);
-        when(mapper.mapEntityToDto(any())).thenReturn(reportScheduleDto);
 
-        Page<ReportScheduleManagementDto> result = reportScheduleManagementDao.searchAndGetAll(new ReportScheduleManagementSearchRequest(), Pageable.unpaged());
-
-        assertFalse(result.isEmpty());
-        verify(reportScheduleManagementRepository, times(1)).findAll(any(Specification.class), any(Pageable.class));
+    private void validationMandatory(ReportScheduleManagementSearchRequest searchRequest) {
+        checkMandatoryField(searchRequest.getMId(), "MId");
+        throwIfErrors();
     }
 
-    @Test
-    void update_ShouldUpdateNonNullFields() {
-        when(reportScheduleManagementRepository.findById(scheduleId)).thenReturn(Optional.of(reportScheduleEntity));
-        when(reportScheduleManagementRepository.save(any())).thenReturn(reportScheduleEntity);
 
-        ReportScheduleManagementUpdateRequest updateRequest = new ReportScheduleManagementUpdateRequest();
-        updateRequest.setFormat("PDF");
+}
 
-        assertDoesNotThrow(() -> reportScheduleManagementDao.update(scheduleId, updateRequest));
 
-        assertEquals("PDF", reportScheduleEntity.getFormat());
-        verify(reportScheduleManagementRepository, times(1)).save(any());
-    }
 
-    @Test
-    void update_ShouldThrowException_WhenScheduleNotFound() {
-        when(reportScheduleManagementRepository.findById(scheduleId)).thenReturn(Optional.empty());
+@Builder
+@NoArgsConstructor
+public class ReportScheduleManagementRequest {
 
-        ReportScheduleManagementUpdateRequest updateRequest = new ReportScheduleManagementUpdateRequest();
+    private String report;
+    private String mId;
+    private String frequency;
+    private String format;
+    private String scheduleExecutionTime;
 
-        Exception exception = assertThrows(ReportingException.class, () -> reportScheduleManagementDao.update(scheduleId, updateRequest));
+}
 
-        assertTrue(exception.getMessage().contains("Schedule Request ID"));
-    }
 
-    @Test
-    void cancelScheduler_ShouldCancelReportSchedule() {
-        when(reportScheduleManagementRepository.findById(scheduleId)).thenReturn(Optional.of(reportScheduleEntity));
-        when(reportScheduleManagementRepository.save(any())).thenReturn(reportScheduleEntity);
+@Builder
+@NoArgsConstructor
+public class ReportScheduleManagementSearchRequest {
 
-        assertDoesNotThrow(() -> reportScheduleManagementDao.cancelScheduler(scheduleId));
+    private String report;
+    private String mId;
+    private String frequency;
+    private String format;
+    private Long scheduleStartExecutionTime;
+    private Long scheduleEndExecutionTime;
 
-        assertEquals(ReportScheduledStatus.CANCELLED, reportScheduleEntity.getStatus());
-        verify(reportScheduleManagementRepository, times(1)).save(any());
-    }
-
-    @Test
-    void cancelScheduler_ShouldThrowException_WhenScheduleNotFound() {
-        when(reportScheduleManagementRepository.findById(scheduleId)).thenReturn(Optional.empty());
-
-        Exception exception = assertThrows(ReportingException.class, () -> reportScheduleManagementDao.cancelScheduler(scheduleId));
-
-        assertTrue(exception.getMessage().contains("Schedule Request ID"));
-    }
-
-    @Test
-    void findByStatusAndNextScheduleExecutionTime_ShouldReturnMatchingReports() {
-        when(reportScheduleManagementRepository.findByStatusAndNextScheduleExecutionTime(any(), anyLong()))
-                .thenReturn(List.of(reportScheduleEntity));
-
-        List<ReportScheduleManagement> result = reportScheduleManagementDao.findByStatusAndNextScheduleExecutionTime(123456789L);
-
-        assertFalse(result.isEmpty());
-        verify(reportScheduleManagementRepository, times(1)).findByStatusAndNextScheduleExecutionTime(any(), anyLong());
-    }
 }
