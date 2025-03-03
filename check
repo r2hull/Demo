@@ -1,68 +1,24 @@
-package com.epay.reporting.validator;
+protected Object parseValue(String string) {
+		int openParen = string.indexOf("(");
+		String type = string.substring(0, openParen);
+		String value = string.substring(openParen + 1, string.length() - 1);
+		if (type.equals("String")) {
+			return value;
+		} else if (type.equals("Float")) {
+			return new Float(Float.parseFloat(value));//'Float(float)' is deprecated since version 9 and marked for removal 
+		} else if (type.equals("Integer")) {
+			return new Integer(Integer.parseInt(value));//'Integer(int)' is deprecated since version 9 and marked for removal 
+		} else if (type.equals("List")) {
+			StringTokenizer tok = new StringTokenizer(value, ",");
+			int size = tok.countTokens();
 
-import com.epay.reporting.exception.ValidationException;
-import com.epay.reporting.model.request.ReportScheduleManagementRequest;
-import com.epay.reporting.model.request.ReportScheduleManagementSearchRequest;
-import com.epay.reporting.util.enums.Frequency;
-import com.epay.reporting.util.enums.Report;
-import com.epay.reporting.util.enums.ReportFormat;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
-@ExtendWith(MockitoExtension.class)
-class ReportScheduleManagementValidatorTest {
-
-    @InjectMocks
-    private ReportScheduleManagementValidator validator;
-    private final String mId="12345";
-
-    @Mock
-    private MIdValidator mIdValidator;
-
-    private ReportScheduleManagementRequest validRequest() {
-        return ReportScheduleManagementRequest.builder().mId(mId).report(Report.ORDER.name()).frequency(Frequency.DAILY.name()).format(ReportFormat.CSV.name()).scheduleExecutionTime("9:00 PM").build();
-    }
-
-    private ReportScheduleManagementSearchRequest validSearchRequest() {
-        return ReportScheduleManagementSearchRequest.builder().mId(mId).build();
-    }
-
-    @Test
-    void shouldValidateRequestSuccessfully() {
-        assertDoesNotThrow(() -> validator.validateRequest(validRequest()));
-        verify(mIdValidator).validateActiveMId(mId);
-    }
-
-    @Test
-    void shouldThrowExceptionForMissingFields() {
-        ReportScheduleManagementRequest request = ReportScheduleManagementRequest.builder().build();
-        assertThrows(ValidationException.class, () -> validator.validateRequest(request));
-    }
-
-    @Test
-    void shouldThrowExceptionForInvalidValues() {
-        ReportScheduleManagementRequest request = validRequest();
-        request.setReport("INVALID");
-        request.setFrequency("INVALID");
-        request.setFormat("INVALID");
-        assertThrows(ValidationException.class, () -> validator.validateRequest(request));
-    }
-
-    @Test
-    void shouldValidateSearchRequestSuccessfully() {
-        assertDoesNotThrow(() -> validator.validateRequest(validSearchRequest()));
-    }
-
-    @Test
-    void shouldThrowExceptionForMissingMIdInSearchRequest() {
-        ReportScheduleManagementSearchRequest request = ReportScheduleManagementSearchRequest.builder().build();
-        assertThrows(ValidationException.class, () -> validator.validateRequest(request));
-    }
-}
+			int[] values = new int[size];
+			for (int i = 0; i < size; i++) {
+				float fval = Float.parseFloat(tok.nextToken());
+				values[i] = Math.round(fval);
+			}
+			return values;
+		} else {
+			throw new Error("Unknown type: " + type);
+		}
+	}
