@@ -1,24 +1,25 @@
 protected Object parseValue(String string) {
-		int openParen = string.indexOf("(");
-		String type = string.substring(0, openParen);
-		String value = string.substring(openParen + 1, string.length() - 1);
-		if (type.equals("String")) {
-			return value;
-		} else if (type.equals("Float")) {
-			return new Float(Float.parseFloat(value));//'Float(float)' is deprecated since version 9 and marked for removal 
-		} else if (type.equals("Integer")) {
-			return new Integer(Integer.parseInt(value));//'Integer(int)' is deprecated since version 9 and marked for removal 
-		} else if (type.equals("List")) {
-			StringTokenizer tok = new StringTokenizer(value, ",");
-			int size = tok.countTokens();
+    int openParen = string.indexOf("(");
+    String type = string.substring(0, openParen);
+    String value = string.substring(openParen + 1, string.length() - 1);
+    
+    if (type.equals("String")) {
+        return value;
+    } else if (type.equals("Float")) {
+        return Float.valueOf(value); // Use Float.valueOf instead of new Float()
+    } else if (type.equals("Integer")) {
+        return Integer.valueOf(value); // Use Integer.valueOf instead of new Integer()
+    } else if (type.equals("List")) {
+        StringTokenizer tok = new StringTokenizer(value, ",");
+        int size = tok.countTokens();
 
-			int[] values = new int[size];
-			for (int i = 0; i < size; i++) {
-				float fval = Float.parseFloat(tok.nextToken());
-				values[i] = Math.round(fval);
-			}
-			return values;
-		} else {
-			throw new Error("Unknown type: " + type);
-		}
-	}
+        int[] values = new int[size];
+        for (int i = 0; i < size; i++) {
+            float fval = Float.parseFloat(tok.nextToken());
+            values[i] = Math.round(fval);
+        }
+        return values;
+    } else {
+        throw new Error("Unknown type: " + type);
+    }
+}
