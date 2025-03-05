@@ -1,25 +1,7 @@
-protected Object parseValue(String string) {
-    int openParen = string.indexOf("(");
-    String type = string.substring(0, openParen);
-    String value = string.substring(openParen + 1, string.length() - 1);
-    
-    if (type.equals("String")) {
-        return value;
-    } else if (type.equals("Float")) {
-        return Float.valueOf(value); // Use Float.valueOf instead of new Float()
-    } else if (type.equals("Integer")) {
-        return Integer.valueOf(value); // Use Integer.valueOf instead of new Integer()
-    } else if (type.equals("List")) {
-        StringTokenizer tok = new StringTokenizer(value, ",");
-        int size = tok.countTokens();
+void setUp() {
+        MerchantDto merchantDto = MerchantDto.builder().mId("MID7").merchantName("John Doe Enterprises").businessName("John's Electronics").brandName("J-Electro").businessCategory("Retail").categoryCode("R123").addressline1("123 Main Street").addressline2("Suite 456").state("California").city("Los Angeles").country("USA").pincode("123456").mobileNumber("9876543210").phoneNumber("9876543210").primaryEmail("primary@example.com").secondaryEmail("secondary@example.com").merchantUrl("https://www.j-electro.com").status(MerchantStatus.ACTIVE).validityStartTime(1737366148271L).validityEndTime(1747366148271L).onboardingTime(1672531200000L).encryptedAlgo("AES256").rmName("Alice Johnson").bankCode("BANK123").branchCode("BR123").gstNumber("27ABCDE1234F1Z5").isChargebackAllowed(true).aggregator("SBIEPAY").notification("EMAIL").createdBy("admin").createdAt(1672531200000L).updatedBy("admin").updatedAt(1672627600000L).build();
 
-        int[] values = new int[size];
-        for (int i = 0; i < size; i++) {
-            float fval = Float.parseFloat(tok.nextToken());
-            values[i] = Math.round(fval);
-        }
-        return values;
-    } else {
-        throw new Error("Unknown type: " + type);
+        MerchantUserDto merchantUser = MerchantUserDto.builder().userName("john_doe").firstName("John").email("john.doe@example.com").emailMasked("j****@example.com").mobilePhone("9876543210").mobilePhoneMasked("98*****10").remark("Verified user").roleName("Admin").status(UserStatus.ACTIVE).passwordExpiryTime(1704067200000L).createdBy("admin").createdAt(1672531200000L).updatedBy("admin").updatedAt(1672627600000L).isFirstLogin(true).lastSuccessLogin(1672627600000L).build();
+
+        onboardingRequest = OnboardingRequest.builder().merchant(merchantDto).user(merchantUser).build();
     }
-}
