@@ -1,16 +1,15 @@
-  @Override
-    protected ResponseEntity<Object> handleMethodArgumentNotValid(
-            MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+@Data
+public class FotterRequest {
+    private List<FooterDto> footerLabels;
+}
 
-        List<ErrorDto> errors = new ArrayList<>();
-        ex.getBindingResult().getFieldErrors().forEach(fieldError ->
-                errors.add(ErrorDto.builder()
-                        .errorCode(ErrorConstants.MANDATORY_ERROR_CODE)
-                        .errorMessage(fieldError.getField() + fieldError.getDefaultMessage())
-                        .build())
-        );
 
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(MerchantResponse.builder().status(MerchantConstant.RESPONSE_FAILURE).errors(errors).build());
-    }
-    /**
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class FooterDto {
+    @Schema(name = "label", example = "testLabel")
+    private String label;
+    @Schema(name = "value", example = "test")
+    private String value;
+}
