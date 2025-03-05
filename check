@@ -1,7 +1,55 @@
-void setUp() {
-        MerchantDto merchantDto = MerchantDto.builder().mId("MID7").merchantName("John Doe Enterprises").businessName("John's Electronics").brandName("J-Electro").businessCategory("Retail").categoryCode("R123").addressline1("123 Main Street").addressline2("Suite 456").state("California").city("Los Angeles").country("USA").pincode("123456").mobileNumber("9876543210").phoneNumber("9876543210").primaryEmail("primary@example.com").secondaryEmail("secondary@example.com").merchantUrl("https://www.j-electro.com").status(MerchantStatus.ACTIVE).validityStartTime(1737366148271L).validityEndTime(1747366148271L).onboardingTime(1672531200000L).encryptedAlgo("AES256").rmName("Alice Johnson").bankCode("BANK123").branchCode("BR123").gstNumber("27ABCDE1234F1Z5").isChargebackAllowed(true).aggregator("SBIEPAY").notification("EMAIL").createdBy("admin").createdAt(1672531200000L).updatedBy("admin").updatedAt(1672627600000L).build();
-
-        MerchantUserDto merchantUser = MerchantUserDto.builder().userName("john_doe").firstName("John").email("john.doe@example.com").emailMasked("j****@example.com").mobilePhone("9876543210").mobilePhoneMasked("98*****10").remark("Verified user").roleName("Admin").status(UserStatus.ACTIVE).passwordExpiryTime(1704067200000L).createdBy("admin").createdAt(1672531200000L).updatedBy("admin").updatedAt(1672627600000L).isFirstLogin(true).lastSuccessLogin(1672627600000L).build();
-
-        onboardingRequest = OnboardingRequest.builder().merchant(merchantDto).user(merchantUser).build();
-    }
+{
+  "merchant": {
+    "mId": "",
+    "merchantName": "",
+    "businessName": "",
+    "brandName": "",
+    "businessCategory": "",
+    "categoryCode": "",
+    "addressline1": "",
+    "addressline2": "",
+    "state": "",
+    "city": "",
+    "country": "",
+    "pincode": "",
+    "mobileNumber": "",
+    "phoneNumber": "",
+    "primaryEmail": "",
+    "secondaryEmail": "",
+    "merchantUrl": "",
+    "status": "",
+    "validityStartTime": "",
+    "validityEndTime": "",
+    "onboardingTime": "",
+    "encryptedAlgo": "",
+    "rmName": "",
+    "bankCode": "",
+    "branchCode": "",
+    "gstNumber": "",
+    "isChargebackAllowed": "",
+    "aggregator": "",
+    "notification": "",
+    "createdBy": "",
+    "createdAt": "",
+    "updatedBy": "",
+    "updatedAt": ""
+  },
+  "user": {
+    "userName": "",
+    "firstName": "",
+    "email": "",
+    "emailMasked": "",
+    "mobilePhone": "",
+    "mobilePhoneMasked": "",
+    "remark": "",
+    "roleName": "",
+    "status": "",
+    "passwordExpiryTime": "",
+    "createdBy": "",
+    "createdAt": "",
+    "updatedBy": "",
+    "updatedAt": "",
+    "isFirstLogin": "",
+    "lastSuccessLogin": ""
+  }
+}
