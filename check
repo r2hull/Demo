@@ -1,26 +1,12 @@
-{
-    "status": 0,
-    "errors": [
-        {
-            "errorCode": "400",
-            "errorMessage": "JSON parse error: Cannot coerce empty String (\"\") to `com.epay.merchant.util.enums.MerchantStatus` value (but could if coercion was enabled using `CoercionConfig`)"
-        }
-    ]
-}
+@Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class MerchantEntityGroupRequest {
 
+    @Schema(name = "entityId", example = "ENTITY001")
+    private String entityId;
+    @Schema(name = "mIds",description = "list of mids to associate with the entity", example = "[\"MID6\"]")
+    private List<String> mIds;
 
-    @NotNull(message = MANDATORY_FIELD)
-    private MerchantStatus status;
-
-
-public enum MerchantStatus {
-    @Valid ACTIVE, INACTIVE, BLOCKED, EXPIRED;
-
-    public static MerchantStatus getStatus(String status) {
-        return Arrays.stream(values()).filter(s -> s.name().equalsIgnoreCase(status)).findFirst()
-                .orElseThrow(() ->
-                        new MerchantException(
-                                ErrorConstants.INVALID_ERROR_CODE,
-                                MessageFormat.format(ErrorConstants.INVALID_ERROR_MESSAGE, "MerchantStatus", "Valid MerchantStatus are "+ Arrays.toString(MerchantStatus.values()))));
-    }
 }
