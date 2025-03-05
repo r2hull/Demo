@@ -1,12 +1,25 @@
-@Data
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
-public class MerchantEntityGroupRequest {
+{
+  
+    "entityId": "",
+    "mids": [""]
+    
+}
 
-    @Schema(name = "entityId", example = "ENTITY001")
-    private String entityId;
-    @Schema(name = "mIds",description = "list of mids to associate with the entity", example = "[\"MID6\"]")
-    private List<String> mIds;
 
+{
+    "status": 0,
+    "errors": [
+        {
+            "errorCode": "7001",
+            "errorMessage": "MIds[0] is mandatory"
+        },
+        {
+            "errorCode": "7001",
+            "errorMessage": "entityId is mandatory"
+        },
+        {
+            "errorCode": "7001",
+            "errorMessage": "mIds[0] is mandatory"
+        }
+    ]
 }
