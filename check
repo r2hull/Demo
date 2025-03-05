@@ -1,55 +1,168 @@
-{
-  "merchant": {
-    "mId": "",
-    "merchantName": "",
-    "businessName": "",
-    "brandName": "",
-    "businessCategory": "",
-    "categoryCode": "",
-    "addressline1": "",
-    "addressline2": "",
-    "state": "",
-    "city": "",
-    "country": "",
-    "pincode": "",
-    "mobileNumber": "",
-    "phoneNumber": "",
-    "primaryEmail": "",
-    "secondaryEmail": "",
-    "merchantUrl": "",
-    "status": "",
-    "validityStartTime": "",
-    "validityEndTime": "",
-    "onboardingTime": "",
-    "encryptedAlgo": "",
-    "rmName": "",
-    "bankCode": "",
-    "branchCode": "",
-    "gstNumber": "",
-    "isChargebackAllowed": "",
-    "aggregator": "",
-    "notification": "",
-    "createdBy": "",
-    "createdAt": "",
-    "updatedBy": "",
-    "updatedAt": ""
-  },
-  "user": {
-    "userName": "",
-    "firstName": "",
-    "email": "",
-    "emailMasked": "",
-    "mobilePhone": "",
-    "mobilePhoneMasked": "",
-    "remark": "",
-    "roleName": "",
-    "status": "",
-    "passwordExpiryTime": "",
-    "createdBy": "",
-    "createdAt": "",
-    "updatedBy": "",
-    "updatedAt": "",
-    "isFirstLogin": "",
-    "lastSuccessLogin": ""
-  }
+@PostMapping("/onboarding")
+    @Operation(summary = "Onboarding Merchant and Merchant Admin User Creation API for SBI Admin Use.", description = "This API is used to onboard a merchant and create a merchant admin user.It can only be accessed by SBI Admin.")
+    public MerchantResponse<OnboardingResponse> onboardingMerchant(@Valid @RequestBody OnboardingRequest onboardingRequest) {
+        log.info("Onboarding Merchant called: onboardingRequest {}", onboardingRequest);
+        return adminService.onboardingMerchant(onboardingRequest);
+    }
+
+@Builder
+@Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class OnboardingRequest implements Serializable {
+    @NotBlank(message = MANDATORY_FIELD)
+    private MerchantDto merchant;
+    @NotBlank(message = MANDATORY_FIELD)
+    private MerchantUserDto user;
+}
+
+@Data
+@Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@NoArgsConstructor
+@AllArgsConstructor
+public class MerchantDto implements Serializable {
+
+    @Schema(description = "Merchant ID", example = "MID7")
+    @JsonProperty("mId")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String mId;
+    @Schema(description = "Name of the merchant", example = "John Doe Enterprises")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String merchantName;
+    @Schema(description = "Business name", example = "John's Electronics")
+    private String businessName;
+    @Schema(description = "Brand name associated with the merchant", example = "J-Electro")
+    private String brandName;
+    @Schema(description = "Business category", example = "Retail")
+    private String businessCategory;
+    @Schema(description = "Category code", example = "R123")
+    private String categoryCode;
+    @Schema(description = "Address line 1", example = "123 Main Street")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String addressline1;
+    @Schema(description = "Address line 2", example = "Suite 456")
+    private String addressline2;
+    @Schema(description = "State", example = "California")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String state;
+    @Schema(description = "City", example = "Los Angeles")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String city;
+    @Schema(description = "Country", example = "USA")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String country;
+    @Schema(description = "Pincode", example = "123456")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String pincode;
+    @Schema(description = "Mobile number", example = "9876543210")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String mobileNumber;
+    @Schema(description = "Phone number", example = "9876543210")
+    private String phoneNumber;
+    @Schema(description = "Primary email address", example = "primary@example.com")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String primaryEmail;
+    @Schema(description = "Secondary email address", example = "secondary@example.com")
+    private String secondaryEmail;
+    @Schema(description = "Merchant website URL", example = "https://www.j-electro.com")
+    private String merchantUrl;
+    @Schema(name = "status",description = "MerchantStatus Valid MerchantStatus are ACTIVE, INACTIVE, BLOCKED, EXPIRED",example = "ACTIVE")
+    private MerchantStatus status;
+    @Schema(description = "Validity start time (epoch time)", example = "1737366148271")
+    @NotBlank(message = MANDATORY_FIELD)
+    private Long validityStartTime;
+    @Schema(description = "Validity end time (epoch time)", example = "1747366148271")
+    @NotBlank(message = MANDATORY_FIELD)
+    private Long validityEndTime;
+    @Schema(description = "Onboarding time (epoch time)", example = "1672531200000")
+    @NotBlank(message = MANDATORY_FIELD)
+    private Long onboardingTime;
+    @Schema(description = "Encryption algorithm used", example = "AES256")
+    private String encryptedAlgo;
+    @Schema(description = "Relationship Manager's name", example = "Alice Johnson")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String rmName;
+    @Schema(description = "Bank code", example = "BANK123")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String bankCode;
+    @Schema(description = "Branch code", example = "BR123")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String branchCode;
+    @Schema(description = "GST number", example = "27ABCDE1234F1Z5")
+    private String gstNumber;
+    @JsonProperty("isChargebackAllowed")
+    @Schema(description = "Chargeback allowed flag", example = "true")
+    private boolean isChargebackAllowed;
+    @Schema(description = "Aggregator name", example = "SBIEPAY")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String aggregator;
+    @Schema(description = "Notification preferences", example = "EMAIL")
+    private String notification;
+    @Schema(description = "Created by user", example = "admin")
+    private String createdBy;
+    @Schema(description = "Creation timestamp (epoch time)", example = "1672531200000")
+    private Long createdAt;
+    @Schema(description = "Updated by user", example = "admin")
+    private String updatedBy;
+    @Schema(description = "Updated timestamp (epoch time)", example = "1672627600000")
+    private Long updatedAt;
+}
+
+
+@Data
+@Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@AllArgsConstructor
+@NoArgsConstructor
+public class MerchantUserDto implements Serializable {
+    @JsonIgnore
+    private UUID id;
+    @JsonIgnore
+    private UUID parentUserId;
+    @JsonIgnore
+    private int version;
+    @Schema(description = "Unique user name")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String userName;
+    @Schema(description = "User first name")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String firstName;
+    @Schema(description = "User email address")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String email;
+    @Schema(description = "User mask email address")
+    private String emailMasked;
+    @Schema(description = "User mobile number which will be unique in the system")
+    @NotBlank(message = MANDATORY_FIELD)
+    private String mobilePhone;
+    @Schema(description = "Mask mobile number")
+    private String mobilePhoneMasked;
+    @Schema(description = "Remarks or notes", example = "Verified user")
+    private String remark;
+    @JsonIgnore
+    private UUID role;
+    @Schema(description = "Role Name", example = "Admin/SuperAdmin/User")
+    private String roleName;
+    @Schema(name = "status", description = "UserStatus e.g. ACTIVE, BLOCKED", example = "ACTIVE")
+    private UserStatus status;
+    @JsonIgnore
+    @Schema(description = "Encrypted Password")
+    private String password;
+    @Schema(description = "Password expiry time (epoch time)", example = "1704067200000")
+    private Long passwordExpiryTime;
+    @JsonIgnore
+    @Schema(description = "Login failure attempt count", example = "2")
+    private int loginFailAttempt;
+    @Schema(description = "Created by user")
+    private String createdBy;
+    @Schema(description = "Creation timestamp (epoch time)", example = "1672531200000")
+    private Long createdAt;
+    @Schema(description = "Updated by user")
+    private String updatedBy;
+    @Schema(description = "Updated timestamp (epoch time)", example = "1672627600000")
+    private Long updatedAt;
+    @Schema(description = "User doing first Login")
+    private boolean isFirstLogin;
+    @Schema(description = "User last success login")
+    private Long lastSuccessLogin;
 }
