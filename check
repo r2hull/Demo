@@ -1,18 +1,10 @@
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+    public static final String JDBC_TRANSACTION_SUMMARY = """
+            SELECT SUM(SUCCESS_COUNT) as totalSuccessCount, sum(FAIL_COUNT) as totalFailureCount,
+            round(sum(SUCCESS_COUNT)/(sum(SUCCESS_COUNT)+sum(FAIL_COUNT)) * 100, 2) as successPercentage,
+            round(sum(FAIL_COUNT)/(sum(SUCCESS_COUNT)+sum(FAIL_COUNT)) * 100, 2) as failPercentage
+            FROM PAYAGGREPORT.VIEW_TRANSACTION_DAILY_REPORT
+            WHERE MID = :mId AND TRANSACTION_DATE BETWEEN TO_DATE(:startDate, 'DD-MM-YYYY') AND TO_DATE(:endDate, 'DD-MM-YYYY')
+            """;
 
-public class SomeRequest {
+			TOTALSUCCESSCOUNT=null TOTALFAILURECOUNT=null ....
 
-    @NotBlank(message = "remark cannot be empty")
-    @Size(max = 200, message = "remark must not exceed 200 characters")
-    private String remark;
-
-    // Getters and Setters
-    public String getRemark() {
-        return remark;
-    }
-
-    public void setRemark(String remark) {
-        this.remark = remark;
-    }
-}
