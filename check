@@ -1,15 +1,18 @@
-@Data
-public class FotterRequest {
-    private List<FooterDto> footerLabels;
-}
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
+public class SomeRequest {
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class FooterDto {
-    @Schema(name = "label", example = "testLabel")
-    private String label;
-    @Schema(name = "value", example = "test")
-    private String value;
+    @NotBlank(message = "remark cannot be empty")
+    @Size(max = 200, message = "remark must not exceed 200 characters")
+    private String remark;
+
+    // Getters and Setters
+    public String getRemark() {
+        return remark;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
+    }
 }
