@@ -138,3 +138,4 @@ public class MerchantExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.ok().body(MerchantResponse.builder().status(MerchantConstant.RESPONSE_FAILURE).errors(errors).build());
     }
 }
+
