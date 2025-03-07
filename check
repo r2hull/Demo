@@ -31,31 +31,13 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Class Name: MerchantExceptionHandler
- * <p>
- * Description:This class is used to handle exceptions globally within the application,
- * specifically for handling exceptions related to merchant operations.
- * It leverages Spring's @ControllerAdvice annotation to provide centralized
- * exception handling across all controllers.
- * <p>
- * Author: Bhoopendra Rajput
- * <p>
- * Copyright (c) 2024 [State Bank of India]
- * All rights reserved
- * *
- * Version:1.0
- */
 @ControllerAdvice
 public class MerchantExceptionHandler extends ResponseEntityExceptionHandler {
     private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
 
-    /**
-     * @param ex MerchantException
-     * @return ResponseEntity
-     */
     @ExceptionHandler(value = {MerchantException.class, EncryptionDecryptionException.class})
     public ResponseEntity<Object> handleEPayServiceException(RuntimeException ex) {
+        logger.error("Handling MerchantException or EncryptionDecryptionException", ex);
         ErrorDto errorDto;
         switch (ex) {
             case MerchantException me ->
@@ -68,14 +50,9 @@ public class MerchantExceptionHandler extends ResponseEntityExceptionHandler {
         return generateResponseWithErrors(List.of(errorDto));
     }
 
-    /**
-     * Handle ValidationException
-     *
-     * @param ex ValidationException
-     * @return ResponseEntity
-     */
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<Object> handleValidationException(ValidationException ex) {
+        logger.error("Handling ValidationException", ex);
         if (CollectionUtils.isEmpty(ex.getErrorMessages())) {
             ErrorDto errorDto = ErrorDto.builder().errorCode(ex.getErrorCode()).errorMessage(ex.getErrorMessage()).build();
             return generateResponseWithErrors(List.of(errorDto));
@@ -86,26 +63,22 @@ public class MerchantExceptionHandler extends ResponseEntityExceptionHandler {
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-
+        logger.error("Handling MethodArgumentNotValidException", ex);
         List<ErrorDto> errors = new ArrayList<>();
         ex.getBindingResult().getFieldErrors().forEach(fieldError ->
                 errors.add(ErrorDto.builder()
                         .errorCode(ErrorConstants.MANDATORY_ERROR_CODE)
-                        .errorMessage(fieldError.getField() + fieldError.getDefaultMessage())
+                        .errorMessage(fieldError.getField() + " " + fieldError.getDefaultMessage())
                         .build())
         );
 
         return ResponseEntity.status(HttpStatus.OK)
                 .body(MerchantResponse.builder().status(MerchantConstant.RESPONSE_FAILURE).errors(errors).build());
     }
-    /**
-     * Handle handleDBException exception
-     *
-     * @param ex DataAccessException
-     * @return ResponseEntity
-     */
+
     @ExceptionHandler(value = {DataAccessException.class, DataIntegrityViolationException.class, ConstraintViolationException.class, SQLGrammarException.class})
     public ResponseEntity<Object> handleDBException(Exception ex) {
+        logger.error("Handling Database Exception", ex);
         String errorMessage;
         switch (ex) {
             case DataIntegrityViolationException de -> errorMessage = de.getMostSpecificCause().getMessage();
@@ -114,46 +87,42 @@ public class MerchantExceptionHandler extends ResponseEntityExceptionHandler {
             case SQLGrammarException de -> errorMessage = de.getLocalizedMessage();
             default -> errorMessage = ex.getMessage();
         }
-        logger.error("Error in handleDBException ", errorMessage);
+        logger.error("Database error message: {}", errorMessage);
         ErrorDto errorDto = ErrorDto.builder().errorCode(ErrorConstants.GENERIC_ERROR_CODE).errorMessage(errorMessage).build();
         return ResponseEntity.internalServerError().body(MerchantResponse.builder().status(MerchantConstant.RESPONSE_FAILURE).errors(List.of(errorDto)).build());
     }
 
     @ExceptionHandler(value = {AuthorizationDeniedException.class})
     public ResponseEntity<Object> handleAuthorizationDeniedException(AuthorizationDeniedException ex) {
-        logger.error("Error in handleAuthorizationDeniedException ", ex);
-        ErrorDto errorDto = ErrorDto.builder().errorCode(String.valueOf(HttpStatus.FORBIDDEN.value())).errorMessage(ex.getMessage() + ": Not having the necessary permissions to access this resources").build();
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(MerchantResponse.builder().status(MerchantConstant.RESPONSE_FAILURE).errors(List.of(errorDto)).build());
+        logger.error("Handling AuthorizationDeniedException", ex);
+        ErrorDto errorDto = ErrorDto.builder().errorCode(String.valueOf(HttpStatus.FORBIDDEN.value()))
+                .errorMessage(ex.getMessage() + ": Not having the necessary permissions to access this resource")
+                .build();
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(MerchantResponse.builder().status(MerchantConstant.RESPONSE_FAILURE).errors(List.of(errorDto)).build());
     }
 
-    /**
-     * Handle general exception
-     *
-     * @param ex Exception
-     * @return ResponseEntity
-     */
     @ExceptionHandler(value = {Exception.class})
     public ResponseEntity<Object> handleGenericException(Exception ex) {
-        logger.error("Error in handleGenericException ", ex);
-        ErrorDto errorDto = ErrorDto.builder().errorCode(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value())).errorMessage(ex.getMessage()).build();
-        return ResponseEntity.internalServerError().body(MerchantResponse.builder().status(MerchantConstant.RESPONSE_FAILURE).errors(List.of(errorDto)).build());
+        logger.error("Handling Generic Exception", ex);
+        ErrorDto errorDto = ErrorDto.builder()
+                .errorCode(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()))
+                .errorMessage(ex.getMessage())
+                .build();
+        return ResponseEntity.internalServerError()
+                .body(MerchantResponse.builder().status(MerchantConstant.RESPONSE_FAILURE).errors(List.of(errorDto)).build());
     }
 
-    /**
-     * Handle Runtime exception
-     *
-     * @param ex RuntimeException
-     * @return ResponseEntity
-     */
     @ExceptionHandler(value = {IllegalArgumentException.class, IllegalStateException.class})
     protected ResponseEntity<Object> handleConflict(RuntimeException ex) {
-        logger.error("Error in handleConflict ", ex);
+        logger.error("Handling IllegalArgumentException or IllegalStateException", ex);
         ErrorDto errorDto = ErrorDto.builder().errorCode(String.valueOf(HttpStatus.CONFLICT.value())).errorMessage(ex.getLocalizedMessage()).build();
         return ResponseEntity.status(HttpStatus.CONFLICT).body(MerchantResponse.builder().status(MerchantConstant.RESPONSE_FAILURE).errors(List.of(errorDto)).build());
     }
 
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(Exception ex, @Nullable Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
+        logger.error("Handling Exception Internally", ex);
         if (request instanceof ServletWebRequest servletWebRequest) {
             HttpServletResponse response = servletWebRequest.getResponse();
             if (response != null && response.isCommitted()) {
@@ -164,13 +133,8 @@ public class MerchantExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(statusCode).body(MerchantResponse.builder().status(MerchantConstant.RESPONSE_FAILURE).errors(List.of(errorDto)).build());
     }
 
-    /**
-     * Preparing errors in API response object.
-     *
-     * @param errors List
-     * @return ResponseEntity
-     */
     private ResponseEntity<Object> generateResponseWithErrors(List<ErrorDto> errors) {
+        logger.error("Generating response with errors: {}", errors);
         return ResponseEntity.ok().body(MerchantResponse.builder().status(MerchantConstant.RESPONSE_FAILURE).errors(errors).build());
     }
 }
