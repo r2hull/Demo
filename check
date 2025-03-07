@@ -1,4 +1,5 @@
 package com.epay.reporting.exceptionhandlers;
+
 import com.epay.reporting.dto.ErrorDto;
 import com.epay.reporting.exception.ReportingException;
 import com.epay.reporting.exception.ValidationException;
@@ -28,25 +29,35 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Global exception handler for handling all application-level exceptions.
+ */
 @ControllerAdvice
 public class ReportingExceptionHandler extends ResponseEntityExceptionHandler {
+
     private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
 
+    /**
+     * Handles ReportingException and returns a structured error response.
+     */
     @ExceptionHandler(value = {ReportingException.class})
     public ResponseEntity<Object> handleEPayServiceException(RuntimeException ex) {
-        ErrorDto errorDto;
-        switch (ex) {
-            case ReportingException me ->
-                    errorDto = ErrorDto.builder().errorCode(me.getErrorCode()).errorMessage(me.getErrorMessage()).build();
-            default ->
-                    errorDto = ErrorDto.builder().errorCode(ErrorConstants.GENERIC_ERROR_CODE).errorMessage(ex.getLocalizedMessage()).build();
-        }
+        logger.error("ReportingException occurred: {}", ex.getMessage(), ex);
+
+        ErrorDto errorDto = (ex instanceof ReportingException me)
+                ? ErrorDto.builder().errorCode(me.getErrorCode()).errorMessage(me.getErrorMessage()).build()
+                : ErrorDto.builder().errorCode(ErrorConstants.GENERIC_ERROR_CODE).errorMessage(ex.getLocalizedMessage()).build();
+
         return generateResponseWithErrors(List.of(errorDto));
     }
 
-   
+    /**
+     * Handles ValidationException and returns validation errors.
+     */
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<Object> handleValidationException(ValidationException ex) {
+        logger.error("ValidationException occurred: {}", ex.getMessage(), ex);
+
         if (CollectionUtils.isEmpty(ex.getErrorMessages())) {
             ErrorDto errorDto = ErrorDto.builder().errorCode(ex.getErrorCode()).errorMessage(ex.getErrorMessage()).build();
             return generateResponseWithErrors(List.of(errorDto));
@@ -54,67 +65,114 @@ public class ReportingExceptionHandler extends ResponseEntityExceptionHandler {
         return generateResponseWithErrors(ex.getErrorMessages());
     }
 
-    
+    /**
+     * Handles database-related exceptions like DataIntegrityViolationException, DataAccessException, etc.
+     */
     @ExceptionHandler(value = {DataAccessException.class, DataIntegrityViolationException.class, ConstraintViolationException.class, SQLGrammarException.class})
     public ResponseEntity<Object> handleDBException(Exception ex) {
-        String errorMessage;
-        switch (ex) {
-            case DataIntegrityViolationException de -> errorMessage = de.getMostSpecificCause().getMessage();
-            case DataAccessException de -> errorMessage = de.getMostSpecificCause().getMessage();
-            case ConstraintViolationException de -> errorMessage = de.getConstraintViolations().toString();
-            case SQLGrammarException de -> errorMessage = de.getLocalizedMessage();
-            default -> errorMessage = ex.getMessage();
-        }
-        logger.error("Error in handleDBException ", errorMessage);
+        logger.error("Database exception occurred: {}", ex.getMessage(), ex);
+
+        String errorMessage = switch (ex) {
+            case DataIntegrityViolationException de -> de.getMostSpecificCause().getMessage();
+            case DataAccessException de -> de.getMostSpecificCause().getMessage();
+            case ConstraintViolationException de -> de.getConstraintViolations().toString();
+            case SQLGrammarException de -> de.getLocalizedMessage();
+            default -> ex.getMessage();
+        };
+
         ErrorDto errorDto = ErrorDto.builder().errorCode(ErrorConstants.GENERIC_ERROR_CODE).errorMessage(errorMessage).build();
-        return ResponseEntity.internalServerError().body(ReportingResponse.builder().status(ReportingConstant.RESPONSE_FAILURE).errors(List.of(errorDto)).build());
+        return ResponseEntity.internalServerError().body(
+                ReportingResponse.builder().status(ReportingConstant.RESPONSE_FAILURE).errors(List.of(errorDto)).build()
+        );
     }
 
-
-    
+    /**
+     * Handles generic exceptions and returns an internal server error response.
+     */
     @ExceptionHandler(value = {Exception.class})
     public ResponseEntity<Object> handleGenericException(Exception ex) {
-        logger.error("Error in handleGenericException ", ex);
-        ErrorDto errorDto = ErrorDto.builder().errorCode(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value())).errorMessage(ex.getMessage()).build();
-        return ResponseEntity.internalServerError().body(ReportingResponse.builder().status(ReportingConstant.RESPONSE_FAILURE).errors(List.of(errorDto)).build());
+        logger.error("Unhandled exception occurred: {}", ex.getMessage(), ex);
+
+        ErrorDto errorDto = ErrorDto.builder()
+                .errorCode(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()))
+                .errorMessage(ex.getMessage())
+                .build();
+
+        return ResponseEntity.internalServerError().body(
+                ReportingResponse.builder().status(ReportingConstant.RESPONSE_FAILURE).errors(List.of(errorDto)).build()
+        );
     }
 
-    
+    /**
+     * Handles IllegalArgumentException and IllegalStateException.
+     */
     @ExceptionHandler(value = {IllegalArgumentException.class, IllegalStateException.class})
     protected ResponseEntity<Object> handleConflict(RuntimeException ex) {
-        logger.error("Error in handleConflict ", ex);
-        ErrorDto errorDto = ErrorDto.builder().errorCode(String.valueOf(HttpStatus.CONFLICT.value())).errorMessage(ex.getLocalizedMessage()).build();
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(ReportingResponse.builder().status(ReportingConstant.RESPONSE_FAILURE).errors(List.of(errorDto)).build());
+        logger.error("Conflict exception occurred: {}", ex.getMessage(), ex);
+
+        ErrorDto errorDto = ErrorDto.builder()
+                .errorCode(String.valueOf(HttpStatus.CONFLICT.value()))
+                .errorMessage(ex.getLocalizedMessage())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                ReportingResponse.builder().status(ReportingConstant.RESPONSE_FAILURE).errors(List.of(errorDto)).build()
+        );
     }
 
+    /**
+     * Handles Spring framework's internal exceptions.
+     */
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(Exception ex, @Nullable Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
+        logger.error("Spring internal exception occurred: {}", ex.getMessage(), ex);
+
         if (request instanceof ServletWebRequest servletWebRequest) {
             HttpServletResponse response = servletWebRequest.getResponse();
             if (response != null && response.isCommitted()) {
                 return null;
             }
         }
-        ErrorDto errorDto = ErrorDto.builder().errorCode(String.valueOf(statusCode.value())).errorMessage(ex.getLocalizedMessage()).build();
-        return ResponseEntity.status(statusCode).body(ReportingResponse.builder().status(ReportingConstant.RESPONSE_FAILURE).errors(List.of(errorDto)).build());
+
+        ErrorDto errorDto = ErrorDto.builder()
+                .errorCode(String.valueOf(statusCode.value()))
+                .errorMessage(ex.getLocalizedMessage())
+                .build();
+
+        return ResponseEntity.status(statusCode).body(
+                ReportingResponse.builder().status(ReportingConstant.RESPONSE_FAILURE).errors(List.of(errorDto)).build()
+        );
     }
 
+    /**
+     * Handles validation errors in method arguments.
+     */
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+
+        logger.error("Method argument validation failed: {}", ex.getMessage(), ex);
 
         List<ErrorDto> errors = new ArrayList<>();
         ex.getBindingResult().getFieldErrors().forEach(fieldError ->
                 errors.add(ErrorDto.builder()
                         .errorCode(ErrorConstants.MANDATORY_ERROR_CODE)
-                        .errorMessage(fieldError.getField() + fieldError.getDefaultMessage())
+                        .errorMessage(fieldError.getField() + " " + fieldError.getDefaultMessage())
                         .build())
         );
 
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(ReportingResponse.builder().status(ReportingConstant.RESPONSE_FAILURE).errors(errors).build());
+        return ResponseEntity.status(HttpStatus.OK).body(
+                ReportingResponse.builder().status(ReportingConstant.RESPONSE_FAILURE).errors(errors).build()
+        );
     }
+
+    /**
+     * Generates a standard error response.
+     */
     private ResponseEntity<Object> generateResponseWithErrors(List<ErrorDto> errors) {
-        return ResponseEntity.ok().body(ReportingResponse.builder().status(ReportingConstant.RESPONSE_FAILURE).errors(errors).build());
+        logger.info("Returning error response with {} errors", errors.size());
+        return ResponseEntity.ok().body(
+                ReportingResponse.builder().status(ReportingConstant.RESPONSE_FAILURE).errors(errors).build()
+        );
     }
 }
