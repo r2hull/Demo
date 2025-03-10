@@ -1,34 +1,108 @@
-  #Kafka consumer config
-  kafka:
-    consumer:
-      groupId: transaction-consumers
-      enableAutoCommit: true
-      autoCommitInterval: 100
-      sessionTimeoutMS: 300000
-      requestTimeoutMS: 420000
-      fetchMaxWaitMS: 200
-      maxPollRecords: 5
-      autoOffsetReset: latest
-      keyDeserializer: org.apache.kafka.common.serialization.StringDeserializer
-      valueDeserializer: org.apache.kafka.common.serialization.StringDeserializer
-      retryMaxAttempts: 3
-      retryBackOffInitialIntervalMS: 10000
-      retryBackOffMaxIntervalMS: 30000
-      numberOfConsumers: 1
-    #Kafka producer config
-    producer:
-      acks: all
-      retries: 3
-      batchSize: 1000
-      lingerMs: 1
-      bufferMemory: 33554432
-      keyDeserializer: org.apache.kafka.common.serialization.StringSerializer
-      valueDeserializer: org.apache.kafka.common.serialization.StringSerializer
-    #Kafka topic config
-    topic:
-      transaction:
-        notification:
-          sms: transaction_sms_notification_topic
-          email: transaction_email_notification_topic
-      partitions: 4
-      replicationFactor: 1
+@Service
+@RequiredArgsConstructor
+public class RefundService {
+
+    private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
+    private final RefundMapper refundMapper;
+    private final RefundValidator refundValidator;
+    private final RefundDao refundDao;
+    private final S3Service s3Service;
+    private final KafkaTemplate<String, String> kafkaTemplate; // KafkaTemplate with String key and value
+
+    // Use a topic name consistent with your config style, e.g., "bulk_refund_processing_topic"
+    private static final String BULK_REFUND_TOPIC = "bulk_refund_processing_topic";
+
+    public TransactionResponse<String> uploadBulkRefund(String mId, MultipartFile bulkRefundFile) {
+        logger.info("uploadBulkRefund invoked for mId: {}", mId);
+
+        // Step-1: Validate bulk refund file
+        refundValidator.validateBulkRefundUploadRequest(mId, bulkRefundFile);
+        logger.info("Bulk upload request validated for mId: {}", mId);
+
+        // Step-2: Upload bulk upload on S3
+        String filePath = s3Service.uploadFile(bulkRefundFile);
+        logger.info("Bulk refund file uploaded at :{} for mId: {}", filePath, mId);
+
+        // Step-3: Build bulk refund booking
+        BulkRefundBooking bulkRefundBooking = buildBulkRefundBooking(mId, bulkRefundFile, filePath);
+
+        // Step-4: Save bulk refund booking
+        bulkRefundBooking = refundDao.saveBulkRefundBooking(bulkRefundBooking);
+        logger.info("Bulk refund request saved for mId: {}", filePath, mId);
+
+        // Step-5: Send message to Kafka for asynchronous processing
+        String message = bulkRefundBooking.getBulkId() + "|" + mId; // Simple string format: "bulkId|mId"
+        kafkaTemplate.send(BULK_REFUND_TOPIC, message);
+        logger.info("Sent bulk refund message to Kafka topic {}: {}", BULK_REFUND_TOPIC, message);
+
+        return TransactionResponse.<String>builder()
+                .data(List.of(bulkRefundBooking.getBulkId()))
+                .count(1L)
+                .total(1L)
+                .status(TransactionConstant.RESPONSE_SUCCESS)
+                .build();
+    }
+
+    // Kafka Consumer to process the bulk refund
+    @KafkaListener(topics = BULK_REFUND_TOPIC, groupId = "transaction-consumers")
+    public void processBulkRefundMessage(String message) {
+        logger.info("Received Kafka message: {}", message);
+
+        // Parse the message (format: "bulkId|mId")
+        String[] parts = message.split("\\|");
+        if (parts.length != 2) {
+            logger.error("Invalid message format: {}", message);
+            return;
+        }
+
+        String bulkId = parts[0];
+        String mId = parts[1];
+        logger.info("Parsed bulkId: {} and mId: {}", bulkId, mId);
+
+        // Process the bulk refund (existing logic)
+        processBulkRefund(bulkId, mId);
+    }
+
+    // Your existing processBulkRefund method remains unchanged
+    private void processBulkRefund(String bulkId, String mId) {
+        logger.info("ProcessBulkRefund received for bulkId: {}", bulkId);
+
+        // Step-1: Get bulk refund booking
+        BulkRefundBooking bulkRefundBooking = refundDao.findByBulkId(bulkId, mId);
+        logger.info("Got bulkRefundBooking: {} for bulkId: {}", bulkRefundBooking, bulkId);
+
+        // Step-2: Update processing status
+        updateProcessingStatus(bulkRefundBooking);
+
+        // Step-3: Read CSV file from S3 service
+        List<String[]> csvFile = readCsvFile(bulkRefundBooking.getFilePath());
+        logger.info("Got csvFile size : {} for bulkId: {}", csvFile.size(), bulkId);
+
+        // Step-4: Validate Headers
+        String headerError = refundValidator.validateBulkRefundHeader(csvFile, mId);
+        logger.info("headerError : {} for bulkId: {}", headerError, bulkId);
+
+        // Step-5: If headers are valid then read and process refund from csv file row by row
+        if (StringUtils.isEmpty(headerError)) {
+            logger.info("Valid headers, headerError : {} for bulkId: {}", headerError, bulkId);
+            processingCsvFileRowWise(bulkId, csvFile, bulkRefundBooking);
+        } else {
+            logger.info("Invalid headers, headerError : {} for bulkId: {}", headerError, bulkId);
+            // Step-6: Mark this csv file as failed
+            buildBulkRefundBookingWithError(bulkRefundBooking, headerError);
+        }
+
+        // Step-7: Update bulk refund status for current bulk id
+        refundDao.saveBulkRefundBooking(bulkRefundBooking);
+    }
+
+    // Rest of your methods remain unchanged...
+}
+
+
+
+
+kafka:
+  topic:
+    transaction:
+      bulkRefund: bulk_refund_processing_topic
