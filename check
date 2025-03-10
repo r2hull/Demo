@@ -1,5 +1,19 @@
-Refund Type,Merchant Order ID,ATRN,Refund Amount,Refund Currency,Comments
-ABC,1000003,ARRN1234567890,200,INR,i want refund
+import java.util.ArrayList;
+import java.util.List;
 
-List<String[]> =?
+public class Main {
+    public static void main(String[] args) {
+        List<String[]> dataList = new ArrayList<>();
 
+        // Adding header row
+        dataList.add(new String[]{"Refund Type", "Merchant Order ID", "ATRN", "Refund Amount", "Refund Currency", "Comments"});
+
+        // Adding data row
+        dataList.add(new String[]{"ABC", "1000003", "ARRN1234567890", "200", "INR", "i want refund"});
+
+        // Printing the list for verification
+        for (String[] row : dataList) {
+            System.out.println(String.join(", ", row));
+        }
+    }
+}
