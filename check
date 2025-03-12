@@ -1,9 +1,12 @@
 public List<BulkRefundBookingDetails> getBulkRefundByBulkIdAndRefundStatus(String bulkId, String refundStatus) {
-        List<BulkRefundBookingDetails> bulkRefundBookingDetailsList;
-        if (refundStatus.equals("ALL")) {
-            bulkRefundBookingDetailsList = bulkRefundDetailsRepository.findByBulkId(bulkId).orElseThrow(() -> new TransactionException(TransactionErrorConstants.NOT_FOUND_ERROR_CODE, MessageFormat.format(TransactionErrorConstants.NOT_FOUND_ERROR_MESSAGE, "No records to download")));
-        } else {
-            bulkRefundBookingDetailsList = bulkRefundDetailsRepository.findByBulkIdAndRefundStatus(bulkId, refundStatus).orElseThrow(() -> new TransactionException(TransactionErrorConstants.NOT_FOUND_ERROR_CODE, MessageFormat.format(TransactionErrorConstants.NOT_FOUND_ERROR_MESSAGE, "No records to download")));
-        }
-        return  bulkRefundBookingDetailsList;
-    }
+    List<BulkRefundBookingDetails> bulkRefundBookingDetailsList =  
+        "ALL".equals(refundStatus)  
+        ? bulkRefundDetailsRepository.findByBulkId(bulkId)  
+        : bulkRefundDetailsRepository.findByBulkIdAndRefundStatus(bulkId, refundStatus);  
+
+    if (bulkRefundBookingDetailsList == null || bulkRefundBookingDetailsList.isEmpty()) {  
+        throw new TransactionException(TransactionErrorConstants.NOT_FOUND_ERROR_CODE,  
+            MessageFormat.format(TransactionErrorConstants.NOT_FOUND_ERROR_MESSAGE, "No records to download"));  
+    }  
+    return bulkRefundBookingDetailsList;  
+}
