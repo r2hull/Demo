@@ -1,3 +1,8 @@
+import jakarta.persistence.*;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+import java.util.UUID;
+
 @EqualsAndHashCode(callSuper = true)
 @Data
 @Entity
@@ -10,9 +15,16 @@ public class BulkRefundBookingDetails extends AuditEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
     private String bulkId;
     private Integer rowNumber;
     private String refundStatus;
     private String remark;
 
+    private String refundType;
+    private String merchantOrderId;
+    private String atrn;
+    private Double refundAmount;
+    private String refundCurrency;
+    private String comments;
 }
