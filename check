@@ -1,30 +1,19 @@
-import jakarta.persistence.*;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
-import java.util.UUID;
 
-@EqualsAndHashCode(callSuper = true)
-@Data
-@Entity
-@AllArgsConstructor
-@NoArgsConstructor
-@SuperBuilder
-@Table(name = "BULK_REFUND_BOOKING_DTLS")
-public class BulkRefundBookingDetails extends AuditEntity {
+BulkRefundBookingDetails
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
 
-    private String bulkId;
-    private Integer rowNumber;
-    private String refundStatus;
-    private String remark;
+ protected List<Object> convertToListOfObject(BulkRefundBooking bulkRefundBooking) {
+        List<Object> objectList = new ArrayList<>();
+        objectList.add(StringUtils.isEmpty(bulkRefundBooking.getBulkId()) ? StringUtils.EMPTY : bulkRefundBooking.getBulkId());
+        objectList.add(StringUtils.isEmpty(bulkRefundBooking.getMerchantId()) ? StringUtils.EMPTY : bulkRefundBooking.getMerchantId());
+        objectList.add(StringUtils.isEmpty(bulkRefundBooking.getFileName()) ? StringUtils.EMPTY : bulkRefundBooking.getFileName() );
+        objectList.add(ObjectUtils.isEmpty(bulkRefundBooking.getFilePath()) ? StringUtils.EMPTY : bulkRefundBooking.getFilePath());
+        objectList.add(ObjectUtils.isEmpty(bulkRefundBooking.getTotalRecords()) ? StringUtils.EMPTY : bulkRefundBooking.getTotalRecords());
+        objectList.add(ObjectUtils.isEmpty(bulkRefundBooking.getValidRecords()) ? StringUtils.EMPTY : bulkRefundBooking.getValidRecords());
+        objectList.add(Objects.isNull(bulkRefundBooking.getInvalidRecords()) ? StringUtils.EMPTY :bulkRefundBooking.getInvalidRecords());
+        objectList.add(Objects.isNull(bulkRefundBooking.getBulkRefundStatus()) ? StringUtils.EMPTY :bulkRefundBooking.getBulkRefundStatus());
+        objectList.add(Objects.isNull(bulkRefundBooking.getRemark()) ? StringUtils.EMPTY :bulkRefundBooking.getRemark());
+        objectList.add(Objects.isNull(bulkRefundBooking.getCreatedDate()) ? StringUtils.EMPTY :DateTimeUtils.getReadableDate(bulkRefundBooking.getCreatedDate()));
 
-    private String refundType;
-    private String merchantOrderId;
-    private String atrn;
-    private Double refundAmount;
-    private String refundCurrency;
-    private String comments;
-}
+        return objectList;
+    }
