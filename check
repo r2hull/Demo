@@ -1,2 +1,40 @@
-ALTER TABLE NIRMAL_GURJAR.BULK_REFUND_BOOKING_DTLS 
-MODIFY (CREATED_DATE NUMBER, UPDATED_DATE NUMBER);
+INSERT INTO "NIRMAL_GURJAR"."BULK_REFUND_BOOKING_DTLS" 
+(
+    "ID", 
+    "BULK_ID", 
+    "ROW_NUMBER", 
+    "REFUND_STATUS", 
+    "REMARK", 
+    "CREATED_BY", 
+    "UPDATED_BY", 
+    "CREATED_DATE_NUM", 
+    "UPDATED_DATE", 
+    "CREATED_DATE",
+    "REFUND_TYPE",
+    "MERCHANT_ORDER_ID",
+    "ATRN",
+    "REFUND_AMOUNT",
+    "REFUND_CURRENCY",
+    "COMMENTS"
+) 
+VALUES 
+(
+    SYS_GUID(), 
+    'BULK123456', 
+    1, 
+    'SUCCESS', 
+    'Processed successfully', 
+    'Admin', 
+    NULL, 
+    TO_NUMBER(TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')), 
+    NULL, 
+    SYSDATE,
+    'FULL_REFUND', 
+    'ORD123456', 
+    'ATRN987654321', 
+    500.75, 
+    'INR', 
+    'Test refund entry'
+);
+
+COMMIT;
