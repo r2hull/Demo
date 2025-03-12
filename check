@@ -1,14 +1,10 @@
+public List<BulkRefundBookingDetails> getBulkRefundByBulkIdAndRefundStatus(String bulkId, String refundStatus) {
+    boolean isValidStatus = Arrays.stream(RefundStatus.values())
+                                  .anyMatch(status -> status.name().equalsIgnoreCase(refundStatus));
 
-public enum RefundStatus {
-
-    CANCELLATION_BOOKED, REFUND_BOOKED, CANCELLATION_IN_PROCESS, REFUND_IN_PROCESS, REFUND_PROCESSED, REFUND_FAILED;
-
-    public static RefundStatus getRefundStatus(String refundStatus) {
-        return Arrays.stream(values()).filter(p -> p.name().equalsIgnoreCase(refundStatus)).findFirst().orElseThrow(() -> new TransactionException(TransactionErrorConstants.INVALID_ERROR_CODE, MessageFormat.format(TransactionErrorConstants.INVALID_ERROR_MESSAGE, "Refund status", "Valid refund status are " + Arrays.toString(RefundStatus.values()))));
+    if (isValidStatus) {
+        return bulkRefundDetailsRepository.findByBulkIdAndRefundStatus(bulkId, refundStatus);
+    } else {
+        return bulkRefundDetailsRepository.findByBulkId(bulkId);
     }
 }
-
-
-public List<BulkRefundBookingDetails> getBulkRefundByBulkIdAndRefundStatus(String bulkId, String refundStatus) {
-        return bulkRefundDetailsRepository.findByBulkIdAndRefundStatus(bulkId,refundStatus);
-    }
