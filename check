@@ -1,9 +1,14 @@
-ALTER TABLE "NIRMAL_GURJAR"."BULK_REFUND_BOOKING_DTLS" 
-ADD (
-    "REFUND_TYPE" VARCHAR2(50 BYTE),
-    "MERCHANT_ORDER_ID" VARCHAR2(50 BYTE),
-    "ATRN" VARCHAR2(50 BYTE),
-    "REFUND_AMOUNT" NUMBER(20,2),
-    "REFUND_CURRENCY" VARCHAR2(10 BYTE),
-    "COMMENTS" VARCHAR2(500 BYTE)
-);
+
+public enum RefundStatus {
+
+    CANCELLATION_BOOKED, REFUND_BOOKED, CANCELLATION_IN_PROCESS, REFUND_IN_PROCESS, REFUND_PROCESSED, REFUND_FAILED;
+
+    public static RefundStatus getRefundStatus(String refundStatus) {
+        return Arrays.stream(values()).filter(p -> p.name().equalsIgnoreCase(refundStatus)).findFirst().orElseThrow(() -> new TransactionException(TransactionErrorConstants.INVALID_ERROR_CODE, MessageFormat.format(TransactionErrorConstants.INVALID_ERROR_MESSAGE, "Refund status", "Valid refund status are " + Arrays.toString(RefundStatus.values()))));
+    }
+}
+
+
+public List<BulkRefundBookingDetails> getBulkRefundByBulkIdAndRefundStatus(String bulkId, String refundStatus) {
+        return bulkRefundDetailsRepository.findByBulkIdAndRefundStatus(bulkId,refundStatus);
+    }
