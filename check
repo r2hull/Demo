@@ -1,19 +1,18 @@
+protected List<Object> convertToListOfObject(BulkRefundBookingDetails bulkRefundBookingDetails) {
+    List<Object> objectList = new ArrayList<>();
+    
+    objectList.add(StringUtils.isEmpty(bulkRefundBookingDetails.getBulkId()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getBulkId());
+    objectList.add(Objects.isNull(bulkRefundBookingDetails.getRowNumber()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getRowNumber());
+    objectList.add(StringUtils.isEmpty(bulkRefundBookingDetails.getRefundStatus()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getRefundStatus());
+    objectList.add(StringUtils.isEmpty(bulkRefundBookingDetails.getRemark()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getRemark());
 
-BulkRefundBookingDetails
+    objectList.add(StringUtils.isEmpty(bulkRefundBookingDetails.getRefundType()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getRefundType());
+    objectList.add(StringUtils.isEmpty(bulkRefundBookingDetails.getMerchantOrderId()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getMerchantOrderId());
+    objectList.add(StringUtils.isEmpty(bulkRefundBookingDetails.getAtrn()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getAtrn());
+    objectList.add(Objects.isNull(bulkRefundBookingDetails.getRefundAmount()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getRefundAmount());
+    objectList.add(StringUtils.isEmpty(bulkRefundBookingDetails.getRefundCurrency()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getRefundCurrency());
+    objectList.add(StringUtils.isEmpty(bulkRefundBookingDetails.getComments()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getComments());
+    objectList.add(Objects.isNull(bulkRefundBookingDetails.getCreatedDate()) ? StringUtils.EMPTY : DateTimeUtils.getReadableDate(bulkRefundBookingDetails.getCreatedDate()));
 
-
- protected List<Object> convertToListOfObject(BulkRefundBooking bulkRefundBooking) {
-        List<Object> objectList = new ArrayList<>();
-        objectList.add(StringUtils.isEmpty(bulkRefundBooking.getBulkId()) ? StringUtils.EMPTY : bulkRefundBooking.getBulkId());
-        objectList.add(StringUtils.isEmpty(bulkRefundBooking.getMerchantId()) ? StringUtils.EMPTY : bulkRefundBooking.getMerchantId());
-        objectList.add(StringUtils.isEmpty(bulkRefundBooking.getFileName()) ? StringUtils.EMPTY : bulkRefundBooking.getFileName() );
-        objectList.add(ObjectUtils.isEmpty(bulkRefundBooking.getFilePath()) ? StringUtils.EMPTY : bulkRefundBooking.getFilePath());
-        objectList.add(ObjectUtils.isEmpty(bulkRefundBooking.getTotalRecords()) ? StringUtils.EMPTY : bulkRefundBooking.getTotalRecords());
-        objectList.add(ObjectUtils.isEmpty(bulkRefundBooking.getValidRecords()) ? StringUtils.EMPTY : bulkRefundBooking.getValidRecords());
-        objectList.add(Objects.isNull(bulkRefundBooking.getInvalidRecords()) ? StringUtils.EMPTY :bulkRefundBooking.getInvalidRecords());
-        objectList.add(Objects.isNull(bulkRefundBooking.getBulkRefundStatus()) ? StringUtils.EMPTY :bulkRefundBooking.getBulkRefundStatus());
-        objectList.add(Objects.isNull(bulkRefundBooking.getRemark()) ? StringUtils.EMPTY :bulkRefundBooking.getRemark());
-        objectList.add(Objects.isNull(bulkRefundBooking.getCreatedDate()) ? StringUtils.EMPTY :DateTimeUtils.getReadableDate(bulkRefundBooking.getCreatedDate()));
-
-        return objectList;
-    }
+    return objectList;
+}
