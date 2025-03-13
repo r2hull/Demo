@@ -1,12 +1,13 @@
-public List<BulkRefundBookingDetails> getBulkRefundByBulkIdAndRefundStatus(String bulkId, String refundStatus) {
-    List<BulkRefundBookingDetails> bulkRefundBookingDetailsList =  
-        "ALL".equals(refundStatus)  
-        ? bulkRefundDetailsRepository.findByBulkId(bulkId)  
-        : bulkRefundDetailsRepository.findByBulkIdAndRefundStatus(bulkId, refundStatus);  
+ @KafkaListener(topics = "${spring.kafka.topic.transaction.bulkRefund}")
+    public void processBulkRefundMessage(ConsumerRecord<String, String> consumerRecord) {
+        log.info("Received Kafka message: {}", consumerRecord);
 
-    if (bulkRefundBookingDetailsList == null || bulkRefundBookingDetailsList.isEmpty()) {  
-        throw new TransactionException(TransactionErrorConstants.NOT_FOUND_ERROR_CODE,  
-            MessageFormat.format(TransactionErrorConstants.NOT_FOUND_ERROR_MESSAGE, "No records to download"));  
-    }  
-    return bulkRefundBookingDetailsList;  
-}
+        try {
+            BulkRefundBooking transactionEmailDto = objectMapper.readValue(consumerRecord.value(), BulkRefundBooking.class);
+                    refundService.processBulkRefund(transactionEmailDto.getBulkId(), transactionEmailDto.getMerchantId());
+        } catch (TransactionException e) {
+            log.error("Error during bulk refund kafka listening message[key:{} and value: {}], error: {}", consumerRecord.key(), consumerRecord.value(), e.getErrorMessage());
+        } catch (Exception e) {
+            log.error("Error during bulk refund kafka listening message[key:{} and value: {}], error: {}", consumerRecord.key(), consumerRecord.value(), e.getMessage());
+        }
+    }
