@@ -1,18 +1,27 @@
 private final ObjectMapper objectMapper = new ObjectMapper()
             .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION); // Enable duplicate detection
 
+ @PostMapping("/encrypt")
+    private String buildOrderData(@RequestBody RequestData requestData) {
+        try {
+            EncryptionKeyDto encryptionKeyDto = kmsServiceClient.getKekAndMekByMID(EPayIdentityUtil.getUserPrincipal().getMId());
+            String data=objectMapper.writeValueAsString(requestData.getRequestData());
+            return encryptionDecryptionUtil.encryptRequest(data, encryptionKeyDto);
+        } catch (Exception e) {
+            logger.error("Error in buildCustomerData {} {} ", e.getMessage(),e.getCause());
+            throw new TransactionException(ErrorConstants.INVALID_ERROR_CODE, MessageFormat.format(ErrorConstants.INVALID_ERROR_MESSAGE, requestData));
+        }
+    }
 
 
  // Handle Jackson duplicate field exception (MismatchedInputException)
     @ExceptionHandler(com.fasterxml.jackson.databind.exc.MismatchedInputException.class)
-    public ResponseEntity<ErrorResponse> handleMismatchedInputException(MismatchedInputException ex) {
+    public ResponseEntity<Object> handleMismatchedInputException(MismatchedInputException ex) {
         logger.error("Duplicate fields detected: {}", ex.getMessage());
-        ErrorResponse errorResponse = new ErrorResponse(
-            ErrorConstants.INVALID_ERROR_CODE,
-            "Invalid request: Duplicate fields are not allowed"
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST); // 400 status
+        List<ErrorDto> errorDtos = List.of(ErrorDto.builder().errorCode(String.valueOf(HttpStatus.BAD_REQUEST.value())).errorMessage(ex.getMessage()).build());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(TransactionResponse.builder()
+                        .status(AppConstant.FAILURE_RESPONSE_CODE)
+                        .errors(errorDtos)
+                        .build());
     }
-
-
-
