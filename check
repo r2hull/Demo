@@ -1,15 +1,242 @@
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
-@Configuration
-public class JacksonConfig {
+@ControllerAdvice
+public class TransactionExceptionHandler extends ResponseEntityExceptionHandler {
+    private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
 
-    @Bean
-    public ObjectMapper objectMapper() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
-        return objectMapper;
+
+    @ExceptionHandler({TransactionException.class, EncryptionDecryptionException.class})
+    public ResponseEntity<Object> handleSecurityException(RuntimeException ex) {
+        ErrorDto errorDto;
+        switch (ex) {
+            case TransactionException tx ->
+                    errorDto = ErrorDto.builder().errorCode(tx.getErrorCode()).errorMessage(tx.getErrorMessage()).build();
+            case EncryptionDecryptionException enx ->
+                    errorDto = ErrorDto.builder().errorCode(enx.getErrorCode()).errorMessage(enx.getErrorMessage()).build();
+            default ->
+                    errorDto = ErrorDto.builder().errorCode(ErrorConstants.GENERIC_ERROR_CODE).errorMessage(ex.getLocalizedMessage()).build();
+        }
+        return generateResponseWithErrors(List.of(errorDto));
+    }
+
+  
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<Object> handleValidationException(ValidationException ex) {
+        if (CollectionUtils.isEmpty(ex.getErrorMessages())) {
+            ErrorDto errorDto = ErrorDto.builder()
+                    .errorCode(ex.getErrorCode())
+                    .errorMessage(ex.getErrorMessage())
+                    .build();
+            return generateResponseWithErrors(List.of(errorDto));
+        }
+        return generateResponseWithErrors(ex.getErrorMessages());
+    }
+
+
+    @ExceptionHandler(value = {DataAccessException.class, DataIntegrityViolationException.class, SQLGrammarException.class})
+    public ResponseEntity<Object> handleDBException(Exception ex) {
+        String errorMessage;
+        switch (ex) {
+            case DataIntegrityViolationException de -> errorMessage = de.getMostSpecificCause().getMessage();
+            case DataAccessException de -> errorMessage = de.getMostSpecificCause().getMessage();
+            case ConstraintViolationException de -> errorMessage = de.getConstraintViolations().toString();
+            case SQLGrammarException de -> errorMessage = de.getLocalizedMessage();
+            default -> errorMessage = ex.getMessage();
+        }
+        logger.error("Error in handleDBException ", errorMessage);
+        ErrorDto errorDto = ErrorDto.builder().errorCode(ErrorConstants.GENERIC_ERROR_CODE).errorMessage(errorMessage).build();
+        return ResponseEntity.internalServerError().body(TransactionResponse.builder().status(AppConstant.FAILURE_RESPONSE_CODE).errors(List.of(errorDto)).build());
+    }
+
+
+    //Error handle for @Valid method RequestBody and @Validate For Validating Path Variables and Request Parameters--Ex:: @Size(min = 5, max = 10)
+    @ExceptionHandler(value = ConstraintViolationException.class)
+    public ResponseEntity<Object>
+    handleConstraintViolationException(ConstraintViolationException constraintException, WebRequest request) {
+
+
+        List<FieldValidationErrorResponse> fielderrors;
+
+        fielderrors = generateContraintVoilationFieldErrorResponse(constraintException);
+        logger.info("Inside Contraint Voilation ::Filed Errors::  ************** :" + fielderrors.toString());
+        List<ErrorDto> errorData = createFieldErrors(fielderrors);
+
+
+        return generateResponseWithErrors(errorData);
+
+    }
+
+
+
+    private List<FieldValidationErrorResponse> generateContraintVoilationFieldErrorResponse(ConstraintViolationException ex) {
+        List<FieldValidationErrorResponse> filederrors = new ArrayList<>();
+        BiFunction<String, String, String> messageInterPolate = (message, field) -> {
+            if (StringUtils.isNotBlank(message) && message.contains("{0}")) {
+                return MessageFormat.format(message, field);
+            }
+            return message;
+        };
+
+        if (Objects.nonNull(ex)) {
+            Set<ConstraintViolation<?>> violations = ex.getConstraintViolations();
+            violations.forEach(error -> filederrors.add(new FieldValidationErrorResponse(error.getPropertyPath().toString().substring(error.getPropertyPath().toString().lastIndexOf(".") + 1), messageInterPolate.apply(error.getMessage(), error.getPropertyPath().toString().substring(error.getPropertyPath().toString().lastIndexOf(".") + 1)))));
+        }
+        return filederrors;
+    }
+
+    private List<ErrorDto> createFieldErrors(List<FieldValidationErrorResponse> fielderrors) {
+        Map<String, String> fieldErrordata;
+
+        fieldErrordata = fielderrors
+                .stream()
+                .collect(Collectors.toMap(FieldValidationErrorResponse::getField, FieldValidationErrorResponse::getErrorMessage));
+        return fieldErrordata
+                .entrySet()
+                .stream()
+                .map(entry -> ErrorDto
+                        .builder()
+                        .errorCode(ErrorConstants.INVALID_ERROR_CODE)
+                        .errorMessage(entry.getKey() + "|" + entry.getValue()).build())
+                .toList();
+    }
+
+
+ 
+    @ExceptionHandler(value = {AuthorizationDeniedException.class})
+    public ResponseEntity<Object> handleAuthorizationDeniedException(AuthorizationDeniedException ex) {
+        logger.error("Error in handleAuthorizationDeniedException ", ex);
+        ErrorDto errorDto = ErrorDto.builder().errorCode(String.valueOf(HttpStatus.FORBIDDEN.value())).errorMessage(ex.getMessage() + ": Not having the necessary permissions to access this resources").build();
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(TransactionResponse.builder().status(AppConstant.FAILURE_RESPONSE_CODE).errors(List.of(errorDto)).build());
+    }
+
+    @ExceptionHandler(value = {ConnectException.class})
+    public ResponseEntity<Object> handleExternalServerException(ConnectException ex) {
+        logger.error("Error in  RuntimeException {} ", ex.getMessage());
+        ErrorDto errorDto = ErrorDto.builder()
+                .errorCode(ErrorConstants.EXTERNAL_SERVICE_ERROR_CODE)
+                .errorMessage(MessageFormat.format(ErrorConstants.EXTERNAL_SERVICE_ERROR_MESSAGE, "External"))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                TransactionResponse.builder()
+                        .status(0)
+                        .errors(List.of(errorDto))
+                        .build());
+    }
+
+
+    @ExceptionHandler(value = {JsonProcessingException.class, JsonMappingException.class})
+    public ResponseEntity<Object> handleJsonException(RuntimeException ex) {
+        logger.error("Error in JsonProcessingException or JsonMappingException", ex);
+        ErrorDto errorDto = ErrorDto.builder()
+                .errorCode(ErrorConstants.JSON_ERROR_CODE)
+                .errorMessage(MessageFormat.format(ErrorConstants.JSON_ERROR_MESSAGE, ex.getMessage()))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(
+                TransactionResponse.builder()
+                        .status(0)
+                        .errors(List.of(errorDto))
+                        .build());
+    }
+
+
+   
+    @ExceptionHandler(value = {IllegalArgumentException.class, IllegalStateException.class})
+    protected ResponseEntity<Object> handleConflict(RuntimeException ex) {
+        logger.error("Error in handleConflict ", ex);
+        ErrorDto errorDto = ErrorDto.builder().errorCode(String.valueOf(HttpStatus.CONFLICT.value())).errorMessage(ex.getLocalizedMessage()).build();
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(TransactionResponse.builder().status(AppConstant.FAILURE_RESPONSE_CODE).errors(List.of(errorDto)).build());
+    }
+
+   
+    @ExceptionHandler(value = {Exception.class})
+    public ResponseEntity<Object> handleGenericException(Exception ex) {
+        logger.error("Error in handleGenericException ", ex);
+        ErrorDto errorDto = ErrorDto.builder().errorCode(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value())).errorMessage(ex.getMessage()).build();
+        return ResponseEntity.internalServerError().body(TransactionResponse.builder().status(0).errors(List.of(errorDto)).build());
+    }
+
+  
+ 
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        logger.error("Error in handleGenericException ", ex);
+
+        // Extracting the validation errors
+        List<String> errorMessages = ex.getBindingResult().getFieldErrors().stream()
+                .map(DefaultMessageSourceResolvable::getDefaultMessage)
+                .toList();
+
+        // Creating the error DTOs
+        List<ErrorDto> errorDtos = errorMessages.stream()
+                .map(msg -> ErrorDto.builder()
+                        .errorCode(String.valueOf(HttpStatus.BAD_REQUEST.value())) // Use BAD_REQUEST for validation errors
+                        .errorMessage(msg)
+                        .build())
+                .collect(Collectors.toList());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST) // Use BAD_REQUEST status
+                .body(TransactionResponse.builder()
+                        .status(0)
+                        .errors(errorDtos)
+                        .build());
+    }
+
+   
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        // Default error message
+        String errorMessage = "Invalid input. Please check the format and values.";
+
+        // Check if the exception has a cause related to JSON mapping
+        Throwable cause = ex.getCause();
+        if (cause instanceof JsonMappingException jsonMappingException) {
+            // Extract the field causing the issue, if available
+            Optional<String> fieldName = jsonMappingException.getPath().stream()
+                    .map(JsonMappingException.Reference::getFieldName)
+                    .reduce((first, second) -> second); // Get the last field in the path
+
+            if (fieldName.isPresent()) {
+                errorMessage = "Invalid input for field: '" + fieldName.get() + "'. Please check the format and values.";
+            }
+        }
+
+        ErrorDto errorDto = ErrorDto.builder()
+                .errorCode(String.valueOf(HttpStatus.BAD_REQUEST.value()))
+                .errorMessage(errorMessage)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(TransactionResponse.builder()
+                        .status(AppConstant.FAILURE_RESPONSE_CODE)
+                        .errors(List.of(errorDto))
+                        .build());
+    }
+    @Override
+    protected ResponseEntity<Object> handleExceptionInternal(Exception ex, @Nullable Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
+        if (request instanceof ServletWebRequest servletWebRequest) {
+            HttpServletResponse response = servletWebRequest.getResponse();
+            if (response != null && response.isCommitted()) {
+                return null;
+            }
+        }
+        ErrorDto errorDto = ErrorDto.builder().errorCode(String.valueOf(statusCode.value())).errorMessage(ex.getLocalizedMessage()).build();
+        return ResponseEntity.status(statusCode).body(TransactionResponse.builder().status(AppConstant.FAILURE_RESPONSE_CODE).errors(List.of(errorDto)).build());
+    }
+
+    private ResponseEntity<Object> generateResponseWithErrors(List<ErrorDto> errors) {
+        return ResponseEntity.ok().body(TransactionResponse.builder().status(AppConstant.FAILURE_RESPONSE_CODE).errors(errors).build());
+    }
+
+    // Handle Jackson duplicate field exception (MismatchedInputException)
+    @ExceptionHandler(com.fasterxml.jackson.databind.exc.MismatchedInputException.class)
+    public ResponseEntity<Object> handleMismatchedInputException(MismatchedInputException ex) {
+        logger.error("Duplicate fields detected: {}", ex.getMessage());
+        List<ErrorDto> errorDtos = List.of(ErrorDto.builder().errorCode(String.valueOf(HttpStatus.BAD_REQUEST.value())).errorMessage("invalid parameter").build());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(TransactionResponse.builder()
+                        .status(AppConstant.FAILURE_RESPONSE_CODE)
+                        .errors(errorDtos)
+                        .build());
     }
 }
