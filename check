@@ -1,1 +1,43 @@
-aa
+@Setter
+@Getter
+@Data
+public class RequestData {
+    @NotNull
+    private Object requestData;
+}
+
+ @PostMapping("/encrypt")
+    private String buildOrderData(@RequestBody RequestData requestData) {
+        try {
+            EncryptionKeyDto encryptionKeyDto = kmsServiceClient.getKekAndMekByMID(EPayIdentityUtil.getUserPrincipal().getMId());
+            String data=objectMapper.writeValueAsString(requestData.getRequestData());
+            return encryptionDecryptionUtil.encryptRequest(data, encryptionKeyDto);
+        } catch (Exception e) {
+            logger.error("Error in buildCustomerData {} {} ", e.getMessage(),e.getCause());
+            throw new TransactionException(ErrorConstants.INVALID_ERROR_CODE, MessageFormat.format(ErrorConstants.INVALID_ERROR_MESSAGE, requestData));
+        }
+    }
+
+
+postman req:
+{
+    "requestData": {
+        "orderAmount": 2,
+        "currencyCode": "INR",
+        "orderRefNumber": "{{orderRefNumber}}",
+        "returnUrl": "https://dev.epay.sbi",
+        "expiry": 5,
+        "customerId": null,
+        "otherDetails": {
+            "Name": "pavan chaudhai",
+            "Title": "pavan chaudhai"
+        },
+        "otherDetails": {
+            "Name": "pavan chaudhai",
+            "Title": "pavan chaudhai"
+        },
+        "paymentMode": "CC"
+    }
+}
+
+if i pass duplicate then it should throw an error
