@@ -14,6 +14,11 @@
 }
 
 
+{
+    "orderRequest": "{\"orderAmount\": 10, \"currencyCode\": \"INR\", \"orderRefNumber\": \"asd765q\", \"returnUrl\": \"https://sit.epay.sbi\", \"expiry\": 9000000, \"customerId\": \"Cust_CkddyimtJWj1MuXx\", \"otherDetails\": \"other 00909\", \"multiAccounts\": null, \"paymentMode\": \"INB\"}"
+}
+
+
 
 @Setter
 @Getter
