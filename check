@@ -1,13 +1,49 @@
- @KafkaListener(topics = "${spring.kafka.topic.transaction.bulkRefund}")
-    public void processBulkRefundMessage(ConsumerRecord<String, String> consumerRecord) {
-        log.info("Received Kafka message: {}", consumerRecord);
 
-        try {
-            BulkRefundBooking transactionEmailDto = objectMapper.readValue(consumerRecord.value(), BulkRefundBooking.class);
-                    refundService.processBulkRefund(transactionEmailDto.getBulkId(), transactionEmailDto.getMerchantId());
-        } catch (TransactionException e) {
-            log.error("Error during bulk refund kafka listening message[key:{} and value: {}], error: {}", consumerRecord.key(), consumerRecord.value(), e.getErrorMessage());
-        } catch (Exception e) {
-            log.error("Error during bulk refund kafka listening message[key:{} and value: {}], error: {}", consumerRecord.key(), consumerRecord.value(), e.getMessage());
-        }
+{
+    "orderRequest": {
+        "orderAmount": 10,
+        "currencyCode": "INR",
+        "orderRefNumber": "asd765q",
+        "returnUrl": "https://sit.epay.sbi",
+        "expiry": 9000000,
+        "customerId": "Cust_CkddyimtJWj1MuXx",
+        "otherDetails": "other 00909",
+        "multiAccounts": null,
+        "paymentMode": "INB"
     }
+}
+
+
+
+@Setter
+@Getter
+@Data
+public class OrderRequest {
+    private String orderRequest;
+}
+
+
+expected:
+Error: 200 – Ok
+{ 
+   "errors":[ 
+      { 
+         "errorCode":"3005 ", 
+         "errorMessage":" invalid parameter "
+      }, 
+    ], 
+   "status":"0" 
+}   
+
+
+actual:
+{
+    "status": 0,
+    "errors": [
+        {
+            "errorCode": "400",
+            "errorMessage": "Invalid input for field: 'orderRequest'. Please check the format and values."
+        }
+    ]
+}
+
