@@ -1,4 +1,1 @@
-Description:
-
-Earlier, the code checked only for null, but res had an empty string (""), causing unintended execution. I added a validation to check for both null and empty values. Now, if it's empty or null, the if condition is skipped, and the rest of the code runs correctly.
-
+aa
