@@ -1,6 +1,13 @@
-Optional.ofNullable(orderDto.getMultiAccounts())
-        .filter(multiAccounts -> !multiAccounts.isEmpty())
-        .ifPresent(multiAccounts -> {
-            logger.debug("Validate Multi Account Amount {}", multiAccounts);
-            buildMultiAccount(orderDto.getMId(), multiAccounts, orderDto.getOrderAmount());
-        });
+{
+    "orderRequest": {
+        "orderAmount": 10,
+        "currencyCode": "INR",
+        "orderRefNumber": "asd6536jh65",
+        "returnUrl": "https://dev.epay.sbi",
+        "expiry": 9000000,
+                "customerId": "Cust_CkddyimtJWj1MuXx",
+                "otherDetails": "other 00909",
+                "multiAccounts": "",
+                "paymentMode": "INB"
+    }
+}
