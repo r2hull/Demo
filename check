@@ -1,21 +1,27 @@
-  logger.debug("Decrypt order Request  ",orderDto);
 
-        //Step 6 : Validate Multi Accounts
-        if(orderDto.getMultiAccounts()!=null && !orderDto.getMultiAccounts().isEmpty()){
-            logger.debug("Validate Multi Account Amount {} ",orderDto.getMultiAccounts());
+@Setter
+@Getter
+@AllArgsConstructor
+@NoArgsConstructor
+@ToString
+@Builder
+public class OrderDto  extends BaseDto implements Serializable {
 
-            //Validate Multi-account flag is enabled
-            if(!isMerchantMultiAccountFlagEnabled(orderDto.getMId())) {
-                logger.info("Merchant Multi-Account flat is not enable");
-                throw new TransactionException(OrderErrorConstant.INVALID_ERROR_CODE, MessageFormat.format(OrderErrorConstant.INVALID_ERROR_MESSAGE,  "Request Parameter", "Multi Account is not enabled."));
-            }
-            buildMultiAccount(orderDto.getMId(),orderDto.getMultiAccounts(),orderDto.getOrderAmount());
-        }
-
-        //Step 7 : Set Order Response And save into order table
-        OrderDto orderDtoResponse=processOrderResponse(orderDto);
-        logger.debug("orderDto {} ",orderDtoResponse);
-
-        //Step 8 : Create order response
-        return buildTransactionResponse(buildOrderResponseData(orderDtoResponse), encryptionKeyDto);
-    }
+    @JsonProperty("mId")
+    private String mId;
+    private String customerId;
+    private String currencyCode;
+    private BigDecimal orderAmount;
+    private String orderRefNumber;
+    private String sbiOrderRefNumber;
+    private OrderStatus status;
+    private JsonNode otherDetails;
+    private Long expiry;
+    private JsonNode multiAccounts;
+    private String paymentMode;
+    private String orderHash;
+    private String returnUrl;
+    private String transactionUrl;
+    private Integer orderRetryCount;
+    private JsonNode thirdPartyDetails;
+}
