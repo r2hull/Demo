@@ -1,19 +1,6 @@
- private JsonNode multiAccounts;
-
-
-        //Step 5 : Validate threshold amount
-        thresholdAmountValidation(orderDto.getMId(),orderDto.getOrderAmount());
-        logger.debug("Decrypt order Request  ",orderDto);
-
-        //Step 6 : Validate Multi Accounts
-        if(orderDto.getMultiAccounts()!=null && !orderDto.getMultiAccounts().isEmpty()){
-            logger.debug("Validate Multi Account Amount {} ",orderDto.getMultiAccounts());
-            buildMultiAccount(orderDto.getMId(),orderDto.getMultiAccounts(),orderDto.getOrderAmount());
-        }
-
-        //Step 7 : Set Order Response And save into order table
-        OrderDto orderDtoResponse=processOrderResponse(orderDto);
-        logger.debug("orderDto {} ",orderDtoResponse);
-
-        //Step 8 : Create order response
-        return buildTransactionResponse(buildOrderResponseData(orderDtoResponse), encryptionKeyDto);
+Optional.ofNullable(orderDto.getMultiAccounts())
+        .filter(multiAccounts -> !multiAccounts.isEmpty())
+        .ifPresent(multiAccounts -> {
+            logger.debug("Validate Multi Account Amount {}", multiAccounts);
+            buildMultiAccount(orderDto.getMId(), multiAccounts, orderDto.getOrderAmount());
+        });
