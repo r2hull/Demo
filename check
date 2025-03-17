@@ -1,44 +1,33 @@
-@NoArgsConstructor
-@Builder
-public class MultiAccountDto {
-
-    private String accountIdentifier;
-    private BigDecimal amount;
-
-}
-
-  private void buildMultiAccount(String mId, JsonNode multiaccount, BigDecimal orderAmount) {
-        List<MultiAccountDto> multiAccountDetails = new ArrayList<MultiAccountDto>();
-        Iterator<JsonNode> iterator = multiaccount.elements();
-        while(iterator.hasNext()) {
-            JsonNode fieldName = iterator.next();
-            MultiAccountDto multiAccountDto=objectMapper.convertValue(fieldName, MultiAccountDto.class);
-            multiAccountDetails.add(multiAccountDto);
-        }
-        List<String>  getMultiAccountApiDetails= adminServicesClient.getMultiAccountDetailsApi(mId);
-        logger.debug("getMultiAccountApiDetails ::{} ",getMultiAccountApiDetails);
-        orderValidator.validateMultiAccount(getMultiAccountApiDetails,multiAccountDetails,orderAmount);
-    }
 public void validateMultiAccount(List<String> getMultiAccountApiDetails, List<MultiAccountDto> multiAccountDetails, BigDecimal orderAmount) {
-        errorDtoList.clear();
-        logger.info("getdata:{} "+getMultiAccountApiDetails);
-        BigDecimal totalMultiAccountAmount=new BigDecimal(0);
-        for(MultiAccountDto getMultiAccountDetails:multiAccountDetails){
-            if(getMultiAccountApiDetails.contains(getMultiAccountDetails.getAccountIdentifier()))
-            {
-                totalMultiAccountAmount=totalMultiAccountAmount.add(getMultiAccountDetails.getAmount());
-            }else{
-                logger.info("validateOrderRequest, Validate  multi account :{}"+multiAccountDetails);
-                addError(OrderErrorConstant.INVALID_ERROR_CODE, MessageFormat.format(OrderErrorConstant.INVALID_ERROR_MESSAGE, "Multi Account ", "MultiAccount amount request mismatch."));
-                break;
-            }
+    errorDtoList.clear();
+    logger.info("getMultiAccountApiDetails: {}", getMultiAccountApiDetails);
+
+    BigDecimal totalMultiAccountAmount = BigDecimal.ZERO;
+
+    for (MultiAccountDto multiAccountDto : multiAccountDetails) {
+        String accountIdentifier = multiAccountDto.getAccountIdentifier();
+
+        if (!getMultiAccountApiDetails.contains(accountIdentifier)) {
+            logger.error("Invalid MultiAccount: Account Identifier {} not found", accountIdentifier);
+            addError(OrderErrorConstant.INVALID_ERROR_CODE, 
+                     MessageFormat.format(OrderErrorConstant.INVALID_ERROR_MESSAGE, 
+                                          "Multi Account", 
+                                          "Invalid multiAccount: Account Identifier not found."));
+            throwIfErrors(); // Stop processing if an invalid account is found
+            return;
         }
 
-        if(!orderAmount.equals(totalMultiAccountAmount))
-        {
-            logger.info("validateOrderRequest, Validate Order amount amount with multi account amount :"+orderAmount);
-            addError(OrderErrorConstant.INVALID_ERROR_CODE, MessageFormat.format(OrderErrorConstant.INVALID_ERROR_MESSAGE, "Multi Account Total Amount", "Order amount and multiAccount amount mismatch ."));
-
-        }
-        throwIfErrors();
+        totalMultiAccountAmount = totalMultiAccountAmount.add(multiAccountDto.getAmount());
     }
+
+    // Validate total amount
+    if (orderAmount.compareTo(totalMultiAccountAmount) != 0) {
+        logger.error("Order amount mismatch: Expected {}, but multiAccount total is {}", orderAmount, totalMultiAccountAmount);
+        addError(OrderErrorConstant.INVALID_ERROR_CODE, 
+                 MessageFormat.format(OrderErrorConstant.INVALID_ERROR_MESSAGE, 
+                                      "Multi Account Total Amount", 
+                                      "Order amount and multiAccount amount mismatch."));
+    }
+
+    throwIfErrors(); // Throws exception if any error was added
+}
