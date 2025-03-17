@@ -7,7 +7,18 @@ public class MultiAccountDto {
 
 }
 
-
+  private void buildMultiAccount(String mId, JsonNode multiaccount, BigDecimal orderAmount) {
+        List<MultiAccountDto> multiAccountDetails = new ArrayList<MultiAccountDto>();
+        Iterator<JsonNode> iterator = multiaccount.elements();
+        while(iterator.hasNext()) {
+            JsonNode fieldName = iterator.next();
+            MultiAccountDto multiAccountDto=objectMapper.convertValue(fieldName, MultiAccountDto.class);
+            multiAccountDetails.add(multiAccountDto);
+        }
+        List<String>  getMultiAccountApiDetails= adminServicesClient.getMultiAccountDetailsApi(mId);
+        logger.debug("getMultiAccountApiDetails ::{} ",getMultiAccountApiDetails);
+        orderValidator.validateMultiAccount(getMultiAccountApiDetails,multiAccountDetails,orderAmount);
+    }
 public void validateMultiAccount(List<String> getMultiAccountApiDetails, List<MultiAccountDto> multiAccountDetails, BigDecimal orderAmount) {
         errorDtoList.clear();
         logger.info("getdata:{} "+getMultiAccountApiDetails);
