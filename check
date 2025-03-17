@@ -1,41 +1,19 @@
-Override
-protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-    String errorMessage = "Invalid input. Please check the format and values.";
-    List<ErrorDto> errorDtos;
+ private JsonNode multiAccounts;
 
-    // Check if the cause is a MismatchedInputException (e.g., duplicate fields)
-    Throwable cause = ex.getCause();
-    if (cause instanceof MismatchedInputException mismatchedInputException) {
-        // Handle duplicate fields specifically
-        errorMessage = "Duplicate fields detected: " + mismatchedInputException.getMessage();
-        errorDtos = List.of(
-            ErrorDto.builder()
-                .errorCode(String.valueOf(HttpStatus.BAD_REQUEST.value()))
-                .errorMessage(errorMessage)
-                .build()
-        );
-    } else {
-        // Handle other deserialization errors
-        if (cause instanceof JsonMappingException jsonMappingException) {
-            Optional<String> fieldName = jsonMappingException.getPath().stream()
-                .map(JsonMappingException.Reference::getFieldName)
-                .reduce((first, second) -> second);
-            if (fieldName.isPresent()) {
-                errorMessage = "Invalid input for field: '" + fieldName.get() + "'. Please check the format and values.";
-            }
+
+        //Step 5 : Validate threshold amount
+        thresholdAmountValidation(orderDto.getMId(),orderDto.getOrderAmount());
+        logger.debug("Decrypt order Request  ",orderDto);
+
+        //Step 6 : Validate Multi Accounts
+        if(orderDto.getMultiAccounts()!=null && !orderDto.getMultiAccounts().isEmpty()){
+            logger.debug("Validate Multi Account Amount {} ",orderDto.getMultiAccounts());
+            buildMultiAccount(orderDto.getMId(),orderDto.getMultiAccounts(),orderDto.getOrderAmount());
         }
-        errorDtos = List.of(
-            ErrorDto.builder()
-                .errorCode(String.valueOf(HttpStatus.BAD_REQUEST.value()))
-                .errorMessage(errorMessage)
-                .build()
-        );
-    }
 
-    logger.error("Error in handleHttpMessageNotReadable: {}", errorMessage);
-    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-        .body(TransactionResponse.builder()
-            .status(AppConstant.FAILURE_RESPONSE_CODE)
-            .errors(errorDtos)
-            .build());
-}
+        //Step 7 : Set Order Response And save into order table
+        OrderDto orderDtoResponse=processOrderResponse(orderDto);
+        logger.debug("orderDto {} ",orderDtoResponse);
+
+        //Step 8 : Create order response
+        return buildTransactionResponse(buildOrderResponseData(orderDtoResponse), encryptionKeyDto);
