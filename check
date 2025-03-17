@@ -1,31 +1,33 @@
-
-@Setter
-@Getter
-@AllArgsConstructor
 @NoArgsConstructor
-@ToString
 @Builder
-public class OrderDto  extends BaseDto implements Serializable {
+public class MultiAccountDto {
 
-    @JsonProperty("mId")
-    private String mId;
-    private String customerId;
-    private String currencyCode;
-    private BigDecimal orderAmount;
-    private String orderRefNumber;
-    private String sbiOrderRefNumber;
-    private OrderStatus status;
-    private JsonNode otherDetails;
-    private Long expiry;
-    private JsonNode multiAccounts;
-    private String paymentMode;
-    private String orderHash;
-    private String returnUrl;
-    private String transactionUrl;
-    private Integer orderRetryCount;
-    private JsonNode thirdPartyDetails;
+    private String accountIdentifier;
+    private BigDecimal amount;
+
 }
 
 
-parameter multiAccounts is having spaces
-parameter multiAccounts is leading and trailing spaces
+public void validateMultiAccount(List<String> getMultiAccountApiDetails, List<MultiAccountDto> multiAccountDetails, BigDecimal orderAmount) {
+        errorDtoList.clear();
+        logger.info("getdata:{} "+getMultiAccountApiDetails);
+        BigDecimal totalMultiAccountAmount=new BigDecimal(0);
+        for(MultiAccountDto getMultiAccountDetails:multiAccountDetails){
+            if(getMultiAccountApiDetails.contains(getMultiAccountDetails.getAccountIdentifier()))
+            {
+                totalMultiAccountAmount=totalMultiAccountAmount.add(getMultiAccountDetails.getAmount());
+            }else{
+                logger.info("validateOrderRequest, Validate  multi account :{}"+multiAccountDetails);
+                addError(OrderErrorConstant.INVALID_ERROR_CODE, MessageFormat.format(OrderErrorConstant.INVALID_ERROR_MESSAGE, "Multi Account ", "MultiAccount amount request mismatch."));
+                break;
+            }
+        }
+
+        if(!orderAmount.equals(totalMultiAccountAmount))
+        {
+            logger.info("validateOrderRequest, Validate Order amount amount with multi account amount :"+orderAmount);
+            addError(OrderErrorConstant.INVALID_ERROR_CODE, MessageFormat.format(OrderErrorConstant.INVALID_ERROR_MESSAGE, "Multi Account Total Amount", "Order amount and multiAccount amount mismatch ."));
+
+        }
+        throwIfErrors();
+    }
