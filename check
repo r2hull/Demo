@@ -1,111 +1,212 @@
-    public static final String BULK_REFUND_HEADERS = "Refund Type,Merchant Order ID,ATRN,Refund Amount,Refund Currency,Comments";
+BulkRefundProducer Class (Producer Logic)import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.stereotype.Component;
 
+@Component
+@RequiredArgsConstructor
+public class BulkRefundProducer {
 
- private void processBulkRefund(String bulkId, String mId) {
+    private static final Logger logger = LoggerFactory.getLogger(BulkRefundProducer.class);
+    private static final String BULK_REFUND_ROW_PROCESSING_TOPIC = "bulk_refund_row_processing_topic";
 
+    private final KafkaTemplate<String, String> kafkaTemplate;
+
+    public void sendBulkRefundRowMessage(String detailsId) {
+        kafkaTemplate.send(BULK_REFUND_ROW_PROCESSING_TOPIC, detailsId);
+        logger.info("Sent BulkRefundBookingDetails id {} to Kafka topic {}", detailsId, BULK_REFUND_ROW_PROCESSING_TOPIC);
+    }
+}2. BulkRefundConsumer Class (Consumer Logic)import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Component;
+
+import java.util.UUID;
+
+@Component
+@RequiredArgsConstructor
+public class BulkRefundConsumer {
+
+    private static final Logger logger = LoggerFactory.getLogger(BulkRefundConsumer.class);
+    private static final String BULK_REFUND_ROW_PROCESSING_TOPIC = "bulk_refund_row_processing_topic";
+
+    private final RefundService refundService; // Delegate processing to RefundService
+
+    @KafkaListener(topics = BULK_REFUND_ROW_PROCESSING_TOPIC, groupId = "transaction-consumers")
+    public void processBulkRefundRow(String detailsId) {
+        logger.info("Received Kafka message for BulkRefundBookingDetails id: {}", detailsId);
+
+        // Step-1: Parse and validate the ID
+        UUID id;
+        try {
+            id = UUID.fromString(detailsId);
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid UUID format for detailsId: {}", detailsId);
+            return;
+        }
+
+        // Step-2: Delegate processing to RefundService
+        refundService.processBulkRefundRow(id);
+    }
+}3. Updated RefundService (With Producer and Consumer Delegated)@Service
+@RequiredArgsConstructor
+public class RefundService {
+
+    private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
+    private final RefundMapper refundMapper;
+    private final RefundValidator refundValidator;
+    private final RefundDao refundDao;
+    private final S3Service s3Service;
+    private final BulkRefundProducer bulkRefundProducer; // Inject Producer
+
+    private void processBulkRefund(String bulkId, String mId) {
         logger.info("ProcessBulkRefund received for bulkId: {}", bulkId);
 
-        //Step-1: Get bulk refund booking
+        // Step-1: Get bulk refund booking
         BulkRefundBooking bulkRefundBooking = refundDao.findByBulkId(bulkId, mId);
-        logger.info("Got bulkRefundBooking: {} for bulkId: {}", bulkRefundBooking , bulkId);
+        logger.info("Got bulkRefundBooking: {} for bulkId: {}", bulkRefundBooking, bulkId);
 
-        //Step-2: Update processing status
+        // Step-2: Update processing status
         updateProcessingStatus(bulkRefundBooking);
 
-        //Step-3: Read CSV file from s3 service
+        // Step-3: Read CSV file from S3 service
         List<String[]> csvFile = readCsvFile(bulkRefundBooking.getFilePath());
-        logger.info("Got csvFile size : {} for bulkId: {}", csvFile.size() , bulkId);
+        logger.info("Got csvFile size : {} for bulkId: {}", csvFile.size(), bulkId);
 
-        //Step-4: Validate Headers
-        String headerError = "ok";//refundValidator.validateBulkRefundHeader(csvFile, mId); //dummy resp for testing
-        logger.info("headerError : {} for bulkId: {}", headerError , bulkId);
+        // Step-4: Validate Headers
+        String headerError = "ok"; // refundValidator.validateBulkRefundHeader(csvFile, mId); // Dummy response for testing
+        logger.info("headerError : {} for bulkId: {}", headerError, bulkId);
 
-        //Step-5: If headers are valid then read and process refund from csv file row by row
+        // Step-5: If headers are valid, process CSV rows with Kafka
         if (StringUtils.isEmpty(headerError)) {
-
-            logger.info("Valid headers, headerError : {} for bulkId: {}", headerError , bulkId);
+            logger.info("Valid headers, headerError : {} for bulkId: {}", headerError, bulkId);
             processingCsvFileRowWise(bulkId, csvFile, bulkRefundBooking);
-
         } else {
-
-            logger.info("Invalid headers, headerError : {} for bulkId: {}", headerError , bulkId);
-            //Step-6: Mark this csv file as failed
+            logger.info("Invalid headers, headerError : {} for bulkId: {}", headerError, bulkId);
+            // Step-6: Mark this CSV file as failed
             buildBulkRefundBookingWithError(bulkRefundBooking, headerError);
         }
 
-        //Step-7: Update bulk refund status for current bulk id
+        // Step-7: Update bulk refund status for current bulk id
         refundDao.saveBulkRefundBooking(bulkRefundBooking);
-
     }
 
-
-
- processingCsvFileRowWise(bulkId, csvFile, bulkRefundBooking);
-here i want to implement kafka 
-1)bulkId and csv data store in 
-@NoArgsConstructor
-@SuperBuilder
-@Table(name = "BULK_REFUND_BOOKING_DTLS")
-public class BulkRefundBookingDetails extends AuditEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
-    private String bulkId;
-    private Integer rowNumber;
-    private String refundStatus;
-    private String remark;
-
-    private String refundType;
-    private String merchantOrderId;
-    private String atrn;
-    private Double refundAmount;
-    private String refundCurrency;
-    private String comments;
-
-}
-
-2)get id of BulkRefundBookingDetails and send it to the kafka
-
-
-after that replace following logic 
- private void processingCsvFileRowWise(String bulkId, List<String[]> csvFile, BulkRefundBooking bulkRefundBooking) {
-
+    private void processingCsvFileRowWise(String bulkId, List<String[]> csvFile, BulkRefundBooking bulkRefundBooking) {
         logger.info("processingCsvFileRowWise received for bulkId: {}", bulkId);
 
         int totalRecords = csvFile.size() - 1;
-        int validRecords = 0;
-        int invalidRecords = 0;
 
-        //Step-1: Iterate row by row from row 1
+        // Step-1: Process each row, store in DB, and send to Kafka via Producer
         for (int row = 1; row <= totalRecords; row++) {
-
-            //Step-2: Process the refund for current row
-            TransactionResponse<RefundResponse> bulkRefundResponse = bookBulkRefund(csvFile, row);
-            logger.info("Got bulkRefundResponse bulkRefundResponse.status :{} for bulkId: {}", bulkRefundResponse.getStatus(), bulkId);
-
-            //Step-3: If refund booking is success
-            if (bulkRefundResponse.getStatus() == TransactionConstant.RESPONSE_SUCCESS) {
-                logger.info("Refund booked for row :{} for bulkId: {}", row, bulkId);
-                validRecords++;
-                saveValidRefundBookingDetails(bulkId, row, bulkRefundResponse);
-
-            } else {  //Step-4: If refund booking is failed
-                logger.info("Refund booked failed for row :{} for bulkId: {}", row, bulkId);
-                invalidRecords++;
-                saveInvalidRefundBookingDetails(bulkId, row, bulkRefundResponse);
-            }
+            // Build BulkRefundBookingDetails from CSV row
+            BulkRefundBookingDetails details = buildBulkRefundBookingDetails(bulkId, row, csvFile.get(row));
+            // Save to database
+            BulkRefundBookingDetails savedDetails = refundDao.saveBulkRefundBookingDetails(details);
+            // Send the ID to Kafka using Producer
+            bulkRefundProducer.sendBulkRefundRowMessage(savedDetails.getId().toString());
+            logger.info("Row {} with id {} queued for async processing for bulkId: {}", row, savedDetails.getId(), bulkId);
         }
 
-        //Step-5: Set bulk refund details for csv file
+        // Step-2: Update BulkRefundBooking status (processing is async, so mark as IN_QUEUE)
         bulkRefundBooking.setTotalRecords(totalRecords);
-        bulkRefundBooking.setInvalidRecords(invalidRecords);
-        bulkRefundBooking.setValidRecords(validRecords);
-        bulkRefundBooking.setRemark(invalidRecords > 0 ? "Few rows cant be processed, please check details for erroneous rows." : "All rows processed successfully");
-        bulkRefundBooking.setBulkRefundStatus(BulkRefundStatus.PROCESSED.name());
-
-        logger.info("Created bulkRefundBooking :{} for bulkId: {}", bulkRefundBooking, bulkId);
+        bulkRefundBooking.setBulkRefundStatus(BulkRefundStatus.IN_QUEUE.name());
+        logger.info("BulkRefundBooking updated to IN_QUEUE for bulkId: {}", bulkId);
     }
 
-muje upper ka for loop remove kkrna hai with  kafka logic 
-coz yha abhi synchronous call ja raha hai muje asynchronous krna hai using kAFKA
+    // Helper method to build BulkRefundBookingDetails from CSV row
+    private BulkRefundBookingDetails buildBulkRefundBookingDetails(String bulkId, int row, String[] csvRow) {
+        return BulkRefundBookingDetails.builder()
+                .bulkId(bulkId)
+                .rowNumber(row)
+                .refundStatus(RefundStatus.PENDING.name()) // Initial status
+                .refundType(csvRow[0]) // Refund Type
+                .merchantOrderId(csvRow[1]) // Merchant Order ID
+                .atrn(csvRow[2]) // ATRN
+                .refundAmount(Double.parseDouble(csvRow[3])) // Refund Amount
+                .refundCurrency(csvRow[4]) // Refund Currency
+                .comments(csvRow[5]) // Comments
+                .createdBy("Bulk Refund Service")
+                .createdDate(DateTimeUtils.getCurrentTimeInMills())
+                .build();
+    }
+
+    // Method called by Consumer to process each row
+    public void processBulkRefundRow(UUID detailsId) {
+        logger.info("Processing BulkRefundBookingDetails id: {}", detailsId);
+
+        // Step-1: Fetch the BulkRefundBookingDetails
+        BulkRefundBookingDetails details = refundDao.findBulkRefundBookingDetailsById(detailsId);
+        if (details == null) {
+            logger.error("BulkRefundBookingDetails not found for id: {}", detailsId);
+            return;
+        }
+
+        // Step-2: Build RefundBookRequest from details
+        RefundBookRequest refundBookRequest = RefundBookRequest.builder()
+                .refundType(details.getRefundType())
+                .atrnNumber(details.getAtrn())
+                .refundAmount(BigDecimal.valueOf(details.getRefundAmount()))
+                .remark(details.getComments())
+                .build();
+
+        // Step-3: Process the refund
+        TransactionResponse<RefundResponse> bulkRefundResponse = bookBulkRefund(refundBookRequest);
+
+        // Step-4: Update details based on response
+        if (bulkRefundResponse.getStatus() == TransactionConstant.RESPONSE_SUCCESS) {
+            logger.info("Refund booked successfully for row {} and bulkId: {}", details.getRowNumber(), details.getBulkId());
+            details.setRefundStatus(RefundStatus.REFUND_SUCCESS.name());
+            details.setRemark("Refund Booked Successfully");
+        } else {
+            logger.info("Refund booking failed for row {} and bulkId: {}", details.getRowNumber(), details.getBulkId());
+            details.setRefundStatus(RefundStatus.REFUND_FAILED.name());
+            details.setRemark(bulkRefundResponse.getErrors().getFirst().getErrorMessage());
+        }
+
+        // Step-5: Save updated details
+        refundDao.saveBulkRefundBookingDetails(details);
+
+        // Step-6: Update BulkRefundBooking status
+        updateBulkRefundBookingStatus(details.getBulkId());
+    }
+
+    // Helper method to update BulkRefundBooking status
+    private void updateBulkRefundBookingStatus(String bulkId) {
+        BulkRefundBooking bulkRefundBooking = refundDao.findByBulkId(bulkId, null); // Assuming mId is not needed here
+        List<BulkRefundBookingDetails> detailsList = refundDao.findAllByBulkId(bulkId);
+
+        int totalRecords = bulkRefundBooking.getTotalRecords();
+        int validRecords = (int) detailsList.stream().filter(d -> RefundStatus.REFUND_SUCCESS.name().equals(d.getRefundStatus())).count();
+        int invalidRecords = totalRecords - validRecords;
+
+        bulkRefundBooking.setValidRecords(validRecords);
+        bulkRefundBooking.setInvalidRecords(invalidRecords);
+        bulkRefundBooking.setRemark(invalidRecords > 0 ? "Few rows can't be processed, please check details for erroneous rows." : "All rows processed successfully");
+        bulkRefundBooking.setBulkRefundStatus(BulkRefundStatus.PROCESSED.name());
+
+        refundDao.saveBulkRefundBooking(bulkRefundBooking);
+        logger.info("Updated BulkRefundBooking: {} for bulkId: {}", bulkRefundBooking, bulkId);
+    }
+
+    // Modified bookBulkRefund to accept RefundBookRequest directly
+    private TransactionResponse<RefundResponse> bookBulkRefund(RefundBookRequest refundBookRequest) {
+        logger.info("Book refund received for atrn: {}", refundBookRequest.getAtrnNumber());
+        try {
+            refundValidator.validateRefundRequest(refundBookRequest);
+            return bookRefund(refundBookRequest); // Reuse existing bookRefund method
+        } catch (ValidationException | TransactionException | NumberFormatException e) {
+            logger.debug("Book refund failed for atrn: {}", refundBookRequest.getAtrnNumber());
+            return TransactionResponse.<RefundResponse>builder()
+                    .status(TransactionConstant.RESPONSE_FAILURE)
+                    .errors(List.of(ErrorDto.builder()
+                            .errorCode(TransactionErrorConstants.INVALID_ERROR_CODE)
+                            .errorMessage(e.getMessage())
+                            .build()))
+                    .build();
+        }
+    }
+
+    // Rest of your methods remain unchanged...
+}
