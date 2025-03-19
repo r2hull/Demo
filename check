@@ -210,3 +210,10 @@ public class RefundService {
 
     // Rest of your methods remain unchanged...
 }
+
+
+
+kafka:
+  topic:
+    transaction:
+      bulkRefundRow: bulk_refund_row_processing_topic
