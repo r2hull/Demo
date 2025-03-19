@@ -1,33 +1,111 @@
-public void validateMultiAccount(List<String> getMultiAccountApiDetails, List<MultiAccountDto> multiAccountDetails, BigDecimal orderAmount) {
-    errorDtoList.clear();
-    logger.info("getMultiAccountApiDetails: {}", getMultiAccountApiDetails);
+    public static final String BULK_REFUND_HEADERS = "Refund Type,Merchant Order ID,ATRN,Refund Amount,Refund Currency,Comments";
 
-    BigDecimal totalMultiAccountAmount = BigDecimal.ZERO;
 
-    for (MultiAccountDto multiAccountDto : multiAccountDetails) {
-        String accountIdentifier = multiAccountDto.getAccountIdentifier();
+ private void processBulkRefund(String bulkId, String mId) {
 
-        if (!getMultiAccountApiDetails.contains(accountIdentifier)) {
-            logger.error("Invalid MultiAccount: Account Identifier {} not found", accountIdentifier);
-            addError(OrderErrorConstant.INVALID_ERROR_CODE, 
-                     MessageFormat.format(OrderErrorConstant.INVALID_ERROR_MESSAGE, 
-                                          "Multi Account", 
-                                          "Invalid multiAccount: Account Identifier not found."));
-            throwIfErrors(); // Stop processing if an invalid account is found
-            return;
+        logger.info("ProcessBulkRefund received for bulkId: {}", bulkId);
+
+        //Step-1: Get bulk refund booking
+        BulkRefundBooking bulkRefundBooking = refundDao.findByBulkId(bulkId, mId);
+        logger.info("Got bulkRefundBooking: {} for bulkId: {}", bulkRefundBooking , bulkId);
+
+        //Step-2: Update processing status
+        updateProcessingStatus(bulkRefundBooking);
+
+        //Step-3: Read CSV file from s3 service
+        List<String[]> csvFile = readCsvFile(bulkRefundBooking.getFilePath());
+        logger.info("Got csvFile size : {} for bulkId: {}", csvFile.size() , bulkId);
+
+        //Step-4: Validate Headers
+        String headerError = "ok";//refundValidator.validateBulkRefundHeader(csvFile, mId); //dummy resp for testing
+        logger.info("headerError : {} for bulkId: {}", headerError , bulkId);
+
+        //Step-5: If headers are valid then read and process refund from csv file row by row
+        if (StringUtils.isEmpty(headerError)) {
+
+            logger.info("Valid headers, headerError : {} for bulkId: {}", headerError , bulkId);
+            processingCsvFileRowWise(bulkId, csvFile, bulkRefundBooking);
+
+        } else {
+
+            logger.info("Invalid headers, headerError : {} for bulkId: {}", headerError , bulkId);
+            //Step-6: Mark this csv file as failed
+            buildBulkRefundBookingWithError(bulkRefundBooking, headerError);
         }
 
-        totalMultiAccountAmount = totalMultiAccountAmount.add(multiAccountDto.getAmount());
+        //Step-7: Update bulk refund status for current bulk id
+        refundDao.saveBulkRefundBooking(bulkRefundBooking);
+
     }
 
-    // Validate total amount
-    if (orderAmount.compareTo(totalMultiAccountAmount) != 0) {
-        logger.error("Order amount mismatch: Expected {}, but multiAccount total is {}", orderAmount, totalMultiAccountAmount);
-        addError(OrderErrorConstant.INVALID_ERROR_CODE, 
-                 MessageFormat.format(OrderErrorConstant.INVALID_ERROR_MESSAGE, 
-                                      "Multi Account Total Amount", 
-                                      "Order amount and multiAccount amount mismatch."));
-    }
 
-    throwIfErrors(); // Throws exception if any error was added
+
+ processingCsvFileRowWise(bulkId, csvFile, bulkRefundBooking);
+here i want to implement kafka 
+1)bulkId and csv data store in 
+@NoArgsConstructor
+@SuperBuilder
+@Table(name = "BULK_REFUND_BOOKING_DTLS")
+public class BulkRefundBookingDetails extends AuditEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+    private String bulkId;
+    private Integer rowNumber;
+    private String refundStatus;
+    private String remark;
+
+    private String refundType;
+    private String merchantOrderId;
+    private String atrn;
+    private Double refundAmount;
+    private String refundCurrency;
+    private String comments;
+
 }
+
+2)get id of BulkRefundBookingDetails and send it to the kafka
+
+
+after that replace following logic 
+ private void processingCsvFileRowWise(String bulkId, List<String[]> csvFile, BulkRefundBooking bulkRefundBooking) {
+
+        logger.info("processingCsvFileRowWise received for bulkId: {}", bulkId);
+
+        int totalRecords = csvFile.size() - 1;
+        int validRecords = 0;
+        int invalidRecords = 0;
+
+        //Step-1: Iterate row by row from row 1
+        for (int row = 1; row <= totalRecords; row++) {
+
+            //Step-2: Process the refund for current row
+            TransactionResponse<RefundResponse> bulkRefundResponse = bookBulkRefund(csvFile, row);
+            logger.info("Got bulkRefundResponse bulkRefundResponse.status :{} for bulkId: {}", bulkRefundResponse.getStatus(), bulkId);
+
+            //Step-3: If refund booking is success
+            if (bulkRefundResponse.getStatus() == TransactionConstant.RESPONSE_SUCCESS) {
+                logger.info("Refund booked for row :{} for bulkId: {}", row, bulkId);
+                validRecords++;
+                saveValidRefundBookingDetails(bulkId, row, bulkRefundResponse);
+
+            } else {  //Step-4: If refund booking is failed
+                logger.info("Refund booked failed for row :{} for bulkId: {}", row, bulkId);
+                invalidRecords++;
+                saveInvalidRefundBookingDetails(bulkId, row, bulkRefundResponse);
+            }
+        }
+
+        //Step-5: Set bulk refund details for csv file
+        bulkRefundBooking.setTotalRecords(totalRecords);
+        bulkRefundBooking.setInvalidRecords(invalidRecords);
+        bulkRefundBooking.setValidRecords(validRecords);
+        bulkRefundBooking.setRemark(invalidRecords > 0 ? "Few rows cant be processed, please check details for erroneous rows." : "All rows processed successfully");
+        bulkRefundBooking.setBulkRefundStatus(BulkRefundStatus.PROCESSED.name());
+
+        logger.info("Created bulkRefundBooking :{} for bulkId: {}", bulkRefundBooking, bulkId);
+    }
+
+muje upper ka for loop remove kkrna hai with  kafka logic 
+coz yha abhi synchronous call ja raha hai muje asynchronous krna hai using kAFKA
