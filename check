@@ -1,5 +1,26 @@
-PS D:\rahul.yadav_workspace\epay\Epay_Transaction_Service\Refund Bulk API\epay_transaction_service> git branch
-  develop
-  feature/ETS-361_Refund-SearchBulkRefundBooking-api
-* feature/ETS-371_Kafka-UploadBulkRefund
-PS D:\rahul.yadav_workspace\epay\Epay_Transaction_Service\Refund Bulk API\epay_transaction_service> 
+private BigDecimal verifyAccountAndGetTotalAmount(MerchantOrderDto merchantOrderDto, List<MultiAccountDto> multiAccountDetails) {
+        logger.info("verifyAccountAndGetTotalAmount starts");
+        List<String> MerchantMultiAccountDetails = adminDao.getMerchantMultiAccount(merchantOrderDto.getMId()).get(merchantOrderDto.getMId());
+        BigDecimal totalMultiAccountAmount = new BigDecimal(0);
+        for (MultiAccountDto multiAccountDto : multiAccountDetails) {
+            if (MerchantMultiAccountDetails.contains(multiAccountDto.getAccountIdentifier())) {
+                totalMultiAccountAmount = totalMultiAccountAmount.add(multiAccountDto.getAmount());
+            } else {
+                logger.info("validateOrderRequest, Validate  multi account :{}" + multiAccountDetails);
+                addError(TransactionErrorConstants.INVALID_ERROR_CODE, MessageFormat.format(TransactionErrorConstants.INVALID_ERROR_MESSAGE, "Multi Account ", "MultiAccount amount request mismatch."));
+                throwIfErrors();
+            }
+        }
+        logger.info("verifyAccountAndGetTotalAmount end");
+        return totalMultiAccountAmount;
+    }
+
+
+@NoArgsConstructor
+@Builder
+public class MultiAccountDto {
+
+    private String accountIdentifier;
+    private BigDecimal amount;
+
+}
