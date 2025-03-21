@@ -1,8 +1,35 @@
-// First check if accountIdentifier exists
-        if (!MerchantMultiAccountDetails.contains(multiAccountDto.getAccountIdentifier())) {
-            logger.info("validateOrderRequest, Invalid multi account :{}", multiAccountDto.getAccountIdentifier());
-            addError(TransactionErrorConstants.INVALID_ERROR_CODE, 
-                MessageFormat.format(TransactionErrorConstants.INVALID_ERROR_MESSAGE, 
-                    "Multi Account", "Invalid account identifier: " + multiAccountDto.getAccountIdentifier()));
-            throwIfErrors();  // This will throw immediately if there are errors
+private BigDecimal verifyAccountAndGetTotalAmount(MerchantOrderDto merchantOrderDto, 
+                                                  List<MultiAccountDto> multiAccountDetails) {
+    logger.info("verifyAccountAndGetTotalAmount starts for mId: {}", merchantOrderDto.getMId());
+
+    List<String> merchantMultiAccounts = adminDao.getMerchantMultiAccount(merchantOrderDto.getMId())
+                                                 .get(merchantOrderDto.getMId());
+
+    BigDecimal totalMultiAccountAmount = BigDecimal.ZERO;
+    List<String> invalidAccounts = new ArrayList<>();
+
+    // Step 1: Validate Account Identifiers
+    for (MultiAccountDto multiAccountDto : multiAccountDetails) {
+        if (!merchantMultiAccounts.contains(multiAccountDto.getAccountIdentifier())) {
+            invalidAccounts.add(multiAccountDto.getAccountIdentifier());
         }
+    }
+
+    // If any identifier is invalid, throw an error before checking amounts
+    if (!invalidAccounts.isEmpty()) {
+        logger.error("Invalid MultiAccount Identifiers: {}", invalidAccounts);
+        addError(TransactionErrorConstants.INVALID_ERROR_CODE, 
+                 MessageFormat.format(TransactionErrorConstants.INVALID_ERROR_MESSAGE, 
+                                      "Multi Account", "Invalid account identifiers: " + invalidAccounts));
+        throwIfErrors();
+        return BigDecimal.ZERO; // Ensure return even if an exception is thrown
+    }
+
+    // Step 2: Validate Amounts Only After Identifiers Are Valid
+    for (MultiAccountDto multiAccountDto : multiAccountDetails) {
+        totalMultiAccountAmount = totalMultiAccountAmount.add(multiAccountDto.getAmount());
+    }
+
+    logger.info("verifyAccountAndGetTotalAmount completed successfully. Total MultiAccount Amount: {}", totalMultiAccountAmount);
+    return totalMultiAccountAmount;
+}
