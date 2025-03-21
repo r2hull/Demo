@@ -1,32 +1,8 @@
-private void verifyAccountAndValidateTotalAmount(MerchantOrderDto merchantOrderDto, 
-                                                 List<MultiAccountDto> multiAccountDetails, 
-                                                 BigDecimal expectedOrderAmount) {
-    logger.info("Validating multi-account details for mId: {}", merchantOrderDto.getMId());
-
-    List<String> merchantMultiAccounts = adminDao.getMerchantMultiAccount(merchantOrderDto.getMId())
-                                                 .get(merchantOrderDto.getMId());
-
-    BigDecimal totalMultiAccountAmount = multiAccountDetails.stream()
-        .peek(account -> {
-            if (!merchantMultiAccounts.contains(account.getAccountIdentifier())) {
-                logger.error("Invalid MultiAccount: Account Identifier {} not found", account.getAccountIdentifier());
-                addError(TransactionErrorConstants.INVALID_ERROR_CODE, 
-                         MessageFormat.format(TransactionErrorConstants.INVALID_ERROR_MESSAGE, 
-                                              "Multi Account", "Invalid account identifier."));
-            }
-        })
-        .map(MultiAccountDto::getAmount)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-    throwIfErrors(); // Stop processing if any validation error exists
-
-    if (expectedOrderAmount.compareTo(totalMultiAccountAmount) != 0) {
-        logger.error("Amount mismatch: Expected {}, but got {}", expectedOrderAmount, totalMultiAccountAmount);
-        addError(TransactionErrorConstants.INVALID_ERROR_CODE, 
-                 MessageFormat.format(TransactionErrorConstants.INVALID_ERROR_MESSAGE, 
-                                      "Multi Account Total Amount", "Amount mismatch."));
-        throwIfErrors();
-    }
-
-    logger.info("Multi-account validation successful. Total amount: {}", totalMultiAccountAmount);
-}
+// First check if accountIdentifier exists
+        if (!MerchantMultiAccountDetails.contains(multiAccountDto.getAccountIdentifier())) {
+            logger.info("validateOrderRequest, Invalid multi account :{}", multiAccountDto.getAccountIdentifier());
+            addError(TransactionErrorConstants.INVALID_ERROR_CODE, 
+                MessageFormat.format(TransactionErrorConstants.INVALID_ERROR_MESSAGE, 
+                    "Multi Account", "Invalid account identifier: " + multiAccountDto.getAccountIdentifier()));
+            throwIfErrors();  // This will throw immediately if there are errors
+        }
