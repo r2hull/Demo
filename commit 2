@@ -1,1 +1,4 @@
-        bulkRefundBooking.setRemark(invalidRecords > 0 ? "Few rows can't be processed, please check details for erroneous rows." : "All rows processed successfully");
+public class RefundConstants {
+    public static final String PARTIAL_PROCESS_MESSAGE = "Few rows can't be processed, please check details for erroneous rows.";
+    public static final String SUCCESS_PROCESS_MESSAGE = "All rows processed successfully";
+}
