@@ -1,5 +1,3 @@
-package com.epay.transaction.service;
-IMPORT...
 @Service
 @RequiredArgsConstructor
 public class RefundService {
@@ -9,176 +7,17 @@ public class RefundService {
     private final RefundValidator refundValidator;
     private final RefundDao refundDao;
     private final S3Service s3Service;
-    protected static final List<String> BULK_REFUND_HEADER_LIST =List.of("Refund Type", "Merchant Order ID", "ATRN", "Refund Amount", "Refund Currency", "Comments","Refund Status","Remark");
-    private final BulkProcessingCsvProducer bulkProcessingCsvProducer;
-
     private final BulkRefundProducer bulkRefundProducer;
-   
-    public TransactionResponse<RefundResponse> bookRefund(RefundBookRequest refundBookRequest) {
-        logger.info("Book Refund Request for refundBookRequest {} ", refundBookRequest);
-
-        //Step-1: Validate refund request
-        refundValidator.validateRefundRequest(refundBookRequest);
-        logger.debug("refundBookRequest validated for atrn: {}", refundBookRequest.getAtrnNumber());
-
-        //Step-2: Get transaction details
-        MerchantPaymentOrderDto merchantPaymentOrderDto = refundDao.findByAtrnNumber(refundBookRequest.getAtrnNumber());
-        logger.debug("fetch merchantPaymentOrderDto for refund atrn: {}", refundBookRequest.getAtrnNumber());
-
-        //Step-3: Perform business validation
-        refundValidator.validateBusinessRules(refundBookRequest, merchantPaymentOrderDto);
-        logger.debug("refundBookRequest business rule validated for atrn: {}", refundBookRequest.getAtrnNumber());
-
-        //Step-4: Build and save refund booking dto
-        RefundBookingDto refundBookingDto = refundMapper.mapToRefundBookingDto(refundBookRequest, merchantPaymentOrderDto);
-        RefundResponse refundResponse = refundDao.saveRefundBooking(refundBookingDto, merchantPaymentOrderDto);
-        logger.debug("refundBookRequest saved for atrn: {}", refundBookRequest.getAtrnNumber());
-
-        //Step-5: Return refund response
-        return TransactionResponse.<RefundResponse>builder().status(TransactionConstant.RESPONSE_SUCCESS).data(List.of(refundResponse)).total(1L).build();
-    }
-
- 
-    public TransactionResponse<RefundResponse> getRefundBookingByArrn(String arrn) {
-        logger.info("Inside getRefundDetails for arrn: {}", arrn);
-
-        //Step-1: Get the refund booking details
-        RefundBookingDto refundBookingDto = refundDao.findRefundBookingByARRN(arrn);
-
-        //Step-2: Convert refund booking dto to refund response
-        RefundResponse refundResponse = refundMapper.dtoToResponse(refundBookingDto);
-        logger.info("Refund response received: {}", refundResponse);
-
-        //Step-3: Return the refund status
-        return TransactionResponse.<RefundResponse>builder().status(TransactionConstant.RESPONSE_SUCCESS).data(List.of(refundResponse)).total(1L).build();
-    }
-
-    public TransactionResponse<RefundResponse> searchRefundBookings(RefundSearchRequest refundSearchRequest, Pageable pageable) {
-        logger.info("Get refund request received for refundDetailRequest: {}", refundSearchRequest);
-
-        //Step-1: Validate refund search request
-        refundValidator.validateRefundSearchRequest(refundSearchRequest);
-
-        //Step-2: Search refund request in db for requested parameters
-        Page<RefundBookingDto> refundBookingDtoPage = refundDao.searchRefundBookingRequest(refundSearchRequest, pageable);
-        logger.debug("Refund Response received for refundDetailRequest: {}", refundSearchRequest);
-
-        //Step-3: Build and return the refund details response
-        return TransactionResponse.<RefundResponse>builder().data(refundMapper.dtoToResponse(refundBookingDtoPage.getContent())).status(TransactionConstant.RESPONSE_SUCCESS).total(refundBookingDtoPage.getTotalElements()).count((long) refundBookingDtoPage.getContent().size()).build();
-    }
-
-   
-    public TransactionResponse<String> uploadBulkRefund(String mId, MultipartFile bulkRefundFile) {
-
-        logger.info("uploadBulkRefund invoked for mId: {}", mId);
-
-        //Step-1: Validate bulk refund file
-        refundValidator.validateBulkRefundUploadRequest(mId, bulkRefundFile);
-        logger.info("Bulk upload request validated for mId: {}", mId);
-
-        //Step-2: Upload bulk upload on s3
-        String filePath = "C://abc";//s3Service.uploadFile(bulkRefundFile);
-        logger.info("Bulk refund file uploaded at :{} for mId: {}", filePath, mId);
-
-        //Step-3: Build bulk refund booking
-        BulkRefundBooking bulkRefundBooking = buildBulkRefundBooking(mId, bulkRefundFile, filePath);
-
-        //Step-4: Save bulk refund booking
-        bulkRefundBooking = refundDao.saveBulkRefundBooking(bulkRefundBooking);
-        logger.info("Bulk refund request saved for mId: {}", filePath, mId);
-
-        //Step-5: Process bulk refund
-        bulkRefundProducer.publish("BULK_REFUND",bulkRefundBooking.getBulkId(), bulkRefundBooking);
-
-        return TransactionResponse.<String>builder().status(TransactionConstant.RESPONSE_SUCCESS).data(List.of(bulkRefundBooking.getBulkId())).total(1L).build();
-    }
-
-  
-    private static BulkRefundBooking buildBulkRefundBooking(String mId, MultipartFile bulkRefundFile, String filePath) {
-
-        return BulkRefundBooking.builder()
-                .bulkRefundStatus(BulkRefundStatus.IN_QUEUE.name())
-                .fileName(bulkRefundFile.getName())
-                .filePath(filePath)
-                .merchantId(mId)
-                .createdBy("Bulk Refund Service")
-                .createdDate(DateTimeUtils.getCurrentTimeInMills())
-                .build();
-    }
-
-
-    public void processBulkRefund(String bulkId, String mId) {
-
-        logger.info("ProcessBulkRefund received for bulkId: {}", bulkId);
-
-        //Step-1: Get bulk refund booking
-        BulkRefundBooking bulkRefundBooking = refundDao.findByBulkId(bulkId, mId);
-        logger.info("Got bulkRefundBooking: {} for bulkId: {}", bulkRefundBooking , bulkId);
-
-        //Step-2: Update processing status
-        updateProcessingStatus(bulkRefundBooking);
-
-        //Step-3: Read CSV file from s3 service
-        List<String[]> csvFile = readCsvFile(bulkRefundBooking.getFilePath());
-        logger.info("Got csvFile size : {} for bulkId: {}", csvFile.size() , bulkId);
-
-        //Step-4: Validate Headers
-        String headerError = refundValidator.validateBulkRefundHeader(csvFile, mId);
-        logger.info("headerError : {} for bulkId: {}", headerError , bulkId);
-
-        //Step-5: If headers are valid then read and process refund from csv file row by row
-        //With Kafka
-        if (StringUtils.isEmpty(headerError)) {
-
-            logger.info("Valid headers, headerError : {} for bulkId: {}", headerError , bulkId);
-            processingCsvFileRowWise(bulkId, csvFile, bulkRefundBooking);
-
-        } else {
-
-            logger.info("Invalid headers, headerError : {} for bulkId: {}", headerError , bulkId);
-            //Step-6: Mark this csv file as failed
-            buildBulkRefundBookingWithError(bulkRefundBooking, headerError);
-        }
-
-        //Step-7: Update bulk refund status for current bulk id
-        refundDao.saveBulkRefundBooking(bulkRefundBooking);
-
-    }
-
-  
-    private void processingCsvFileRowWise(String bulkId, List<String[]> csvFile, BulkRefundBooking bulkRefundBooking) {
-
-        logger.info("processingCsvFileRowWise received for bulkId: {}", bulkId);
-        int totalRecords = csvFile.size() - 1;
-        // Step-1: Process each row, store in DB, and send to Kafka via Producer
-        for (int row = 1; row <= totalRecords; row++) {
-            // Build BulkRefundBookingDetails from CSV row
-            BulkRefundBookingDetails details = buildBulkRefundBookingDetails(bulkId, row, csvFile.get(row));
-            // Save to database
-            BulkRefundBookingDetails savedDetails = refundDao.saveBulkRefundBookingDetailsForCSV(details);
-            // Send the ID to Kafka using Producer
-            bulkProcessingCsvProducer.publish("REFUND_CSV",bulkRefundBooking.getBulkId(), savedDetails);
-            logger.info("Row {} with id {} queued for async processing for bulkId: {}", row, savedDetails.getId(), bulkId);
-        }
-
-        // Step-2: Update BulkRefundBooking status (processing is async, so mark as IN_QUEUE)
-        bulkRefundBooking.setTotalRecords(totalRecords);
-        bulkRefundBooking.setBulkRefundStatus(BulkRefundStatus.IN_QUEUE.name());
-        logger.info("BulkRefundBooking updated to IN_QUEUE for bulkId: {}", bulkId);
-
-    }
 
     public void processBulkRefundRow(UUID detailsId) {
         logger.info("Processing BulkRefundBookingDetails id: {}", detailsId);
 
-        // Step-1: Fetch the BulkRefundBookingDetails
         BulkRefundBookingDetails details = refundDao.findBulkRefundBookingDetailsById(detailsId);
         if (details == null) {
             logger.error("BulkRefundBookingDetails not found for id: {}", detailsId);
             return;
         }
 
-        // Step-2: Build RefundBookRequest from details
         RefundBookRequest refundBookRequest = RefundBookRequest.builder()
                 .refundType(details.getRefundType())
                 .atrnNumber(details.getAtrn())
@@ -186,13 +25,11 @@ public class RefundService {
                 .remark(details.getComments())
                 .build();
 
-        // Step-3: Process the refund
         TransactionResponse<RefundResponse> bulkRefundResponse = bookBulkRefund(refundBookRequest);
 
-        // Step-4: Update details based on response
         if (bulkRefundResponse.getStatus() == TransactionConstant.RESPONSE_SUCCESS) {
             logger.info("Refund booked successfully for row {} and bulkId: {}", details.getRowNumber(), details.getBulkId());
-            details.setRefundStatus(bulkRefundResponse.getData().getFirst().getRefundStatus());
+            details.setRefundStatus(RefundStatus.REFUND_SUCCESS.name());
             details.setRemark("Refund Booked Successfully");
         } else {
             logger.info("Refund booking failed for row {} and bulkId: {}", details.getRowNumber(), details.getBulkId());
@@ -200,142 +37,41 @@ public class RefundService {
             details.setRemark(bulkRefundResponse.getErrors().getFirst().getErrorMessage());
         }
 
-        // Step-5: Save updated details
         refundDao.saveBulkRefundBookingDetails(details);
 
-        // Step-6: Update BulkRefundBooking status
-        updateBulkRefundBookingStatus(details.getBulkId());
+        // Check if all rows are processed, then update BulkRefundBooking
+        checkAndUpdateBulkRefundBooking(details.getBulkId());
     }
 
- 
-    private void updateProcessingStatus(BulkRefundBooking bulkRefundBooking) {
-        bulkRefundBooking.setBulkRefundStatus(BulkRefundStatus.PROCESSING.name());
-        refundDao.saveBulkRefundBooking(bulkRefundBooking);
-    }
-
-
-    private TransactionResponse<RefundResponse> bookBulkRefund(RefundBookRequest refundBookRequest) {
-        logger.info("Book refund received for atrn: {}", refundBookRequest.getAtrnNumber());
-        try {
-            refundValidator.validateRefundRequest(refundBookRequest);
-            return bookRefund(refundBookRequest);
-        } catch (ValidationException | TransactionException | NumberFormatException e) {
-            logger.debug("Book refund failed for atrn: {}", refundBookRequest.getAtrnNumber());
-            return TransactionResponse.<RefundResponse>builder().status(TransactionConstant.RESPONSE_FAILURE).errors(List.of(ErrorDto.builder().errorCode(TransactionErrorConstants.INVALID_ERROR_CODE).errorMessage(e.getMessage()).build())).build();
-        }
-    }
-
-    private List<String[]> readCsvFile(String filePath) {
-
-        logger.info("Reading csv file for filePath: {}", filePath);
-
-        List<String[]> records;
-
-        try {
-
-            ResponseBytes<?> fileBytes = s3Service.readFile(filePath);
-            InputStreamReader reader = new InputStreamReader(fileBytes.asInputStream());
-            CSVReader csvReader = new CSVReader(reader);
-            records = csvReader.readAll();
-
-        } catch (IOException | CsvException e) {
-
-            logger.debug("Reading csv file failed for filePath: {}", filePath);
-            throw new TransactionException(TransactionErrorConstants.INVALID_ERROR_CODE, MessageFormat.format(TransactionErrorConstants.INVALID_ERROR_MESSAGE, "CSV", " Error while reading CSV file."));
-
-        }catch (Exception e) {
-        List<String[]> dataList = new ArrayList<>();
-        dataList.add(new String[]{"Refund Type", "Merchant Order ID", "ATRN", "Refund Amount", "Refund Currency", "Comments"});
-        dataList.add(new String[]{"PARTIAL", "1000003", "l2m0tgh6I0003", "0.2", "INR", "payment mila bhaii"});
-        dataList.add(new String[]{"PARTIAL", "1000003", "l2m0tgh6I0003", "0.1", "INR", "payment mila bhaii2"});
-
-        return dataList;
-    }
-
-        logger.debug("Reading csv file done total size : {}, for filePath: {}", records.size(), filePath);
-        return records;
-    }
-
- 
-    private static void buildBulkRefundBookingWithError(BulkRefundBooking bulkRefundBooking, String headerError) {
-
-        bulkRefundBooking.setTotalRecords(0);
-        bulkRefundBooking.setInvalidRecords(0);
-        bulkRefundBooking.setValidRecords(0);
-        bulkRefundBooking.setBulkRefundStatus(BulkRefundStatus.PROCESSED.name());
-        bulkRefundBooking.setRemark(headerError);
-    }
-
-   
-    public TransactionResponse<BulkRefundBookingDto> getBulkRefundBooking(String mId, Pageable pageable) {
-        logger.info("Get bulk refund request received for mId: {}", mId);
-
-        //Step-1: Get Bulk refund request in db for requested parameters
-        Page<BulkRefundBookingDto> refundBulkBookingDtoPage = refundDao.getBulkRefundBooking(mId, pageable);
-
-        logger.debug("Bulk Refund Response received for mId: {}", mId);
-
-        //Step-2: Build and return the bilk refund details response
-        return TransactionResponse.<BulkRefundBookingDto>builder().status(TransactionConstant.RESPONSE_SUCCESS).data(refundBulkBookingDtoPage.getContent()).count((long) refundBulkBookingDtoPage.getContent().size()).total(refundBulkBookingDtoPage.getTotalElements()).build();
-    }
-
-  
-    public void downloadBulkRefund(HttpServletResponse response, String bulkId, String status) {
-        logger.info("Fetching list of bulk refund for bulkId: {} and status: {}", bulkId,status);
-        List<BulkRefundBookingDetails> bulkRefundBookings = refundDao.getBulkRefundByBulkIdAndRefundStatus(bulkId,status);
-        logger.info("Returning list of bulk refund bookings {}", CollectionUtils.size(bulkRefundBookings));
-        List<List<Object>> fileData = bulkRefundBookings.stream().map(this::convertToListOfObject).toList();
-        CSVGenerator.downloadCsvFile(response, "Bulk_Refund_"+status,bulkId, BULK_REFUND_HEADER_LIST, fileData);
-        logger.info("Generated CSV file containing list of bulk refund bookings");
-    }
-  
-    protected List<Object> convertToListOfObject(BulkRefundBookingDetails bulkRefundBookingDetails) {
-        List<Object> objectList = new ArrayList<>();
-        objectList.add(StringUtils.isEmpty(bulkRefundBookingDetails.getRefundType()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getRefundType());
-        objectList.add(StringUtils.isEmpty(bulkRefundBookingDetails.getMerchantOrderId()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getMerchantOrderId());
-        objectList.add(StringUtils.isEmpty(bulkRefundBookingDetails.getAtrn()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getAtrn());
-        objectList.add(Objects.isNull(bulkRefundBookingDetails.getRefundAmount()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getRefundAmount());
-        objectList.add(StringUtils.isEmpty(bulkRefundBookingDetails.getRefundCurrency()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getRefundCurrency());
-        objectList.add(StringUtils.isEmpty(bulkRefundBookingDetails.getComments()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getComments());
-        objectList.add(StringUtils.isEmpty(bulkRefundBookingDetails.getRefundStatus()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getRefundStatus());
-        objectList.add(StringUtils.isEmpty(bulkRefundBookingDetails.getRemark()) ? StringUtils.EMPTY : bulkRefundBookingDetails.getRemark());
-
-
-        return objectList;
-    }
-   
-    private BulkRefundBookingDetails buildBulkRefundBookingDetails(String bulkId, int row, String[] csvRow) {
-        return BulkRefundBookingDetails.builder()
-                .bulkId(bulkId)
-                .rowNumber(row)
-                .refundStatus(RefundStatus.REFUND_IN_PROCESS.name()) // Initial status
-                .refundType(csvRow[0]) // Refund Type
-                .merchantOrderId(csvRow[1]) // Merchant Ordeid
-                .atrn(csvRow[2]) // atrn
-                .refundAmount(Double.parseDouble(csvRow[3])) // Refund Amount
-                .refundCurrency(csvRow[4]) // Refund Currency
-                .comments(csvRow[5]) // Commentss
-                .createdDate(DateTimeUtils.getCurrentTimeInMills())
-                .build();
-    }
-  
-    private void updateBulkRefundBookingStatus(String bulkId) {
-        BulkRefundBooking bulkRefundBooking = refundDao.findByBulkId(bulkId);
+    private void checkAndUpdateBulkRefundBooking(String bulkId) {
+        BulkRefundBooking bulkRefundBooking = refundDao.findByBulkId(bulkId, null);
         List<BulkRefundBookingDetails> detailsList = refundDao.findAllByBulkId(bulkId);
 
         int totalRecords = bulkRefundBooking.getTotalRecords();
-        int invalidRecords = (int) detailsList.stream().filter(d -> RefundStatus.REFUND_FAILED.name().equals(d.getRefundStatus())).count();
-        int validRecords = totalRecords - invalidRecords;
+        int processedRecords = detailsList.size();
+        int pendingRecords = (int) detailsList.stream()
+                .filter(d -> RefundStatus.PENDING.name().equals(d.getRefundStatus()))
+                .count();
 
-        bulkRefundBooking.setValidRecords(validRecords);
-        bulkRefundBooking.setInvalidRecords(invalidRecords);
-        bulkRefundBooking.setRemark(invalidRecords > 0 ? "Few rows can't be processed, please check details for erroneous rows." : "All rows processed successfully");
-        bulkRefundBooking.setBulkRefundStatus(BulkRefundStatus.PROCESSED.name());
+        // Update only when all rows are processed
+        if (pendingRecords == 0 && processedRecords == totalRecords) {
+            int validRecords = (int) detailsList.stream()
+                    .filter(d -> RefundStatus.REFUND_SUCCESS.name().equals(d.getRefundStatus()))
+                    .count();
+            int invalidRecords = totalRecords - validRecords;
 
-        refundDao.saveBulkRefundBooking(bulkRefundBooking);
-        logger.info("Updated BulkRefundBooking: {} for bulkId: {}", bulkRefundBooking, bulkId);
+            bulkRefundBooking.setValidRecords(validRecords);
+            bulkRefundBooking.setInvalidRecords(invalidRecords);
+            bulkRefundBooking.setRemark(invalidRecords > 0 ? "Few rows can't be processed, please check details for erroneous rows." : "All rows processed successfully");
+            bulkRefundBooking.setBulkRefundStatus(BulkRefundStatus.PROCESSED.name());
+
+            refundDao.saveBulkRefundBooking(bulkRefundBooking);
+            logger.info("All rows processed, updated BulkRefundBooking: {} for bulkId: {}", bulkRefundBooking, bulkId);
+        } else {
+            logger.info("Not all rows processed yet for bulkId: {}. Total: {}, Processed: {}, Pending: {}", 
+                        bulkId, totalRecords, processedRecords, pendingRecords);
+        }
     }
 
-
-
+    // Rest of your methods remain unchanged...
 }
