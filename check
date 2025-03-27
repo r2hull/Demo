@@ -1,77 +1,93 @@
-@Service
-@RequiredArgsConstructor
-public class RefundService {
-
-    private final LoggerUtility logger = LoggerFactoryUtility.getLogger(this.getClass());
-    private final RefundMapper refundMapper;
-    private final RefundValidator refundValidator;
-    private final RefundDao refundDao;
-    private final S3Service s3Service;
-    private final BulkRefundProducer bulkRefundProducer;
-
-    public void processBulkRefundRow(UUID detailsId) {
-        logger.info("Processing BulkRefundBookingDetails id: {}", detailsId);
-
-        BulkRefundBookingDetails details = refundDao.findBulkRefundBookingDetailsById(detailsId);
-        if (details == null) {
-            logger.error("BulkRefundBookingDetails not found for id: {}", detailsId);
-            return;
-        }
-
-        RefundBookRequest refundBookRequest = RefundBookRequest.builder()
-                .refundType(details.getRefundType())
-                .atrnNumber(details.getAtrn())
-                .refundAmount(BigDecimal.valueOf(details.getRefundAmount()))
-                .remark(details.getComments())
-                .build();
-
-        TransactionResponse<RefundResponse> bulkRefundResponse = bookBulkRefund(refundBookRequest);
-
-        if (bulkRefundResponse.getStatus() == TransactionConstant.RESPONSE_SUCCESS) {
-            logger.info("Refund booked successfully for row {} and bulkId: {}", details.getRowNumber(), details.getBulkId());
-            details.setRefundStatus(RefundStatus.REFUND_SUCCESS.name());
-            details.setRemark("Refund Booked Successfully");
-        } else {
-            logger.info("Refund booking failed for row {} and bulkId: {}", details.getRowNumber(), details.getBulkId());
-            details.setRefundStatus(RefundStatus.REFUND_FAILED.name());
-            details.setRemark(bulkRefundResponse.getErrors().getFirst().getErrorMessage());
-        }
-
-        refundDao.saveBulkRefundBookingDetails(details);
-
-        // Check if all rows are processed, then update BulkRefundBooking
-        checkAndUpdateBulkRefundBooking(details.getBulkId());
-    }
-
-    private void checkAndUpdateBulkRefundBooking(String bulkId) {
-        BulkRefundBooking bulkRefundBooking = refundDao.findByBulkId(bulkId, null);
+ private void checkAndUpdateBulkRefundBooking(String bulkId) {
+        BulkRefundBooking bulkRefundBooking = refundDao.findByBulkId(bulkId);
         List<BulkRefundBookingDetails> detailsList = refundDao.findAllByBulkId(bulkId);
 
         int totalRecords = bulkRefundBooking.getTotalRecords();
         int processedRecords = detailsList.size();
         int pendingRecords = (int) detailsList.stream()
-                .filter(d -> RefundStatus.PENDING.name().equals(d.getRefundStatus()))
+                .filter(d -> RefundStatus.REFUND_IN_PROCESS.name().equals(d.getRefundStatus()))
                 .count();
 
         // Update only when all rows are processed
         if (pendingRecords == 0 && processedRecords == totalRecords) {
             int validRecords = (int) detailsList.stream()
-                    .filter(d -> RefundStatus.REFUND_SUCCESS.name().equals(d.getRefundStatus()))
+                    .filter(d -> RefundStatus.CANCELLATION_BOOKED.name().equals(d.getRefundStatus()))
                     .count();
             int invalidRecords = totalRecords - validRecords;
 
             bulkRefundBooking.setValidRecords(validRecords);
             bulkRefundBooking.setInvalidRecords(invalidRecords);
-            bulkRefundBooking.setRemark(invalidRecords > 0 ? "Few rows can't be processed, please check details for erroneous rows." : "All rows processed successfully");
+            bulkRefundBooking.setRemark(invalidRecords > 0 ? PARTIAL_PROCESS_MESSAGE : SUCCESS_PROCESS_MESSAGE);
             bulkRefundBooking.setBulkRefundStatus(BulkRefundStatus.PROCESSED.name());
 
             refundDao.saveBulkRefundBooking(bulkRefundBooking);
             logger.info("All rows processed, updated BulkRefundBooking: {} for bulkId: {}", bulkRefundBooking, bulkId);
         } else {
-            logger.info("Not all rows processed yet for bulkId: {}. Total: {}, Processed: {}, Pending: {}", 
-                        bulkId, totalRecords, processedRecords, pendingRecords);
+            logger.info("Not all rows processed yet for bulkId: {}. Total: {}, Processed: {}, Pending: {}",
+                    bulkId, totalRecords, processedRecords, pendingRecords);
         }
     }
 
-    // Rest of your methods remain unchanged...
+
+
+
+
+@EqualsAndHashCode(callSuper = true)
+@Data
+@Entity
+@AllArgsConstructor
+@NoArgsConstructor
+@SuperBuilder
+@Table(name = "BULK_REFUND_BOOKING")
+public class BulkRefundBooking extends AuditEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+    private String bulkId;
+    private String merchantId;
+    private String fileName;
+    private String filePath;
+    private Integer totalRecords;
+    private Integer validRecords;
+    private Integer invalidRecords;
+    private String bulkRefundStatus;
+    private String remark;
+
+    /**
+     * custom generator, do not remove it
+     */
+    @PrePersist
+    protected void generateBulkId() {
+        this.bulkId =  new StringBuilder().append(System.nanoTime()).reverse().append(this.merchantId, 2, 7).reverse().toString();
+    }
+
+}
+
+
+
+@EqualsAndHashCode(callSuper = true)
+@Data
+@Entity
+@AllArgsConstructor
+@NoArgsConstructor
+@SuperBuilder
+@Table(name = "BULK_REFUND_BOOKING_DTLS")
+public class BulkRefundBookingDetails extends AuditEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+    private String bulkId;
+    private Integer rowNumber;
+    private String refundStatus;
+    private String remark;
+
+    private String refundType;
+    private String merchantOrderId;
+    private String atrn;
+    private Double refundAmount;
+    private String refundCurrency;
+    private String comments;
+
 }
