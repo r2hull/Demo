@@ -6,25 +6,27 @@ private void checkAndUpdateBulkRefundBooking(String bulkId) {
         }
 
         int totalRecords = bulkRefundBooking.getTotalRecords();
+        int passCount = refundDao.countByBulkIdAndRefundStatus(bulkId, RefundStatus.CANCELLATION_BOOKED.name());
+        int failCount = refundDao.countByBulkIdAndRefundStatus(bulkId, RefundStatus.REFUND_FAILED.name());
+        int processedCount = passCount + failCount;
 
-        // Get counts grouped by refundStatus
-        Map<String, Integer> statusCounts = refundDao.countByBulkIdGroupedByRefundStatus(bulkId);
-
-        int validRecords = statusCounts.getOrDefault(RefundStatus.CANCELLATION_BOOKED.name(), 0);
-        int invalidRecords = statusCounts.getOrDefault(RefundStatus.REFUND_FAILED.name(), 0);
-        int processedRecords = validRecords + invalidRecords; // Only count final states
-
-        // Update only when all rows are processed
-        if (processedRecords == totalRecords) {
-            bulkRefundBooking.setValidRecords(validRecords);
-            bulkRefundBooking.setInvalidRecords(invalidRecords);
-            bulkRefundBooking.setRemark(invalidRecords > 0 ? PARTIAL_PROCESS_MESSAGE : SUCCESS_PROCESS_MESSAGE);
+        if (processedCount == totalRecords) {
+            bulkRefundBooking.setValidRecords(passCount);
+            bulkRefundBooking.setInvalidRecords(failCount);
+            bulkRefundBooking.setRemark(failCount > 0 ? PARTIAL_PROCESS_MESSAGE : SUCCESS_PROCESS_MESSAGE);
             bulkRefundBooking.setBulkRefundStatus(BulkRefundStatus.PROCESSED.name());
 
             refundDao.saveBulkRefundBooking(bulkRefundBooking);
             logger.info("All rows processed, updated BulkRefundBooking: {} for bulkId: {}", bulkRefundBooking, bulkId);
         } else {
-            logger.info("Not all rows processed yet for bulkId: {}. Total: {}, Processed: {} (Valid: {}, Invalid: {})", 
-                        bulkId, totalRecords, processedRecords, validRecords, invalidRecords);
+            logger.info("Not all rows processed yet for bulkId: {}. Total: {}, Processed: {} (Pass: {}, Fail: {})", 
+                        bulkId, totalRecords, processedCount, passCount, failCount);
         }
     }
+
+    // Rest of your methods remain unchanged...
+}
+
+
+    @Query("SELECT COUNT(d) FROM BulkRefundBookingDetails d WHERE d.bulkId = :bulkId AND d.refundStatus = :status")
+    int countByBulkIdAndRefundStatus(@Param("bulkId") String bulkId, @Param("status") String status);
