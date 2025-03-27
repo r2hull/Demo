@@ -6,9 +6,12 @@ private void checkAndUpdateBulkRefundBooking(String bulkId) {
         }
 
         int totalRecords = bulkRefundBooking.getTotalRecords();
-        int passCount = refundDao.countByBulkIdAndRefundStatus(bulkId, RefundStatus.CANCELLATION_BOOKED.name());
-        int failCount = refundDao.countByBulkIdAndRefundStatus(bulkId, RefundStatus.REFUND_FAILED.name());
-        int processedCount = passCount + failCount;
+        Object[] counts = refundDao.getProcessedAndFailedCounts(bulkId);
+
+        // Extract counts from the result array
+        int processedCount = ((Number) counts[0]).intValue(); // Total processed (pass + fail)
+        int passCount = ((Number) counts[1]).intValue();     // CANCELLATION_BOOKED
+        int failCount = ((Number) counts[2]).intValue();     // REFUND_FAILED
 
         if (processedCount == totalRecords) {
             bulkRefundBooking.setValidRecords(passCount);
@@ -24,9 +27,15 @@ private void checkAndUpdateBulkRefundBooking(String bulkId) {
         }
     }
 
-    // Rest of your methods remain unchanged...
-}
 
 
-    @Query("SELECT COUNT(d) FROM BulkRefundBookingDetails d WHERE d.bulkId = :bulkId AND d.refundStatus = :status")
-    int countByBulkIdAndRefundStatus(@Param("bulkId") String bulkId, @Param("status") String status);
+@@Query("""
+        SELECT 
+            COUNT(d) as totalProcessed, 
+            SUM(CASE WHEN d.refundStatus = 'CANCELLATION_BOOKED' THEN 1 ELSE 0 END) as passCount, 
+            SUM(CASE WHEN d.refundStatus = 'REFUND_FAILED' THEN 1 ELSE 0 END) as failCount 
+        FROM BulkRefundBookingDetails d 
+        WHERE d.bulkId = :bulkId 
+        AND d.refundStatus IN ('CANCELLATION_BOOKED', 'REFUND_FAILED')
+    """)
+    Object[] getProcessedAndFailedCounts(@Param("bulkId") String bulkId);
