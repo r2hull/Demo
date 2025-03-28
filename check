@@ -1,7 +1,16 @@
- List<String> cacheAccountHolderNickNames =merchantBankAccountDao.getMerchantBankAccountsCache(mID);
-        Map<String, List<Object>> accountHolderNickNamesMap = new HashMap<>();
-        if (!cacheAccountHolderNickNames.isEmpty()) {
-            logger.info("MerchantBankAccount list fetched successfully from cache.");
-            accountHolderNickNamesMap.put(mID, cacheAccountHolderNickNames);
-            return AdminResponse.<Map<String, List<Object>>>builder().status(1).total((long) cacheAccountHolderNickNames.size()).data(Collections.singletonList(accountHolderNickNamesMap)).build();
-        }
+List<String> cacheAccountHolderNickNames = merchantBankAccountDao.getMerchantBankAccountsCache(mID);
+Map<String, List<Object>> accountHolderNickNamesMap = new HashMap<>();
+if (!cacheAccountHolderNickNames.isEmpty()) {
+    logger.info("MerchantBankAccount list fetched successfully from cache.");
+    
+    // Convert List<String> to List<Object>
+    List<Object> objectList = new ArrayList<>(cacheAccountHolderNickNames);
+    
+    accountHolderNickNamesMap.put(mID, objectList);
+    
+    return AdminResponse.<Map<String, List<Object>>>builder()
+        .status(1)
+        .total((long) objectList.size())
+        .data(Collections.singletonList(accountHolderNickNamesMap))
+        .build();
+}
