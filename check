@@ -1,39 +1,7 @@
-public AdminResponse<Map<String, List<Object>>> getMerchantBankAccounts(String mID) {
-        logger.info("Cache Call to get MerchantBankAccount by mId: {}", mID);
-        List<String> cacheAccountHolderNickNames =merchantBankAccountDao.getMerchantBankAccountsCache(mID);
+ List<String> cacheAccountHolderNickNames =merchantBankAccountDao.getMerchantBankAccountsCache(mID);
         Map<String, List<Object>> accountHolderNickNamesMap = new HashMap<>();
         if (!cacheAccountHolderNickNames.isEmpty()) {
             logger.info("MerchantBankAccount list fetched successfully from cache.");
+            accountHolderNickNamesMap.put(mID, cacheAccountHolderNickNames);
             return AdminResponse.<Map<String, List<Object>>>builder().status(1).total((long) cacheAccountHolderNickNames.size()).data(Collections.singletonList(accountHolderNickNamesMap)).build();
         }
-        logger.info("Cache MerchantBankAccount list is empty. Calling database.");
-        List<MerchantBankAccount> merchantBankAccountList =
-                merchantBankAccountDao.getMerchantBankAccounts(mID);
-        if (merchantBankAccountList.isEmpty()) {
-            logger.error("Database MerchantBankAccount list is empty.");
-            return AdminResponse.<Map<String, List<Object>>>builder().status(0).data(List.of()).errors(List.of(ErrorDto.builder().errorCode(ErrorConstants.NOT_FOUND_ERROR_CODE).errorMessage(MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Merchant Bank Account")).reason(MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, "Merchant Bank Account")).build())).build();
-        }
-        logger.info("MerchantBankAccount list fetched successfully from database.");
-        List<MerchantBankAccountCache> merchantBankAccountsEntityList= merchantBankAccountMapper.toCacheEntityList(merchantBankAccountList);
-        logger.info("MerchantBankAccount data saved into cache.");
-        merchantBankAccountDao.saveDetailCache(merchantBankAccountsEntityList);
-        List<Object> accountHolderNickNames = merchantBankAccountsEntityList.stream().map(MerchantBankAccountCache::getAccountHolderNickName)
-                .collect(Collectors.toList());
-        accountHolderNickNamesMap.put(mID, accountHolderNickNames);
-        return AdminResponse.<Map<String, List<Object>>>builder().status(1).total((long) accountHolderNickNames.size()).data(Collections.singletonList(accountHolderNickNamesMap)).build();
-    }
- public Map<String, List<String>> getMerchantMultiAccount(String mId) {
-        logger.info("Fetching multiple account details for mId: {}", mId);
-        TransactionResponse<Map<String, List<String>>> response = adminServicesClient.getMultiAccountDetailsApi(mId);
-        if (TransactionConstant.RESPONSE_SUCCESS == response.getStatus() && CollectionUtils.isNotEmpty(response.getData())) {
-            logger.info("Successfully retrieved multiple accounts for mId: {}", mId);
-            return response.getData().getFirst();
-        }else if(CollectionUtils.isNotEmpty(response.getErrors())){
-            throw new TransactionException(response.getErrors());
-        }
-        logger.error("Error in getMerchantMultiAccount {} - Errors: {}", mId, response.getErrors());
-        throw new TransactionException(TransactionErrorConstants.NOT_FOUND_ERROR_CODE, MessageFormat.format(TransactionErrorConstants.NOT_FOUND_ERROR_MESSAGE, "MerchantRFCDetails"));
-    }
-        List<String> MerchantMultiAccountDetails = adminDao.getMerchantMultiAccount(merchantOrderDto.getMId()).get(merchantOrderDto.getMId());
-
-what is the expected output MerchantMultiAccountDetails???
