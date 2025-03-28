@@ -1,16 +1,20 @@
-List<String> cacheAccountHolderNickNames = merchantBankAccountDao.getMerchantBankAccountsCache(mID);
-Map<String, List<Object>> accountHolderNickNamesMap = new HashMap<>();
-if (!cacheAccountHolderNickNames.isEmpty()) {
-    logger.info("MerchantBankAccount list fetched successfully from cache.");
-    
-    // Convert List<String> to List<Object>
-    List<Object> objectList = new ArrayList<>(cacheAccountHolderNickNames);
-    
-    accountHolderNickNamesMap.put(mID, objectList);
-    
-    return AdminResponse.<Map<String, List<Object>>>builder()
-        .status(1)
-        .total((long) objectList.size())
-        .data(Collections.singletonList(accountHolderNickNamesMap))
-        .build();
+  "multiAccounts": [
+            {
+                "accountIdentifier": "kjuig",
+                "amount": 1
+            },
+            {
+                "accountIdentifier": "ABHA",
+                "amount": 1
+            }
+        ],
+
+
+@NoArgsConstructor
+@Builder
+public class MultiAccountDto {
+
+    private String accountIdentifier;
+    private BigDecimal amount;
+
 }
