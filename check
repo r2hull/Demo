@@ -1,38 +1,38 @@
-  "multiAccounts": [
-            {
-                "accountIdentifier": "kjuig",
-                "amount": 1
-            },
-            {
-                "accountIdentifier": "ABHA",
-                "amount": 1
-            }
-        ],
+private BigDecimal verifyAccountAndGetTotalAmount(MerchantOrderDto merchantOrderDto, List<MultiAccountDto> multiAccountDetails) {
+    logger.info("verifyAccountAndGetTotalAmount starts for mId: {}", merchantOrderDto.getMId());
 
+    // Fetch merchant accounts from DB (handle null safely)
+    Map<String, List<String>> merchantAccountsMap = adminDao.getMerchantMultiAccount(merchantOrderDto.getMId());
+    List<String> merchantMultiAccountDetails = merchantAccountsMap != null 
+            ? merchantAccountsMap.getOrDefault(merchantOrderDto.getMId(), Collections.emptyList()) 
+            : Collections.emptyList();
 
-@NoArgsConstructor
-@Builder
-public class MultiAccountDto {
+    BigDecimal totalMultiAccountAmount = BigDecimal.ZERO;
+    List<String> invalidAccounts = new ArrayList<>();
 
-    private String accountIdentifier;
-    private BigDecimal amount;
-
-}
-
-
-    private BigDecimal verifyAccountAndGetTotalAmount(MerchantOrderDto merchantOrderDto, List<MultiAccountDto> multiAccountDetails) {
-        logger.info("verifyAccountAndGetTotalAmount starts");
-        List<String> merchantMultiAccountDetails = adminDao.getMerchantMultiAccount(merchantOrderDto.getMId()).get(merchantOrderDto.getMId());
-        BigDecimal totalMultiAccountAmount = new BigDecimal(0);
-        for (MultiAccountDto multiAccountDto : multiAccountDetails) {
-            if (merchantMultiAccountDetails.contains(multiAccountDto.getAccountIdentifier())) {
-                totalMultiAccountAmount = totalMultiAccountAmount.add(multiAccountDto.getAmount());
-            } else {
-                logger.info("validateOrderRequest, Validate  multi account :{}" + multiAccountDetails);
-                addError(INVALID_ERROR_CODE, MessageFormat.format(INVALID_ERROR_MESSAGE, TransactionErrorConstants.MULTI_ACCOUNT, INVALID_MULTIACCOUNT_IDENTIFIER));
-                throwIfErrors();
-            }
+    // Loop through input accounts and verify against DB
+    for (MultiAccountDto multiAccountDto : multiAccountDetails) {
+        String accountIdentifier = multiAccountDto.getAccountIdentifier();
+        
+        if (merchantMultiAccountDetails.contains(accountIdentifier)) {
+            totalMultiAccountAmount = totalMultiAccountAmount.add(multiAccountDto.getAmount());
+        } else {
+            invalidAccounts.add(accountIdentifier);
         }
-        logger.info("verifyAccountAndGetTotalAmount end");
-        return totalMultiAccountAmount;
     }
+
+    // If any invalid accounts were found, throw error
+    if (!invalidAccounts.isEmpty()) {
+        logger.error("Invalid multi accounts for mId {}: {}", merchantOrderDto.getMId(), invalidAccounts);
+        addError(INVALID_ERROR_CODE, 
+            MessageFormat.format(INVALID_ERROR_MESSAGE, 
+                TransactionErrorConstants.MULTI_ACCOUNT, 
+                String.join(", ", invalidAccounts)));
+        throwIfErrors();
+    }
+
+    logger.info("Total valid multi account amount for mId {}: {}", merchantOrderDto.getMId(), totalMultiAccountAmount);
+    logger.info("verifyAccountAndGetTotalAmount end");
+
+    return totalMultiAccountAmount;
+}
