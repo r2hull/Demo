@@ -18,3 +18,21 @@ public class MultiAccountDto {
     private BigDecimal amount;
 
 }
+
+
+    private BigDecimal verifyAccountAndGetTotalAmount(MerchantOrderDto merchantOrderDto, List<MultiAccountDto> multiAccountDetails) {
+        logger.info("verifyAccountAndGetTotalAmount starts");
+        List<String> merchantMultiAccountDetails = adminDao.getMerchantMultiAccount(merchantOrderDto.getMId()).get(merchantOrderDto.getMId());
+        BigDecimal totalMultiAccountAmount = new BigDecimal(0);
+        for (MultiAccountDto multiAccountDto : multiAccountDetails) {
+            if (merchantMultiAccountDetails.contains(multiAccountDto.getAccountIdentifier())) {
+                totalMultiAccountAmount = totalMultiAccountAmount.add(multiAccountDto.getAmount());
+            } else {
+                logger.info("validateOrderRequest, Validate  multi account :{}" + multiAccountDetails);
+                addError(INVALID_ERROR_CODE, MessageFormat.format(INVALID_ERROR_MESSAGE, TransactionErrorConstants.MULTI_ACCOUNT, INVALID_MULTIACCOUNT_IDENTIFIER));
+                throwIfErrors();
+            }
+        }
+        logger.info("verifyAccountAndGetTotalAmount end");
+        return totalMultiAccountAmount;
+    }
