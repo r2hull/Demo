@@ -1,38 +1,33 @@
-private BigDecimal verifyAccountAndGetTotalAmount(MerchantOrderDto merchantOrderDto, List<MultiAccountDto> multiAccountDetails) {
-    logger.info("verifyAccountAndGetTotalAmount starts for mId: {}", merchantOrderDto.getMId());
 
-    // Fetch merchant accounts from DB (handle null safely)
-    Map<String, List<String>> merchantAccountsMap = adminDao.getMerchantMultiAccount(merchantOrderDto.getMId());
-    List<String> merchantMultiAccountDetails = merchantAccountsMap != null 
-            ? merchantAccountsMap.getOrDefault(merchantOrderDto.getMId(), Collections.emptyList()) 
-            : Collections.emptyList();
+@Data
+@Builder
+public class MerchantBankAccountRequest {
 
-    BigDecimal totalMultiAccountAmount = BigDecimal.ZERO;
-    List<String> invalidAccounts = new ArrayList<>();
+    @Schema(name = "mId", example = "MID6")
+    @NotBlank(message = HIBERNATOR_MANDATORY_ERROR_MESSAGE)
+    private String mId;
+    @Schema(name = "accountHolderName", example = "Test")
+    @NotBlank(message = HIBERNATOR_MANDATORY_ERROR_MESSAGE)
+    private String accountHolderName;
+    @Schema(name = "accountUniqueIdentifier", example = "123456789661")
+    @NotBlank(message = HIBERNATOR_MANDATORY_ERROR_MESSAGE)
+    private String accountUniqueIdentifier;
+    @Schema(name = "accountType", example = "SAVING")
+    @NotBlank(message = HIBERNATOR_MANDATORY_ERROR_MESSAGE)
+    private String accountType;
+    @Schema(name = "accountNumber", example = "AAAAAAAAAAAAAAAAAAAAAHJUJzXJ0VpDxGYE+GoCQ8XUddFcwVvc6qEelw==")
+    @NotBlank(message = HIBERNATOR_MANDATORY_ERROR_MESSAGE)
+    private String accountNumber;
+    @Schema(name = "bankName", example = "SBItest")
+    @NotBlank(message = HIBERNATOR_MANDATORY_ERROR_MESSAGE)
+    private String bankName;
+    @Schema(name = "branchName", example = "Belapur")
+    @NotBlank(message = HIBERNATOR_MANDATORY_ERROR_MESSAGE)
+    private String branchName;
+    @Schema(name = "ifscCode", example = "SBIN0011513")
+    @NotBlank(message = HIBERNATOR_MANDATORY_ERROR_MESSAGE)
+    private String ifscCode;
+    @Schema(name = "isPrimary", example = "true")
+    private boolean isPrimary;
 
-    // Loop through input accounts and verify against DB
-    for (MultiAccountDto multiAccountDto : multiAccountDetails) {
-        String accountIdentifier = multiAccountDto.getAccountIdentifier();
-        
-        if (merchantMultiAccountDetails.contains(accountIdentifier)) {
-            totalMultiAccountAmount = totalMultiAccountAmount.add(multiAccountDto.getAmount());
-        } else {
-            invalidAccounts.add(accountIdentifier);
-        }
-    }
-
-    // If any invalid accounts were found, throw error
-    if (!invalidAccounts.isEmpty()) {
-        logger.error("Invalid multi accounts for mId {}: {}", merchantOrderDto.getMId(), invalidAccounts);
-        addError(INVALID_ERROR_CODE, 
-            MessageFormat.format(INVALID_ERROR_MESSAGE, 
-                TransactionErrorConstants.MULTI_ACCOUNT, 
-                String.join(", ", invalidAccounts)));
-        throwIfErrors();
-    }
-
-    logger.info("Total valid multi account amount for mId {}: {}", merchantOrderDto.getMId(), totalMultiAccountAmount);
-    logger.info("verifyAccountAndGetTotalAmount end");
-
-    return totalMultiAccountAmount;
 }
