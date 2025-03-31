@@ -1,11 +1,14 @@
-{
-    "mId": "MID6",
-    "accountHolderName": "Test",
-    "accountUniqueIdentifier": "123456789661",
-    "accountType": "SAVING",
-    "accountNumber": "AAAAAAAAAAAAAAAAAAAAAHJUJzXJ0VpDxGYE+GoCQ8XUddFcwVvc6qEelw==",
-    "bankName": "SBItest",
-    "branchName": "Belapur",
-    "ifscCode": "SBIN0011513",
-    "isPrimary": true
-}
+allowedOrigins=https://dev.epay.sbi,http://localhost:9098, http://localhost:9093
+
+
+  @Bean
+    public CorsFilter corsFilter() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        config.setAllowedOriginPatterns(Arrays.asList(allowedOrigins.split(",")));
+        config.setAllowedMethods(HTTP_ALLOWED_METHODS);
+        config.setAllowedHeaders(ALLOWED_HEADERS);
+        source.registerCorsConfiguration("/**", config);
+        return new CorsFilter(source);
+    }
