@@ -1,14 +1,18 @@
-allowedOrigins=https://dev.epay.sbi,http://localhost:9098, http://localhost:9093
+@Bean
+public CorsFilter corsFilter() {
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    CorsConfiguration config = new CorsConfiguration();
+    
+    String allowedOrigins = "https://dev.epay.sbi,http://localhost:9098,http://localhost:9093";
+    List<String> originsList = Arrays.stream(allowedOrigins.split(","))
+                                     .map(String::trim)
+                                     .collect(Collectors.toList());
 
-
-  @Bean
-    public CorsFilter corsFilter() {
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
-        config.setAllowedOriginPatterns(Arrays.asList(allowedOrigins.split(",")));
-        config.setAllowedMethods(HTTP_ALLOWED_METHODS);
-        config.setAllowedHeaders(ALLOWED_HEADERS);
-        source.registerCorsConfiguration("/**", config);
-        return new CorsFilter(source);
-    }
+    config.setAllowedOrigins(originsList);
+    config.setAllowedOriginPatterns(originsList);
+    config.setAllowedMethods(HTTP_ALLOWED_METHODS);
+    config.setAllowedHeaders(ALLOWED_HEADERS);
+    source.registerCorsConfiguration("/**", config);
+    
+    return new CorsFilter(source);
+}
