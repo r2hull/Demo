@@ -1,33 +1,11 @@
-
-@Data
-@Builder
-public class MerchantBankAccountRequest {
-
-    @Schema(name = "mId", example = "MID6")
-    @NotBlank(message = HIBERNATOR_MANDATORY_ERROR_MESSAGE)
-    private String mId;
-    @Schema(name = "accountHolderName", example = "Test")
-    @NotBlank(message = HIBERNATOR_MANDATORY_ERROR_MESSAGE)
-    private String accountHolderName;
-    @Schema(name = "accountUniqueIdentifier", example = "123456789661")
-    @NotBlank(message = HIBERNATOR_MANDATORY_ERROR_MESSAGE)
-    private String accountUniqueIdentifier;
-    @Schema(name = "accountType", example = "SAVING")
-    @NotBlank(message = HIBERNATOR_MANDATORY_ERROR_MESSAGE)
-    private String accountType;
-    @Schema(name = "accountNumber", example = "AAAAAAAAAAAAAAAAAAAAAHJUJzXJ0VpDxGYE+GoCQ8XUddFcwVvc6qEelw==")
-    @NotBlank(message = HIBERNATOR_MANDATORY_ERROR_MESSAGE)
-    private String accountNumber;
-    @Schema(name = "bankName", example = "SBItest")
-    @NotBlank(message = HIBERNATOR_MANDATORY_ERROR_MESSAGE)
-    private String bankName;
-    @Schema(name = "branchName", example = "Belapur")
-    @NotBlank(message = HIBERNATOR_MANDATORY_ERROR_MESSAGE)
-    private String branchName;
-    @Schema(name = "ifscCode", example = "SBIN0011513")
-    @NotBlank(message = HIBERNATOR_MANDATORY_ERROR_MESSAGE)
-    private String ifscCode;
-    @Schema(name = "isPrimary", example = "true")
-    private boolean isPrimary;
-
+{
+    "mId": "MID6",
+    "accountHolderName": "Test",
+    "accountUniqueIdentifier": "123456789661",
+    "accountType": "SAVING",
+    "accountNumber": "AAAAAAAAAAAAAAAAAAAAAHJUJzXJ0VpDxGYE+GoCQ8XUddFcwVvc6qEelw==",
+    "bankName": "SBItest",
+    "branchName": "Belapur",
+    "ifscCode": "SBIN0011513",
+    "isPrimary": true
 }
