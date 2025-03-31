@@ -1,18 +1,1 @@
-@Bean
-public CorsFilter corsFilter() {
-    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-    CorsConfiguration config = new CorsConfiguration();
-    
-    String allowedOrigins = "https://dev.epay.sbi,http://localhost:9098,http://localhost:9093";
-    List<String> originsList = Arrays.stream(allowedOrigins.split(","))
-                                     .map(String::trim)
-                                     .collect(Collectors.toList());
-
-    config.setAllowedOrigins(originsList);
-    config.setAllowedOriginPatterns(originsList);
-    config.setAllowedMethods(HTTP_ALLOWED_METHODS);
-    config.setAllowedHeaders(ALLOWED_HEADERS);
-    source.registerCorsConfiguration("/**", config);
-    
-    return new CorsFilter(source);
-}
+CORS Issue: Extra Spaces in Allowed Origins List
