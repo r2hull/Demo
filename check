@@ -1,1 +1,40 @@
-CORS Issue: Extra Spaces in Allowed Origins List
+ public static <T> T buildRequestByEncryptRequest(String encryptedRequest, String key, Class<T> clazz) {
+        logger.info("Request for decryption");
+        String decryptedRequest = EncryptionDecryptionUtil.decryptValue(key, encryptedRequest);
+        try {
+            return objectMapper.readValue(decryptedRequest, clazz);
+        } catch (JsonProcessingException e) {
+            logger.error("error while parsing request of {}, error {}", clazz.getName(), e.getMessage());
+            throw new TransactionException(INVALID_ERROR_CODE, MessageFormat.format(INVALID_ERROR_MESSAGE, "Request object", getParsingError(e)));
+        }
+    }
+
+ public static String getParsingError(Throwable cause) {
+        if (cause instanceof UnrecognizedPropertyException unrecognizedPropertyException) {
+            return "Unrecognized field: '" + unrecognizedPropertyException.getPropertyName() + "'.";
+        } else if (cause instanceof JsonParseException jsonParseException && StringUtils.startsWithIgnoreCase(jsonParseException.getMessage(),"Duplicate field")) {
+            return jsonParseException.getMessage().substring(0, jsonParseException.getMessage().indexOf("\n")) + ".";
+        } else if (cause instanceof JsonMappingException jsonMappingException) {
+            Optional<String> fieldName = jsonMappingException.getPath().stream().map(JsonMappingException.Reference::getFieldName).reduce((first, second) -> second);
+            if (fieldName.isPresent()) {
+                return fieldName.get() + "is required";
+            }
+        }
+        return "Invalid input.";
+    }
+
+
+@Configuration
+public class JacksonConfig {
+    /**
+     * Create ObjectMapper with configuration.
+     * @return ObjectMapper
+     */
+    @Bean
+    public ObjectMapper objectMapper() {
+        ObjectMapper objectMapper = new ObjectMapper(new JsonFactory().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION));
+        objectMapper.enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        return objectMapper;
+    }
+
+}
