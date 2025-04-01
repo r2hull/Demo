@@ -38,3 +38,6 @@ public class JacksonConfig {
     }
 
 }
+
+
+String decryptedRequest ={"channelBank":"State Bank of India","operatingMode":"","payProcType":"ONUS","gtwMapsId":"86","transactionAmount":5,"merchPostedAmount":5,"payProcId":"SELF"}
