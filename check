@@ -1,43 +1,31 @@
- public static <T> T buildRequestByEncryptRequest(String encryptedRequest, String key, Class<T> clazz) {
-        logger.info("Request for decryption");
-        String decryptedRequest = EncryptionDecryptionUtil.decryptValue(key, encryptedRequest);
-        try {
-            return objectMapper.readValue(decryptedRequest, clazz);
-        } catch (JsonProcessingException e) {
-            logger.error("error while parsing request of {}, error {}", clazz.getName(), e.getMessage());
-            throw new TransactionException(INVALID_ERROR_CODE, MessageFormat.format(INVALID_ERROR_MESSAGE, "Request object", getParsingError(e)));
-        }
-    }
-
- public static String getParsingError(Throwable cause) {
-        if (cause instanceof UnrecognizedPropertyException unrecognizedPropertyException) {
-            return "Unrecognized field: '" + unrecognizedPropertyException.getPropertyName() + "'.";
-        } else if (cause instanceof JsonParseException jsonParseException && StringUtils.startsWithIgnoreCase(jsonParseException.getMessage(),"Duplicate field")) {
-            return jsonParseException.getMessage().substring(0, jsonParseException.getMessage().indexOf("\n")) + ".";
-        } else if (cause instanceof JsonMappingException jsonMappingException) {
-            Optional<String> fieldName = jsonMappingException.getPath().stream().map(JsonMappingException.Reference::getFieldName).reduce((first, second) -> second);
-            if (fieldName.isPresent()) {
-                return fieldName.get() + "is required";
-            }
-        }
-        return "Invalid input.";
-    }
-
-
-@Configuration
-public class JacksonConfig {
-    /**
-     * Create ObjectMapper with configuration.
-     * @return ObjectMapper
-     */
-    @Bean
-    public ObjectMapper objectMapper() {
-        ObjectMapper objectMapper = new ObjectMapper(new JsonFactory().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION));
-        objectMapper.enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-        return objectMapper;
-    }
-
+public static String getParsingError(Throwable cause) {  
+    if (cause instanceof UnrecognizedPropertyException e) {  
+        return "Unrecognized field: '" + e.getPropertyName() + "'.";  
+    } else if (cause instanceof JsonParseException e && e.getMessage().startsWith("Duplicate field")) {  
+        return e.getMessage().split("\n")[0] + ".";  
+    } else if (cause instanceof JsonMappingException e) {  
+        return e.getPath().stream()
+                .map(JsonMappingException.Reference::getFieldName)
+                .reduce((first, second) -> second)
+                .map(field -> validateField(e, field))
+                .orElse("Invalid input.");
+    }  
+    return "Invalid input.";  
 }
 
+private static String validateField(JsonMappingException e, String field) {
+    String message = e.getOriginalMessage();
+    if (message.contains("null") || message.contains("empty String")) {
+        return field + " is required";
+    }
+    try {
+        Field declaredField = e.getReferringClass().getDeclaredField(field);
+        declaredField.setAccessible(true);
+        Object value = declaredField.get(e.getProcessor());
 
-String decryptedRequest ={"channelBank":"State Bank of India","operatingMode":"","payProcType":"ONUS","gtwMapsId":"86","transactionAmount":5,"merchPostedAmount":5,"payProcId":"SELF"}
+        if (value instanceof String s && !s.equals(s.trim())) {
+            return field + " contains leading or trailing space";
+        }
+    } catch (Exception ignored) {}
+    return "Invalid input.";
+}
