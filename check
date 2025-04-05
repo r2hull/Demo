@@ -1,12 +1,2 @@
-public static SecretKeyLength getSecretKeyLength(int lengthInBits) {
-    return Arrays.stream(values())
-            .filter(k -> k.getLengthInBits() == lengthInBits)
-            .findFirst()
-            .orElseThrow(() -> new EncryptionDecryptionException(
-                    "INVALID_KEY_LENGTH",
-                    "Invalid key length: " + lengthInBits + ". Valid lengths are: " +
-                            Arrays.stream(values())
-                                  .map(e -> String.valueOf(e.getLengthInBits()))
-                                  .collect(Collectors.joining(", "))
-            ));
-}
+@Pattern(regexp = "^\\d+$", message = "Only numbers are allowed")
+private String number;
