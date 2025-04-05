@@ -1,9 +1,37 @@
-detailMessage=JSON parse error: Cannot coerce empty String ("") to `com.sbi.epay.encryptdecrypt.util.enums.SecretKeyLength` value (but could if coercion was enabled using `CoercionConfig`)
+@ExceptionHandler(HttpMessageNotReadableException.class)
+public ResponseEntity<Object> handleEnumConversionException(HttpMessageNotReadableException e) {
+    logger.error("Error in handleEnumConversionException with message: {}", e.getMessage(), e);
 
+    String errorMessage = MessageFormat.format(JSON_ERROR_MESSAGE, REQUEST_BODY);
+    
+    // Try to extract field and enum class
+    Throwable rootCause = e.getCause();
 
- @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<Object> handleEnumConversionException(HttpMessageNotReadableException e) {
-        logger.error("Error in handleEnumConversionException with message: {}", e.getMessage());
-        ErrorDto errorDto = ErrorDto.builder().errorCode(JSON_ERROR_CODE).errorMessage(MessageFormat.format(JSON_ERROR_MESSAGE, REQUEST_BODY)).build();
-        return generateResponseWithErrors(List.of(errorDto));
+    if (rootCause instanceof InvalidFormatException invalidFormatException) {
+        JavaType targetType = invalidFormatException.getTargetType();
+
+        if (targetType != null && targetType.isEnumType()) {
+            Class<?> enumClass = targetType.getRawClass();
+            String fieldName = "Unknown Field";
+
+            if (!invalidFormatException.getPath().isEmpty()) {
+                fieldName = invalidFormatException.getPath().get(0).getFieldName();
+            }
+
+            String validValues = Arrays.toString(enumClass.getEnumConstants());
+
+            errorMessage = MessageFormat.format(
+                    "Invalid value for field '{0}'. Valid values are: {1}",
+                    fieldName,
+                    validValues
+            );
+        }
     }
+
+    ErrorDto errorDto = ErrorDto.builder()
+            .errorCode(JSON_ERROR_CODE)
+            .errorMessage(errorMessage)
+            .build();
+
+    return generateResponseWithErrors(List.of(errorDto));
+}
