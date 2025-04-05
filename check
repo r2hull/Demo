@@ -1,27 +1,9 @@
-package com.sbi.epay.encryptdecrypt.util.enums;
-
-import lombok.Getter;
-
-import java.util.Arrays;
-
-@Getter
-public enum SecretKeyLength {
-
-    AES_128(128),
-    AES_192(192),
-    AES_256(256),
-    AES_512(512);
-
-    private final int lengthInBits;
-
-    SecretKeyLength(int lengthInBits) {
-        this.lengthInBits = lengthInBits;
-    }
-
-    public static SecretKeyLength getSecretKeyLength(int lengthInBits) {
-        return Arrays.stream(values())
-                .filter(k -> k.getLengthInBits() == lengthInBits)
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Invalid key length: " + lengthInBits + ". Valid lengths are " + Arrays.toString(Arrays.stream(values()).mapToInt(SecretKeyLength::getLengthInBits).toArray())));
-    }
+@Data
+public class KeyGenerationRequest {
+    @NotEmpty(message = MANDATORY_ERROR_MESSAGE)
+    private String mId;
+    private SecretKeyLength keyLength;//This is for encryption
+    private int expiry; //in hrs
+    @Min(value = 1, message = MIN_VALUE_ERROR_MESSAGE + MIN_VAL_NEW_KEY_EXPIRY_TIME)
+    private int newKeyExpiryTime;
 }
