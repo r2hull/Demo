@@ -1,46 +1,42 @@
-@ExceptionHandler(HttpMessageNotReadableException.class)
-public ResponseEntity<Object> handleEnumConversionException(HttpMessageNotReadableException e) {
-    logger.error("Error in handleEnumConversionException with message: {}", e.getMessage(), e);
+@Getter
+@Setter
+public class EncryptionDecryptionException extends RuntimeException {
 
-    String errorMessage = MessageFormat.format(JSON_ERROR_MESSAGE, REQUEST_BODY);
-    Throwable rootCause = e.getCause();
+    private String errorCode;
+    private String errorMessage;
 
-    if (rootCause instanceof InvalidFormatException invalidFormatException) {
-        String fieldName = "Unknown Field";
-
-        if (!invalidFormatException.getPath().isEmpty()) {
-            fieldName = invalidFormatException.getPath().get(0).getFieldName();
-        }
-
-        Class<?> targetType = null;
-
-        // Handle both Jackson versions: getTargetType() OR getTargetType.getRawClass()
-        try {
-            JavaType javaType = invalidFormatException.getTargetType();
-            if (javaType != null && javaType.isEnumType()) {
-                targetType = javaType.getRawClass();
-            }
-        } catch (Exception ignored) {
-            // fallback
-            if (invalidFormatException.getTargetType() instanceof Class<?> clazz && clazz.isEnum()) {
-                targetType = clazz;
-            }
-        }
-
-        if (targetType != null && targetType.isEnum()) {
-            String validValues = Arrays.toString(targetType.getEnumConstants());
-            errorMessage = MessageFormat.format(
-                    "Invalid value for field '{0}'. Valid values are: {1}",
-                    fieldName,
-                    validValues
-            );
-        }
+    /**
+     * This is parametrised constructor for taking errorCode and  errorMessage
+     */
+    public EncryptionDecryptionException(String errorCode, String errorMessage) {
+        super(errorMessage);
+        this.errorCode = errorCode;
+        this.errorMessage = errorMessage;
     }
 
-    ErrorDto errorDto = ErrorDto.builder()
-            .errorCode(JSON_ERROR_CODE)
-            .errorMessage(errorMessage)
-            .build();
-
-    return generateResponseWithErrors(List.of(errorDto));
 }
+
+@Getter
+public enum SecretKeyLength {
+
+    AES_128(128),
+    AES_192(192),
+    AES_256(256),
+    AES_512(512);
+
+    private final int lengthInBits;
+
+    SecretKeyLength(int lengthInBits) {
+        this.lengthInBits = lengthInBits;
+    }
+    public static SecretKeyLength getSecretKeyLength(int lengthInBits) {
+        return Arrays.stream(values())
+                .filter(k -> k.getLengthInBits() == lengthInBits)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Invalid key length: " + lengthInBits + ". Valid lengths are " + Arrays.toString(Arrays.stream(values()).mapToInt(SecretKeyLength::getLengthInBits).toArray())));
+    }
+
+}
+
+
+here i want EncryptionDecryptionException only
