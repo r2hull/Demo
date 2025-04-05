@@ -1,12 +1,21 @@
+import java.text.MessageFormat;
+
 public static SecretKeyLength getSecretKeyLength(int lengthInBits) {
-        return Arrays.stream(values())
-                .filter(k -> k.getLengthInBits() == lengthInBits)
-                .findFirst()
-                .orElseThrow(() -> new EncryptionDecryptionException(
-                        INVALID_ERROR_CODE,
-                        "Invalid key length: " + lengthInBits + ". Valid lengths are: [" +
-                                Arrays.stream(values())
-                                        .map(e -> String.valueOf(e.getLengthInBits()))
-                                        .collect(Collectors.joining(", "))+"]"
-                ));
-    }
+    return Arrays.stream(values())
+            .filter(k -> k.getLengthInBits() == lengthInBits)
+            .findFirst()
+            .orElseThrow(() -> new EncryptionDecryptionException(
+                    INVALID_ERROR_CODE,
+                    MessageFormat.format(
+                            INVALID_KEY_LENGTH_MESSAGE,
+                            lengthInBits,
+                            Arrays.stream(values())
+                                  .map(e -> String.valueOf(e.getLengthInBits()))
+                                  .collect(Collectors.joining(", "))
+                    )
+            ));
+}
+
+
+public static final String INVALID_KEY_LENGTH_MESSAGE = 
+    "Invalid key length: {0}. Valid lengths are: [{1}]";
