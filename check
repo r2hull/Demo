@@ -1,3 +1,12 @@
-@NotBlank(message = MANDATORY_ERROR_MESSAGE)
-@Pattern(regexp = "^[0-9]+$", message = "Only digits are allowed without spaces")
-private String newKeyExpiryTime;
+public static SecretKeyLength getSecretKeyLength(int lengthInBits) {
+        return Arrays.stream(values())
+                .filter(k -> k.getLengthInBits() == lengthInBits)
+                .findFirst()
+                .orElseThrow(() -> new EncryptionDecryptionException(
+                        INVALID_ERROR_CODE,
+                        "Invalid key length: " + lengthInBits + ". Valid lengths are: [" +
+                                Arrays.stream(values())
+                                        .map(e -> String.valueOf(e.getLengthInBits()))
+                                        .collect(Collectors.joining(", "))+"]"
+                ));
+    }
