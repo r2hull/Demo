@@ -1,10 +1,3 @@
-
-@Data
-public class KeyGenerationRequest {
-    @NotEmpty(message = MANDATORY_ERROR_MESSAGE)
-    private String mId;
-    private SecretKeyLength keyLength;//This is for encryption
-    private int expiry; //in hrs
-    @Min(value = 1, message = MIN_VALUE_ERROR_MESSAGE + MIN_VAL_NEW_KEY_EXPIRY_TIME)
-    private int newKeyExpiryTime;
-}
+@NotBlank(message = MANDATORY_ERROR_MESSAGE)
+@Pattern(regexp = "^[0-9]+$", message = "Only digits are allowed without spaces")
+private String newKeyExpiryTime;
