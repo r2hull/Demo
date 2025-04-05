@@ -1,42 +1,12 @@
-@Getter
-@Setter
-public class EncryptionDecryptionException extends RuntimeException {
-
-    private String errorCode;
-    private String errorMessage;
-
-    /**
-     * This is parametrised constructor for taking errorCode and  errorMessage
-     */
-    public EncryptionDecryptionException(String errorCode, String errorMessage) {
-        super(errorMessage);
-        this.errorCode = errorCode;
-        this.errorMessage = errorMessage;
-    }
-
+public static SecretKeyLength getSecretKeyLength(int lengthInBits) {
+    return Arrays.stream(values())
+            .filter(k -> k.getLengthInBits() == lengthInBits)
+            .findFirst()
+            .orElseThrow(() -> new EncryptionDecryptionException(
+                    "INVALID_KEY_LENGTH",
+                    "Invalid key length: " + lengthInBits + ". Valid lengths are: " +
+                            Arrays.stream(values())
+                                  .map(e -> String.valueOf(e.getLengthInBits()))
+                                  .collect(Collectors.joining(", "))
+            ));
 }
-
-@Getter
-public enum SecretKeyLength {
-
-    AES_128(128),
-    AES_192(192),
-    AES_256(256),
-    AES_512(512);
-
-    private final int lengthInBits;
-
-    SecretKeyLength(int lengthInBits) {
-        this.lengthInBits = lengthInBits;
-    }
-    public static SecretKeyLength getSecretKeyLength(int lengthInBits) {
-        return Arrays.stream(values())
-                .filter(k -> k.getLengthInBits() == lengthInBits)
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Invalid key length: " + lengthInBits + ". Valid lengths are " + Arrays.toString(Arrays.stream(values()).mapToInt(SecretKeyLength::getLengthInBits).toArray())));
-    }
-
-}
-
-
-here i want EncryptionDecryptionException only
