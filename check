@@ -3,23 +3,32 @@ public ResponseEntity<Object> handleEnumConversionException(HttpMessageNotReadab
     logger.error("Error in handleEnumConversionException with message: {}", e.getMessage(), e);
 
     String errorMessage = MessageFormat.format(JSON_ERROR_MESSAGE, REQUEST_BODY);
-    
-    // Try to extract field and enum class
     Throwable rootCause = e.getCause();
 
     if (rootCause instanceof InvalidFormatException invalidFormatException) {
-        JavaType targetType = invalidFormatException.getTargetType();
+        String fieldName = "Unknown Field";
 
-        if (targetType != null && targetType.isEnumType()) {
-            Class<?> enumClass = targetType.getRawClass();
-            String fieldName = "Unknown Field";
+        if (!invalidFormatException.getPath().isEmpty()) {
+            fieldName = invalidFormatException.getPath().get(0).getFieldName();
+        }
 
-            if (!invalidFormatException.getPath().isEmpty()) {
-                fieldName = invalidFormatException.getPath().get(0).getFieldName();
+        Class<?> targetType = null;
+
+        // Handle both Jackson versions: getTargetType() OR getTargetType.getRawClass()
+        try {
+            JavaType javaType = invalidFormatException.getTargetType();
+            if (javaType != null && javaType.isEnumType()) {
+                targetType = javaType.getRawClass();
             }
+        } catch (Exception ignored) {
+            // fallback
+            if (invalidFormatException.getTargetType() instanceof Class<?> clazz && clazz.isEnum()) {
+                targetType = clazz;
+            }
+        }
 
-            String validValues = Arrays.toString(enumClass.getEnumConstants());
-
+        if (targetType != null && targetType.isEnum()) {
+            String validValues = Arrays.toString(targetType.getEnumConstants());
             errorMessage = MessageFormat.format(
                     "Invalid value for field '{0}'. Valid values are: {1}",
                     fieldName,
