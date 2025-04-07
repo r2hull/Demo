@@ -1,21 +1,12 @@
-import java.text.MessageFormat;
-
-public static SecretKeyLength getSecretKeyLength(int lengthInBits) {
-    return Arrays.stream(values())
-            .filter(k -> k.getLengthInBits() == lengthInBits)
-            .findFirst()
-            .orElseThrow(() -> new EncryptionDecryptionException(
-                    INVALID_ERROR_CODE,
-                    MessageFormat.format(
-                            INVALID_KEY_LENGTH_MESSAGE,
-                            lengthInBits,
-                            Arrays.stream(values())
-                                  .map(e -> String.valueOf(e.getLengthInBits()))
-                                  .collect(Collectors.joining(", "))
-                    )
-            ));
+@Data
+public class KeyGenerationRequest {
+    @NotEmpty(message = MANDATORY_ERROR_MESSAGE)
+    private String mId;
+    @NotNull(message = MANDATORY_ERROR_MESSAGE)
+    private Integer keyLength;//This is for encryption
+    @NotNull(message = MANDATORY_ERROR_MESSAGE)
+    private Integer expiry; //in hrs
+    @NotNull(message = MANDATORY_ERROR_MESSAGE)
+    @Min(value = 1, message = MIN_VALUE_ERROR_MESSAGE + MIN_VAL_NEW_KEY_EXPIRY_TIME)
+    private Integer newKeyExpiryTime;
 }
-
-
-public static final String INVALID_KEY_LENGTH_MESSAGE = 
-    "Invalid key length: {0}. Valid lengths are: [{1}]";
