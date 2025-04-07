@@ -1,12 +1,19 @@
-@Data
-public class KeyGenerationRequest {
-    @NotEmpty(message = MANDATORY_ERROR_MESSAGE)
-    private String mId;
-    @NotNull(message = MANDATORY_ERROR_MESSAGE)
-    private Integer keyLength;//This is for encryption
-    @NotNull(message = MANDATORY_ERROR_MESSAGE)
-    private Integer expiry; //in hrs
-    @NotNull(message = MANDATORY_ERROR_MESSAGE)
-    @Min(value = 1, message = MIN_VALUE_ERROR_MESSAGE + MIN_VAL_NEW_KEY_EXPIRY_TIME)
-    private Integer newKeyExpiryTime;
-}
+   @ExceptionHandler(value = {MethodArgumentNotValidException.class})
+    protected ResponseEntity<Object> handleValidationException(MethodArgumentNotValidException ex) {
+        logger.error("Error in handleValidationException with message: {}", ex.getMessage());
+        List<ErrorDto> errors = new ArrayList<>();
+        ex.getBindingResult().getFieldErrors().forEach(fieldError -> addErrorDto(errors, fieldError));
+        return ResponseEntity.status(HttpStatus.OK).body(KMSResponse.builder().status(RESPONSE_FAILURE).errors(errors).build());
+    }
+
+for enum
+public static SecretKeyLength getSecretKeyLength(int lengthInBits) {
+        return (SecretKeyLength)Arrays.stream(values()).filter((k) -> {
+            return k.getLengthInBits() == lengthInBits;
+        }).findFirst().orElseThrow(() -> {
+            return new EncryptionDecryptionException("1002", MessageFormat.format("Invalid key length: {0}. Valid lengths are: [{1}]", lengthInBits, Arrays.stream(values()).map((e) -> {
+                return String.valueOf(e.getLengthInBits());
+            }).collect(Collectors.joining(", "))));
+        });
+    }
+SecretKeyLength.getSecretKeyLength(merchantPricingRequest.getKeyLength());
