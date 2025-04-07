@@ -1,1 +1,6 @@
-@Pattern(regexp = "^\\d+$", message = "keyLength must be a number") // @Positive(message = "expiry must be positive")
+@Pattern(regexp = "^\\d+$", message = "keyLength must be a number")
+
+ // @Positive(message = "expiry must be positive")
+
+@Size(max = 4, message = "keyLength exceeds maximum length of 4 digits") // Optional: limit length
+    private String
