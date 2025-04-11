@@ -1,6 +1,7 @@
-@Pattern(regexp = "^\\d+$", message = "keyLength must be a number")
-
- // @Positive(message = "expiry must be positive")
-
-@Size(max = 4, message = "keyLength exceeds maximum length of 4 digits") // Optional: limit length
-    private String
+ @PostMapping(value = "/status", consumes = "application/json")
+    @Operation(summary = "This end point is used to get the order status")
+    @PreAuthorize("hasAnyRole('ACCESS')")
+    public TransactionResponse<String> getOrderStatus(@Valid @RequestBody EncryptedRequest encryptedRequest) {
+        logger.info("Getting order status for request: {} ", encryptedRequest);
+        return orderService.getOrderStatus(encryptedRequest.getEncryptedRequest());
+    }
