@@ -1,7 +1,22 @@
- @PostMapping(value = "/status", consumes = "application/json")
-    @Operation(summary = "This end point is used to get the order status")
-    @PreAuthorize("hasAnyRole('ACCESS')")
-    public TransactionResponse<String> getOrderStatus(@Valid @RequestBody EncryptedRequest encryptedRequest) {
-        logger.info("Getting order status for request: {} ", encryptedRequest);
-        return orderService.getOrderStatus(encryptedRequest.getEncryptedRequest());
+import java.util.Random;
+
+public class OrderHashGenerator {
+    public static void main(String[] args) {
+        String[] orderHash = new String[2000];
+        Random random = new Random();
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+        for (int i = 0; i < orderHash.length; i++) {
+            StringBuilder sb = new StringBuilder();
+            for (int j = 0; j < 10; j++) { // length of each alphanumeric string
+                sb.append(chars.charAt(random.nextInt(chars.length())));
+            }
+            orderHash[i] = sb.toString();
+        }
+
+        // Example: print first 10 values
+        for (int i = 0; i < 10; i++) {
+            System.out.println(orderHash[i]);
+        }
     }
+}
