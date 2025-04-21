@@ -1,54 +1,19 @@
-import com.jcraft.jsch.*;
+private static ChannelSftp setupJsch() throws JSchException {
+    JSch jsch = new JSch();
+    Session session = jsch.getSession(USERNAME, REMOTE_HOST, PORT);
+    session.setPassword(PASSWORD);
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+    // Relaxed configuration
+    java.util.Properties config = new java.util.Properties();
+    config.put("StrictHostKeyChecking", "no");
+    config.put("PreferredAuthentications", "password");
+    config.put("kex", "diffie-hellman-group1-sha1,diffie-hellman-group14-sha1");
+    config.put("cipher.s2c", "aes128-cbc,aes128-ctr");
+    config.put("cipher.c2s", "aes128-cbc,aes128-ctr");
+    config.put("mac.s2c", "hmac-sha1");
+    config.put("mac.c2s", "hmac-sha1");
+    session.setConfig(config);
 
-public class SftpClient {
-
-    private static final String USERNAME = "username"; // same as server
-    private static final String PASSWORD = "password";
-    private static final String REMOTE_HOST = "localhost";
-    private static final int PORT = 2222; // your dynamic port (pass to setupSftpServer)
-
-    public static void main(String[] args) {
-        try {
-            ChannelSftp channelSftp = setupJsch();
-            channelSftp.connect();
-
-            // Upload file
-            uploadFile(channelSftp, "src/main/resources/uploadMe.txt", "uploaded.txt");
-
-            // Download file
-            downloadFile(channelSftp, "uploaded.txt", "src/main/resources/downloaded.txt");
-
-            channelSftp.exit();
-            System.out.println("Upload and download completed!");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private static ChannelSftp setupJsch() throws JSchException {
-        JSch jsch = new JSch();
-        Session session = jsch.getSession(USERNAME, REMOTE_HOST, PORT);
-        session.setPassword(PASSWORD);
-
-        // avoid asking for key confirmation
-        java.util.Properties config = new java.util.Properties();
-        config.put("StrictHostKeyChecking", "no");
-        session.setConfig(config);
-
-        session.connect();
-        return (ChannelSftp) session.openChannel("sftp");
-    }
-
-    private static void uploadFile(ChannelSftp channelSftp, String localFilePath, String remoteFileName) throws SftpException {
-        channelSftp.put(new FileInputStream(localFilePath), remoteFileName);
-        System.out.println("File uploaded: " + remoteFileName);
-    }
-
-    private static void downloadFile(ChannelSftp channelSftp, String remoteFileName, String localDestinationPath) throws SftpException {
-        channelSftp.get(remoteFileName, new FileOutputStream(localDestinationPath));
-        System.out.println("File downloaded: " + localDestinationPath);
-    }
+    session.connect(5000); // 5s timeout
+    return (ChannelSftp) session.openChannel("sftp");
 }
