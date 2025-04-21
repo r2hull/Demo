@@ -1,189 +1,54 @@
+import com.jcraft.jsch.*;
 
-@Test
-public void whenDownloadFileUsingJsch_thenSuccess() throws JSchException, SftpException {
-    ChannelSftp channelSftp = setupJsch();
-    channelSftp.connect();
- 
-    String remoteFile = "welcome.txt";
-    String localDir = "src/main/resources/";
- 
-    channelSftp.get(remoteFile, localDir + "jschFile.txt");
- 
-    channelSftp.exit();
-}
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 
+public class SftpClient {
 
-private ChannelSftp setupJsch() throws JSchException {
-    JSch jsch = new JSch();
-    jsch.setKnownHosts("/Users/john/.ssh/known_hosts");
-    Session jschSession = jsch.getSession(username, remoteHost);
-    jschSession.setPassword(password);
-    jschSession.connect();
-    return (ChannelSftp) jschSession.openChannel("sftp");
-}
-
-
-  private String remoteHost = "HOST_NAME_HERE";
-    private static final String USERNAME = "username";
+    private static final String USERNAME = "username"; // same as server
     private static final String PASSWORD = "password";
+    private static final String REMOTE_HOST = "localhost";
+    private static final int PORT = 2222; // your dynamic port (pass to setupSftpServer)
 
-
-here is my server details:
-Started SFTP server with root path: C:\Users\v1019439\AppData\Local\Temp\com.epay.rns.server.SFTPServer6142834308685678711
-    private static final String USERNAME = "username";
-    private static final String PASSWORD = "password";
-
-
-public class SftpServerUtils {
-    /**
-     * Setup a SFTP Server in localhost with a temp directory as root
-     *
-     * @throws IOException If it cannot create a temp dir
-     */
-    public static SftpServerBean setupSftpServer(String username, String password, int port) throws IOException {
-        Path tempSftpDir = Files.createTempDirectory(SFTPServer.class.getName());
-
-        List<NamedFactory<UserAuth>> userAuthFactories = new ArrayList<>();
-        userAuthFactories.add(new UserAuthPasswordFactory());
-
-        List<NamedFactory<Command>> sftpCommandFactory = new ArrayList<>();
-        sftpCommandFactory.add(new SftpSubsystemFactory());
-
-        SshServer sshd = SshServer.setUpDefaultServer();
-        sshd.setPort(port);
-        sshd.setKeyPairProvider(new SimpleGeneratorHostKeyProvider());
-        sshd.setUserAuthFactories(userAuthFactories);
-        sshd.setCommandFactory(new ProcessShellCommandFactory());
-        sshd.setSubsystemFactories(sftpCommandFactory);
-        sshd.setPasswordAuthenticator((usernameAuth, passwordAuth, session) -> {
-            if ((username.equals(usernameAuth)) && (password.equals(passwordAuth))) {
-                sshd.setFileSystemFactory(new VirtualFileSystemFactory(tempSftpDir));
-                return true;
-            }
-            return false;
-        });
-
-        sshd.start();
-        System.out.println("Started SFTP server with root path: " + tempSftpDir.toFile().getAbsolutePath());
-        return new SftpServerBean(sshd, tempSftpDir);
-    }
-
-    public static void stopServer(SftpServerBean sftpServerBean) throws IOException {
-        sftpServerBean.getSshServer().stop();
-        Files.walk(sftpServerBean.getRootPath())
-                .sorted(Comparator.reverseOrder())
-                .map(Path::toFile)
-                .forEach(File::delete);
-    }
-}
-
-
-public class SftpServerBean {
-    private SshServer sshServer;
-    private Path rootPath;
-
-    public SftpServerBean(SshServer sshServer, Path rootPath) {
-        this.sshServer = sshServer;
-        this.rootPath = rootPath;
-    }
-
-    public SshServer getSshServer() {
-        return sshServer;
-    }
-
-    public Path getRootPath() {
-        return rootPath;
-    }
-}
-
-public class AsciiArtUtils {
-    /**
-     * Print the project title using ascii art
-     */
-    public static void printProjectTitle() {
-        System.out.println("RAHUL......");
-    }
-}
-
-
-public class SFTPServer {
-    private static final String HELP = "help";
-    private static final String USERNAME = "username";
-    private static final String PASSWORD = "password";
-    private static final String PORT = "port";
-
-    private static int port;
-    private static String username;
-    private static String password;
-    public static void main(String[] args) throws IOException {
-        Options options = generateOptions();
-
-        AsciiArtUtils.printProjectTitle();
-
+    public static void main(String[] args) {
         try {
-            CommandLineParser parser = new DefaultParser();
-            CommandLine cmd = parser.parse(options, args);
-            if (checkForHelp(options, cmd)) return;
+            ChannelSftp channelSftp = setupJsch();
+            channelSftp.connect();
 
-            if (cmd.hasOption(PORT))
-                port = Integer.parseInt(cmd.getOptionValue(PORT));
+            // Upload file
+            uploadFile(channelSftp, "src/main/resources/uploadMe.txt", "uploaded.txt");
 
-            if (cmd.hasOption(USERNAME))
-                username = cmd.getOptionValue(USERNAME);
+            // Download file
+            downloadFile(channelSftp, "uploaded.txt", "src/main/resources/downloaded.txt");
 
-            if (cmd.hasOption(PASSWORD))
-                password = cmd.getOptionValue(PASSWORD);
+            channelSftp.exit();
+            System.out.println("Upload and download completed!");
         } catch (Exception e) {
-            System.out.println(e.getMessage());
-            return; // Exit
+            e.printStackTrace();
         }
-
-        boolean running = true;
-        SftpServerBean serverBean = SftpServerUtils.setupSftpServer(username, password, port);
-        System.out.println("Input 'q' to quit.");
-        while (running) {
-            Scanner scan = new Scanner(System.in);
-            String line = scan.nextLine();
-            if(line != null && line.equalsIgnoreCase("q")){
-                SftpServerUtils.stopServer(serverBean);
-                running = false;
-            }
-        }
-
     }
 
-    /**
-     * Check if user is checking help for the application
-     *
-     * @param options
-     * @param cmd
-     * @return
-     */
-    private static boolean checkForHelp(Options options, CommandLine cmd) {
-        if (cmd.hasOption(HELP)) {
-            HelpFormatter fmt = new HelpFormatter();
-            fmt.printHelp("Help", options);
-            return true;
-        }
-        return false;
+    private static ChannelSftp setupJsch() throws JSchException {
+        JSch jsch = new JSch();
+        Session session = jsch.getSession(USERNAME, REMOTE_HOST, PORT);
+        session.setPassword(PASSWORD);
+
+        // avoid asking for key confirmation
+        java.util.Properties config = new java.util.Properties();
+        config.put("StrictHostKeyChecking", "no");
+        session.setConfig(config);
+
+        session.connect();
+        return (ChannelSftp) session.openChannel("sftp");
     }
 
-    /**
-     * Generates a list of {@link Option} including the help flag
-     *
-     * @return A list of {@link Option}
-     */
-    private static Options generateOptions() {
-        Options options = new Options();
-
-        options.addOption("h", HELP, false, "");
-
-        options.addOption("p", PORT, true, "");
-
-        options.addOption("u", USERNAME, true, "");
-
-        options.addOption("w", PASSWORD, true, "");
-        return options;
+    private static void uploadFile(ChannelSftp channelSftp, String localFilePath, String remoteFileName) throws SftpException {
+        channelSftp.put(new FileInputStream(localFilePath), remoteFileName);
+        System.out.println("File uploaded: " + remoteFileName);
     }
 
+    private static void downloadFile(ChannelSftp channelSftp, String remoteFileName, String localDestinationPath) throws SftpException {
+        channelSftp.get(remoteFileName, new FileOutputStream(localDestinationPath));
+        System.out.println("File downloaded: " + localDestinationPath);
+    }
 }
