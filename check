@@ -1,19 +1,22 @@
-private static ChannelSftp setupJsch() throws JSchException {
-    JSch jsch = new JSch();
-    Session session = jsch.getSession(USERNAME, REMOTE_HOST, PORT);
-    session.setPassword(PASSWORD);
 
-    // Relaxed configuration
-    java.util.Properties config = new java.util.Properties();
-    config.put("StrictHostKeyChecking", "no");
-    config.put("PreferredAuthentications", "password");
-    config.put("kex", "diffie-hellman-group1-sha1,diffie-hellman-group14-sha1");
-    config.put("cipher.s2c", "aes128-cbc,aes128-ctr");
-    config.put("cipher.c2s", "aes128-cbc,aes128-ctr");
-    config.put("mac.s2c", "hmac-sha1");
-    config.put("mac.c2s", "hmac-sha1");
-    session.setConfig(config);
-
-    session.connect(5000); // 5s timeout
-    return (ChannelSftp) session.openChannel("sftp");
-}
+BUILD SUCCESSFUL in 1s
+3 actionable tasks: 2 executed, 1 up-to-date
+com.jcraft.jsch.JSchException: java.net.ConnectException: Connection refused: connect
+	at com.jcraft.jsch.Util.createSocket(Util.java:349)
+	at com.jcraft.jsch.Session.connect(Session.java:215)
+	at com.jcraft.jsch.Session.connect(Session.java:183)
+	at com.epay.rns.upload.SftpClient.setupJsch(SftpClient.java:44)
+	at com.epay.rns.upload.SftpClient.main(SftpClient.java:18)
+Caused by: java.net.ConnectException: Connection refused: connect
+	at java.base/sun.nio.ch.Net.connect0(Native Method)
+	at java.base/sun.nio.ch.Net.connect(Net.java:589)
+	at java.base/sun.nio.ch.Net.connect(Net.java:578)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:583)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:327)
+	at java.base/java.net.Socket.connect(Socket.java:751)
+	at java.base/java.net.Socket.connect(Socket.java:686)
+	at java.base/java.net.Socket.<init>(Socket.java:555)
+	at java.base/java.net.Socket.<init>(Socket.java:324)
+	at com.jcraft.jsch.Util.createSocket(Util.java:343)
+	... 4 more
+18:17:16: Execution finished ':com.epay.rns.upload.SftpClient.main()'.
