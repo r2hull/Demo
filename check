@@ -1,6 +1,6 @@
 
-BUILD SUCCESSFUL in 1s
-3 actionable tasks: 2 executed, 1 up-to-date
+BUILD SUCCESSFUL in 6s
+3 actionable tasks: 1 executed, 2 up-to-date
 com.jcraft.jsch.JSchException: java.net.ConnectException: Connection refused: connect
 	at com.jcraft.jsch.Util.createSocket(Util.java:349)
 	at com.jcraft.jsch.Session.connect(Session.java:215)
@@ -19,4 +19,4 @@ Caused by: java.net.ConnectException: Connection refused: connect
 	at java.base/java.net.Socket.<init>(Socket.java:324)
 	at com.jcraft.jsch.Util.createSocket(Util.java:343)
 	... 4 more
-18:17:16: Execution finished ':com.epay.rns.upload.SftpClient.main()'.
+10:09:03: Execution finished ':com.epay.rns.upload.SftpClient.main()'.
