@@ -1,128 +1,18 @@
-import com.jcraft.jsch.*;
-import java.io.File;
-
-public class SftpClientUtil {
-    private String host;
-    private String username;
-    private String password;
-    private int port;
-    private Session session;
-    private ChannelSftp channelSftp;
-
-    public SftpClientUtil(String host, String username, String password, int port) {
-        this.host = host;
-        this.username = username;
-        this.password = password;
-        this.port = port;
-    }
-
-    public void connect() throws JSchException {
-        JSch jsch = new JSch();
-        session = jsch.getSession(username, host, port);
-        session.setPassword(password);
-        session.setConfig("StrictHostKeyChecking", "no"); // Disable host key checking for testing
-        session.connect();
-        channelSftp = (ChannelSftp) session.openChannel("sftp");
-        channelSftp.connect();
-    }
-
-    public void disconnect() {
-        if (channelSftp != null && channelSftp.isConnected()) {
-            channelSftp.exit();
-        }
-        if (session != null && session.isConnected()) {
-            session.disconnect();
-        }
-    }
-
-    public void uploadFile(String localFilePath, String remoteFilePath) throws JSchException, SftpException {
-        File localFile = new File(localFilePath);
-        if (!localFile.exists()) {
-            throw new SftpException(ChannelSftp.SSH_FX_NO_SUCH_FILE, "Local file does not exist: " + localFilePath);
-        }
-        channelSftp.put(localFilePath, remoteFilePath);
-    }
-
-    public void downloadFile(String remoteFilePath, String localFilePath) throws JSchException, SftpException {
-        channelSftp.get(remoteFilePath, localFilePath);
-    }
-}
+> Task :com.epay.rns.server.SFTPServer.main()
+RAHUL......
+10:48:10.465 [main] INFO org.apache.sshd.common.io.DefaultIoServiceFactoryFactory -- No detected/configured IoServiceFactoryFactory using Nio2ServiceFactoryFactory
+10:48:10.487 [main] INFO org.apache.sshd.server.SshServer -- start() listen on auto-allocated port=54277
+Started SFTP server with root path: C:\Users\v1019439\AppData\Local\Temp\com.epay.rns.server.SFTPServer13631019448060858457
+Input 'q' to quit.
 
 
 
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.SftpException;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-public class SftpClientTest {
-    private SftpClientUtil sftpClient;
-    private static final String HOST = "localhost";
-    private static final String USERNAME = "username";
-    private static final String PASSWORD = "password";
-    private static final int PORT = 22; // Use the port your SFTP server is running on
-
-    @Before
-    public void setUp() throws JSchException {
-        sftpClient = new SftpClientUtil(HOST, USERNAME, PASSWORD, PORT);
-        sftpClient.connect();
-    }
-
-    @After
-    public void tearDown() {
-        sftpClient.disconnect();
-    }
-
-    @Test
-    public void testUploadAndDownloadFile() throws JSchException, SftpException, IOException {
-        // Create a temporary file to upload
-        Path tempFile = Files.createTempFile("test-upload-", ".txt");
-        Files.writeString(tempFile, "Hello, SFTP!");
-
-        // Upload file
-        String remoteFilePath = "/test-file.txt";
-        sftpClient.uploadFile(tempFile.toString(), remoteFilePath);
-
-        // Download file
-        Path downloadedFile = Files.createTempFile("test-download-", ".txt");
-        sftpClient.downloadFile(remoteFilePath, downloadedFile.toString());
-
-        // Verify content
-        String downloadedContent = Files.readString(downloadedFile);
-        assert downloadedContent.equals("Hello, SFTP!");
-
-        // Clean up
-        Files.delete(tempFile);
-        Files.delete(downloadedFile);
-    }
-}
-
-
-public class SftpClientMain {
-    public static void main(String[] args) {
-        SftpClientUtil sftpClient = new SftpClientUtil("localhost", "username", "password", 22);
-        
-        try {
-            sftpClient.connect();
-            
-            // Upload example
-            sftpClient.uploadFile("src/main/resources/local.txt", "/remote.txt");
-            System.out.println("File uploaded successfully");
-            
-            // Download example
-            sftpClient.downloadFile("/remote.txt", "src/main/resources/downloaded.txt");
-            System.out.println("File downloaded successfully");
-            
-        } catch (JSchException | SftpException e) {
-            e.printStackTrace();
-        } finally {
-            sftpClient.disconnect();
-        }
-    }
-}
-
+BUILD SUCCESSFUL in 2s
+3 actionable tasks: 2 executed, 1 up-to-date
+com.jcraft.jsch.JSchException: Auth fail
+	at com.jcraft.jsch.Session.connect(Session.java:519)
+	at com.jcraft.jsch.Session.connect(Session.java:183)
+	at com.epay.rns.utils.SftpClientUtil.connect(SftpClientUtil.java:25)
+	at com.epay.rns.utils.SftpClientMain.main(SftpClientMain.java:11)
+10:52:30: Execution finished ':com.epay.rns.utils.SftpClientMain.main()'.
