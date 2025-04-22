@@ -1,1 +1,3 @@
-create table BULK_REFUND_BOOKING as select * from PAYAGGTRANSCTION.bulk_refund_booking;
+INSERT INTO BULK_REFUND_BOOKING 
+SELECT * FROM PAYAGGTRANSCTION.bulk_refund_booking
+WHERE <condition to filter only new data>;
