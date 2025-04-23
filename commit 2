@@ -1,4 +1,126 @@
-public class RefundConstants {
-    public static final String PARTIAL_PROCESS_MESSAGE = "Few rows can't be processed, please check details for erroneous rows.";
-    public static final String SUCCESS_PROCESS_MESSAGE = "All rows processed successfully";
-}
+From: dbadmin sbiepay <dbadmin.sbiepay@sbi.co.in>
+Sent: Monday, January 13, 2025 6:11 PM
+To: PRERANA TUKARAM BANTE <prerana.bante.cedge@sbi.co.in>
+Cc: Sandeep Raosaheb Deshmukh <sandeep.deshmukh.cedge@sbi.co.in>; Vikram Deshpande <vikram.deshpande.cedge@sbi.co.in>
+Subject: Re: DB - User Creation
+ 
+HI Team,
+
+
+As  requested   user created and  objects also copy 
+
+SQL> conn
+Enter user-name: RAHUL_Y
+Enter password:
+Connected.
+SQL>
+
+
+Password 
+
+
+
+Ora_123
+
+
+
+Regards,
+
+
+
+SBIePay DBA Amol
+
+DBA : - +91 9665831681
+
+Global IT Centre | State Bank of India
+
+3rd floor | Balaji Bhavan CBD Belapur Navi Mumbai --400614
+
+ https://www.sbiepay.sbi
+From: dbadmin sbiepay <dbadmin.sbiepay@sbi.co.in>
+Sent: 13 January 2025 13:07
+To: PRERANA TUKARAM BANTE <prerana.bante.cedge@sbi.co.in>
+Cc: Sandeep Raosaheb Deshmukh <sandeep.deshmukh.cedge@sbi.co.in>; Vikram Deshpande <vikram.deshpande.cedge@sbi.co.in>
+Subject: Re: DB - User Creation
+ 
+HI Team,
+
+Testing user already  created kindly check with aarti .
+
+
+
+
+
+
+
+
+Regards,
+
+
+
+SBIePay DBA Amol
+
+DBA : - +91 9665831681
+
+Global IT Centre | State Bank of India
+
+3rd floor | Balaji Bhavan CBD Belapur Navi Mumbai --400614
+
+ https://www.sbiepay.sbi
+From: PRERANA TUKARAM BANTE <prerana.bante.cedge@sbi.co.in>
+Sent: 13 January 2025 13:04
+To: dbadmin sbiepay <dbadmin.sbiepay@sbi.co.in>
+Cc: Sandeep Raosaheb Deshmukh <sandeep.deshmukh.cedge@sbi.co.in>; Vikram Deshpande <vikram.deshpande.cedge@sbi.co.in>
+Subject: Re: DB - User Creation
+ 
+Hi Amol ,
+
+As discussed, Create User Schema For Testing. 
+Required all schema Payaggadmin, Payaggtranasction, Payaggmerchant, Payaggreport.
+
+User Name- Rahul Yadav
+
+
+Thanks,
+Pandurang Shinde.
+From: dbadmin sbiepay <dbadmin.sbiepay@sbi.co.in>
+Sent: Monday, January 6, 2025 6:59 PM
+To: ARTI KIRAN GORE <ARTI.GORE.cedge@sbi.co.in>
+Cc: PRERANA TUKARAM BANTE <prerana.bante.cedge@sbi.co.in>; Santosh Sahoo <Santosh.Sahoo.cedge@sbi.co.in>; Pavan Hemchandra Chaudhari <pavan.chaudhari.cedge@sbi.co.in>; LAKHAN VASNANI <lakhan.vasnani.cedge@sbi.co.in>
+Subject: Re: DB - User Creation
+ 
+HI Team,
+
+
+checking .
+
+
+
+
+
+
+Regards,
+
+
+
+SBIePay DBA  Amol
+
+DBA : - +91 9665831681
+
+Global IT Centre | State Bank of India
+
+3rd floor | Balaji Bhavan CBD Belapur Navi Mumbai --400614
+
+ https://www.sbiepay.sbi
+From: ARTI KIRAN GORE <ARTI.GORE.cedge@sbi.co.in>
+Sent: 06 January 2025 18:30
+To: dbadmin sbiepay <dbadmin.sbiepay@sbi.co.in>
+Cc: PRERANA TUKARAM BANTE <prerana.bante.cedge@sbi.co.in>; Santosh Sahoo <Santosh.Sahoo.cedge@sbi.co.in>; Pavan Hemchandra Chaudhari <pavan.chaudhari.cedge@sbi.co.in>; LAKHAN VASNANI <lakhan.vasnani.cedge@sbi.co.in>
+Subject: DB - User Creation
+ 
+Hi Amol ,
+As discussed Kindly Create User Schema For Testing team. 
+Required all schema Payaggadmin, Payaggtranasction, Payaggmerchant.
+
+Thanks & Regards,
+Arti.
