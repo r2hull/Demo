@@ -1,8 +1,2 @@
-Hi Amol,
-
-I tried using the provided credentials for user RAHUL_Y, but it's showing invalid username/password.
-
-Could you please check and confirm if the user is created properly?
-
-Thanks & Regards,
-Rahul Yadav
+SELECT 'DROP TABLE "' || table_name || '" CASCADE CONSTRAINTS;' 
+FROM user_tables;
