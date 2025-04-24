@@ -1,11 +1,90 @@
-BEGIN
-  FOR t IN (SELECT table_name FROM all_tables WHERE owner = 'PAYAGGTRANSACTIO') LOOP
-    BEGIN
-      EXECUTE IMMEDIATE 'CREATE TABLE ' || t.table_name || ' AS SELECT * FROM PAYAGGTRANSACTIO.' || t.table_name;
-    EXCEPTION
-      WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Failed to copy table: ' || t.table_name || ' - ' || SQLERRM);
-    END;
-  END LOOP;
-END;
-/
+private BulkRefundBookingDetails buildBulkRefundBookingDetails(String bulkId, int rowNumber, String[] rowData) {
+    logger.info("Building BulkRefundBookingDetails for bulkId: {}, row: {}", bulkId, rowNumber);
+
+    // Validate row data: check for null, insufficient fields, or null cells
+    if (rowData == null || rowData.length < 5 || Arrays.stream(rowData).anyMatch(Objects::isNull)) {
+        logger.warn("Invalid row for bulkId: {}, row: {}", bulkId, rowNumber);
+        return createInvalidRow(bulkId, rowNumber, "Invalid row: Missing or null fields");
+    }
+
+    // Extract and trim fields
+    String refundType = rowData[0].trim();
+    String merchantOrderId = rowData[1].trim();
+    String atrn = rowData[2].trim();
+    String refundAmount = rowData[3].trim();
+    String refundCurrency = rowData[4].trim();
+    String comments = rowData.length > 5 ? rowData[5].trim() : "";
+
+    // Validate required fields
+    if (Stream.of(refundType, merchantOrderId, atrn, refundAmount, refundCurrency).anyMatch(StringUtils::isEmpty)) {
+        logger.warn("Missing required fields for bulkId: {}, row: {}", bulkId, rowNumber);
+        return createInvalidRow(bulkId, rowNumber, "Invalid row: Missing required fields");
+    }
+
+    // Validate refund amount
+    try {
+        Double.parseDouble(refundAmount);
+    } catch (NumberFormatException e) {
+        logger.warn("Invalid refund amount for bulkId: {}, row: {}", bulkId, rowNumber);
+        return createInvalidRow(bulkId, rowNumber, "Invalid row: Invalid refund amount");
+    }
+
+    // Build valid row
+    return BulkRefundBookingDetails.builder()
+            .bulkId(bulkId)
+            .rowNumber(rowNumber)
+            .refundType(refundType)
+            .merchantOrderId(merchantOrderId)
+            .atrnNum(atrn)
+            .refundAmount(refundAmount)
+            .refundCurrency(refundCurrency)
+            .comments(comments)
+            .refundStatus(RefundStatus.INITIATED.name())
+            .remark("Valid row")
+            .build();
+}
+
+// Helper method for invalid rows
+private BulkRefundBookingDetails createInvalidRow(String bulkId, int rowNumber, String remark) {
+    return BulkRefundBookingDetails.builder()
+            .bulkId(bulkId)
+            .rowNumber(rowNumber)
+            .refundStatus(RefundStatus.REFUND_FAILED.name())
+            .remark(remark)
+            .build();
+}
+
+
+
+
+private void processingRefundBooking(String bulkId, List<String[]> refundData, BulkRefundBooking bulkRefundBooking) {
+    logger.info("Processing refund booking for bulkId: {}", bulkId);
+    int totalRecords = refundData.size() - 1;
+    int validRecords = 0;
+
+    bulkRefundBooking.setTotalRecords(totalRecords);
+    bulkRefundBooking.setBulkRefundStatus(BulkRefundStatus.IN_QUEUE.name());
+    refundDao.saveBulkRefundBooking(bulkRefundBooking);
+
+    for (int row = 1; row <= totalRecords; row++) {
+        BulkRefundBookingDetails details = buildBulkRefundBookingDetails(bulkId, row, refundData.get(row));
+        details = refundDao.saveBulkRefundBookingDetailsForRow(details);
+
+        if (!RefundStatus.REFUND_FAILED.name().equals(details.getRefundStatus())) {
+            refundBookingDetailsProducer.publish("BOOKING_DETAILS", details.getId().toString(), details.getId());
+            validRecords++;
+            logger.info("Row {} queued for bulkId: {}", row, bulkId);
+        } else {
+            logger.info("Row {} invalid for bulkId: {}", row, bulkId);
+        }
+    }
+
+    bulkRefundBooking.setValidRecords(validRecords);
+    bulkRefundBooking.setInvalidRecords(totalRecords - validRecords);
+    refundDao.saveBulkRefundBooking(bulkRefundBooking);
+}
+
+
+
+
+
