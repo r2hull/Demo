@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
@@ -47,9 +48,11 @@ public class SftpClientUtil {
         channelSftp.get(remoteFilePath, localFilePath);
     }
 
-    public RecentFileInfo findMostRecentFile(List<String> remoteSubfolders) throws SftpException {
-        RecentFileInfo recentFileInfo = new RecentFileInfo();
-        long latestMTime = 0;
+    // New method to find files modified within the last 1 hour
+    public List<FileInfo> findFilesModifiedWithinLastHour(List<String> remoteSubfolders) throws SftpException {
+        List<FileInfo> recentFiles = new ArrayList<>();
+        long currentTime = System.currentTimeMillis();
+        long oneHourAgo = currentTime - 3600_000; // 1 hour in milliseconds
 
         for (String subfolder : remoteSubfolders) {
             try {
@@ -57,11 +60,13 @@ public class SftpClientUtil {
                 for (ChannelSftp.LsEntry entry : files) {
                     if (!entry.getAttrs().isDir() && !entry.getFilename().equals(".") && !entry.getFilename().equals("..")) {
                         long mTime = entry.getAttrs().getMTime() * 1000L; // Convert to milliseconds
-                        if (mTime > latestMTime) {
-                            latestMTime = mTime;
-                            recentFileInfo.setFolder(subfolder);
-                            recentFileInfo.setFileName(entry.getFilename());
-                            recentFileInfo.setRemotePath(subfolder + "/" + entry.getFilename());
+                        if (mTime >= oneHourAgo) {
+                            FileInfo fileInfo = new FileInfo();
+                            fileInfo.setFolder(subfolder);
+                            fileInfo.setFileName(entry.getFilename());
+                            fileInfo.setRemotePath(subfolder + "/" + entry.getFilename());
+                            fileInfo.setModificationTime(mTime);
+                            recentFiles.add(fileInfo);
                         }
                     }
                 }
@@ -70,16 +75,15 @@ public class SftpClientUtil {
             }
         }
 
-        if (recentFileInfo.getRemotePath() == null) {
-            throw new SftpException(ChannelSftp.SSH_FX_NO_SUCH_FILE, "No files found in specified subfolders");
-        }
-        return recentFileInfo;
+        return recentFiles;
     }
 
-    public static class RecentFileInfo {
+    // Helper class to store file information
+    public static class FileInfo {
         private String folder;
         private String fileName;
         private String remotePath;
+        private long modificationTime;
 
         public String getFolder() {
             return folder;
@@ -104,12 +108,16 @@ public class SftpClientUtil {
         public void setRemotePath(String remotePath) {
             this.remotePath = remotePath;
         }
+
+        public long getModificationTime() {
+            return modificationTime;
+        }
+
+        public void setModificationTime(long modificationTime) {
+            this.modificationTime = modificationTime;
+        }
     }
 }
-
-
-
-
 
 
 
@@ -122,7 +130,10 @@ import com.jcraft.jsch.SftpException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 
 class SftpClientMain {
@@ -130,11 +141,18 @@ class SftpClientMain {
     private static final String USERNAME = "root";
     private static final String PASSWORD = "root";
     private static final int PORT = 2222;
+    private static final String LOCAL_DOWNLOAD_DIR = "C:\\Downloads"; // Change as needed
 
     public static void main(String[] args) {
         SftpClientUtil sftpClient = new SftpClientUtil(HOST, USERNAME, PASSWORD, PORT);
 
         try {
+            // Ensure local download directory exists
+            Path downloadDir = Paths.get(LOCAL_DOWNLOAD_DIR);
+            if (!Files.exists(downloadDir)) {
+                Files.createDirectories(downloadDir);
+            }
+
             // Connect to the SFTP server
             sftpClient.connect();
             System.out.println("Connected to SFTP server");
@@ -142,25 +160,34 @@ class SftpClientMain {
             // List subfolders to check for recent files
             List<String> subfolders = Arrays.asList("/RnS/SBI", "/RnS/HDFC", "/RnS/BOB");
 
-            // Find the most recent file
-            SftpClientUtil.RecentFileInfo recentFileInfo = sftpClient.findMostRecentFile(subfolders);
-            System.out.println("Most recent file found:");
-            System.out.println("  Folder: " + recentFileInfo.getFolder());
-            System.out.println("  File: " + recentFileInfo.getFileName());
-            System.out.println("  Path: " + recentFileInfo.getRemotePath());
+            // Find files modified within the last 1 hour
+            List<SftpClientUtil.FileInfo> recentFiles = sftpClient.findFilesModifiedWithinLastHour(subfolders);
+            if (recentFiles.isEmpty()) {
+                System.out.println("No files found modified within the last 1 hour.");
+                return;
+            }
 
-            // Download the most recent file
-            Path downloadedFile = Files.createTempFile("recent-download-", ".txt");
-            String downloadedFilePath = downloadedFile.toString();
-            sftpClient.downloadFile(recentFileInfo.getRemotePath(), downloadedFilePath);
-            System.out.println("File downloaded successfully to: " + downloadedFilePath);
+            System.out.println("Files modified within the last 1 hour:");
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            for (SftpClientUtil.FileInfo fileInfo : recentFiles) {
+                System.out.println("  Folder: " + fileInfo.getFolder());
+                System.out.println("  File: " + fileInfo.getFileName());
+                System.out.println("  Path: " + fileInfo.getRemotePath());
+                System.out.println("  Modified: " + sdf.format(new Date(fileInfo.getModificationTime())));
 
-            // Verify content
-            String downloadedContent = Files.readString(downloadedFile);
-            System.out.println("Downloaded file content: " + downloadedContent);
+                // Download the file
+                Path downloadedFile = downloadDir.resolve(fileInfo.getFileName());
+                String downloadedFilePath = downloadedFile.toString();
+                sftpClient.downloadFile(fileInfo.getRemotePath(), downloadedFilePath);
+                System.out.println("  Downloaded to: " + downloadedFilePath);
 
-            // Clean up downloaded file (uncomment if needed)
-            // Files.delete(downloadedFile);
+                // Verify content (optional)
+                String downloadedContent = Files.readString(downloadedFile);
+                System.out.println("  Content: " + downloadedContent);
+                System.out.println();
+            }
+
+            System.out.println("Total files downloaded: " + recentFiles.size());
 
         } catch (JSchException | SftpException | IOException e) {
             System.err.println("Error occurred: " + e.getMessage());
