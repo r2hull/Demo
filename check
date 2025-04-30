@@ -1,18 +1,3 @@
-  protected void validateAmount(BigDecimal amount, String fieldName) {
-        if (amount.signum() <= 0) {
-            addError(fieldName, INVALID_ERROR_CODE, MessageFormat.format(INVALID_ERROR_MESSAGE, fieldName, "Amount must be greater than 0"));
-        } else if (amount.scale() > 2) {
-            logger.info("validate Payment Initiation, Validating up to 2 decimal point: {}",amount);
-            addError(INVALID_ERROR_CODE, MessageFormat.format(INVALID_ERROR_MESSAGE, fieldName, "Validating up to 2 decimal point"));
-        } else if (StringUtils.isNotEmpty(amount.toString()) && amount.toString().length() > AMOUNT_LENGTH) {
-            logger.info("field {} exceeds maxLength {}", fieldName, AMOUNT_LENGTH);
-            addError(EXCEED_LENGTH_ERROR_CODE, EXCEED_LENGTH_ERROR_MESSAGE, fieldName, AMOUNT_LENGTH);
-        } else {
-            validateFieldWithRegex(amount.toString(), TransactionConstant.AMOUNT_LENGTH_REGEX, fieldName, INCORRECT_FORMAT);
-        }
-        throwIfErrors();
-    }
-
-
-    public static final int AMOUNT_LENGTH=20;
-    public static final String AMOUNT_LENGTH_REGEX = "^\\d{1,18}(\\.\\d{1,2})?$";
+MR #667 (TransactionService) is ready.
+Branch: ETS-667_validationFixe
+Kindly review and merge. Thanks!
