@@ -1,18 +1,31 @@
 private void validatePostalCode(CustomerRequest customerRequestDto) {
-        if (ObjectUtils.isNotEmpty(customerRequestDto.getPinCode())) {
-            MerchantPostalCodeResponse response = adminDao.getPostalCodeDetails(customerRequestDto.getPinCode());
-            if (!StringUtils.equalsIgnoreCase(customerRequestDto.getPinCode(), response.getPostalCode())) {
-                throw new TransactionException(NOT_FOUND_ERROR_CODE, MessageFormat.format(NOT_FOUND_ERROR_MESSAGE, VALID_PINCODE));
-            }
-            if (ObjectUtils.isNotEmpty(customerRequestDto.getCity()) && !StringUtils.equalsIgnoreCase(customerRequestDto.getCity(), response.getCityName())) {
-                throw new TransactionException(NOT_FOUND_ERROR_CODE, MessageFormat.format(NOT_FOUND_ERROR_MESSAGE, VALID_CITY));
-            }
-            if (ObjectUtils.isNotEmpty(customerRequestDto.getState()) && !StringUtils.equalsIgnoreCase(customerRequestDto.getState(), response.getStateName())) {
-                throw new TransactionException(NOT_FOUND_ERROR_CODE, MessageFormat.format(NOT_FOUND_ERROR_MESSAGE, VALID_STATE));
-            }
-            if (!StringUtils.equalsIgnoreCase(customerRequestDto.getCountry(),response.getCountryCode())) {
-                throw new TransactionException(NOT_FOUND_ERROR_CODE, MessageFormat.format(NOT_FOUND_ERROR_MESSAGE, VALID_COUNTRY));
-            }
-            logger.debug("Validated Postal code details with admin response: {} ", response);
+    if (ObjectUtils.isNotEmpty(customerRequestDto.getPinCode())) {
+        MerchantPostalCodeResponse response = adminDao.getPostalCodeDetails(customerRequestDto.getPinCode());
+        
+        // Validate postal code
+        if (!StringUtils.equalsIgnoreCase(customerRequestDto.getPinCode(), response.getPostalCode())) {
+            throw new TransactionException(NOT_FOUND_ERROR_CODE, MessageFormat.format(NOT_FOUND_ERROR_MESSAGE, VALID_PINCODE));
         }
+
+        // Handle city: if blank, populate from DB; otherwise, validate
+        if (ObjectUtils.isEmpty(customerRequestDto.getCity())) {
+            customerRequestDto.setCity(response.getCityName());
+        } else if (!StringUtils.equalsIgnoreCase(customerRequestDto.getCity(), response.getCityName())) {
+            throw new TransactionException(NOT_FOUND_ERROR_CODE, MessageFormat.format(NOT_FOUND_ERROR_MESSAGE, VALID_CITY));
+        }
+
+        // Handle state: if blank, populate from DB; otherwise, validate
+        if (ObjectUtils.isEmpty(customerRequestDto.getState())) {
+            customerRequestDto.setState(response.getStateName());
+        } else if (!StringUtils.equalsIgnoreCase(customerRequestDto.getState(), response.getStateName())) {
+            throw new TransactionException(NOT_FOUND_ERROR_CODE, MessageFormat.format(NOT_FOUND_ERROR_MESSAGE, VALID_STATE));
+        }
+
+        // Validate country
+        if (!StringUtils.equalsIgnoreCase(customerRequestDto.getCountry(), response.getCountryCode())) {
+            throw new TransactionException(NOT_FOUND_ERROR_CODE, MessageFormat.format(NOT_FOUND_ERROR_MESSAGE, VALID_COUNTRY));
+        }
+
+        logger.debug("Validated Postal code details with admin response: {} ", response);
     }
+}
