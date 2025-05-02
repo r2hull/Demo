@@ -1,3 +1,78 @@
+package com.epay.rns.helpers;
+
+import com.epay.rns.beans.SftpServerBean;
+import com.epay.rns.server.SFTPServer;
+import org.apache.sshd.common.NamedFactory;
+import org.apache.sshd.common.file.virtualfs.VirtualFileSystemFactory;
+import org.apache.sshd.server.SshServer;
+import org.apache.sshd.server.auth.UserAuth;
+import org.apache.sshd.server.auth.password.UserAuthPasswordFactory;
+import org.apache.sshd.server.command.Command;
+import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
+import org.apache.sshd.server.shell.ProcessShellCommandFactory;
+import org.apache.sshd.server.subsystem.sftp.SftpSubsystemFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
+public class SftpServerUtils {
+    public static SftpServerBean setupSftpServer(String username, String password, int port) throws IOException {
+        Path tempSftpDir = Paths.get("C:\\SFTP");
+        Path rnsDir = tempSftpDir.resolve("RnS");
+        Path sbiDir = rnsDir.resolve("SBI");
+        Path hdfcDir = rnsDir.resolve("HDFC");
+        Path bobDir = rnsDir.resolve("BOB");
+        Path processedDir = tempSftpDir.resolve("processed"); // New processed folder
+        for (Path dir : Arrays.asList(rnsDir, sbiDir, hdfcDir, bobDir, processedDir)) {
+            if (!Files.exists(dir)) {
+                Files.createDirectories(dir);
+            }
+        }
+
+        List<NamedFactory<UserAuth>> userAuthFactories = new ArrayList<>();
+        userAuthFactories.add(new UserAuthPasswordFactory());
+
+        List<NamedFactory<Command>> sftpCommandFactory = new ArrayList<>();
+        sftpCommandFactory.add(new SftpSubsystemFactory());
+
+        SshServer sshd = SshServer.setUpDefaultServer();
+        sshd.setPort(port);
+        sshd.setKeyPairProvider(new SimpleGeneratorHostKeyProvider());
+        sshd.setUserAuthFactories(userAuthFactories);
+        sshd.setCommandFactory(new ProcessShellCommandFactory());
+        sshd.setSubsystemFactories(sftpCommandFactory);
+        sshd.setPasswordAuthenticator((usernameAuth, passwordAuth, session) -> {
+            if ((username.equals(usernameAuth)) && (password.equals(passwordAuth))) {
+                sshd.setFileSystemFactory(new VirtualFileSystemFactory(tempSftpDir));
+                return true;
+            }
+            return false;
+        });
+
+        sshd.start();
+        System.out.println("Started SFTP server with root path: " + tempSftpDir.toFile().getAbsolutePath());
+        return new SftpServerBean(sshd, tempSftpDir);
+    }
+
+    public static void stopServer(SftpServerBean sftpServerBean) throws IOException {
+        sftpServerBean.getSshServer().stop();
+        // Optionally, skip deleting processed folder if you want to keep it
+        Files.walk(sftpServerBean.getRootPath())
+                .sorted(Comparator.reverseOrder())
+                .map(Path::toFile)
+                .forEach(File::delete);
+    }
+}
+
+
+
+
 package com.epay.rns.utils;
 
 import com.jcraft.jsch.*;
@@ -48,7 +123,15 @@ public class SftpClientUtil {
         channelSftp.get(remoteFilePath, localFilePath);
     }
 
-    // New method to find files modified within the last 1 hour
+    // New method to move a file on the server
+    public void moveFile(String sourcePath, String destinationPath) throws SftpException {
+        try {
+            channelSftp.rename(sourcePath, destinationPath);
+        } catch (SftpException e) {
+            throw new SftpException(e.id, "Failed to move file from " + sourcePath + " to " + destinationPath + ": " + e.getMessage());
+        }
+    }
+
     public List<FileInfo> findFilesModifiedWithinLastHour(List<String> remoteSubfolders) throws SftpException {
         List<FileInfo> recentFiles = new ArrayList<>();
         long currentTime = System.currentTimeMillis();
@@ -59,7 +142,7 @@ public class SftpClientUtil {
                 Vector<ChannelSftp.LsEntry> files = channelSftp.ls(subfolder);
                 for (ChannelSftp.LsEntry entry : files) {
                     if (!entry.getAttrs().isDir() && !entry.getFilename().equals(".") && !entry.getFilename().equals("..")) {
-                        long mTime = entry.getAttrs().getMTime() * 1000L; // Convert to milliseconds
+                        long mTime = entry.getAttrs().getMTime() * 1000L;
                         if (mTime >= oneHourAgo) {
                             FileInfo fileInfo = new FileInfo();
                             fileInfo.setFolder(subfolder);
@@ -78,7 +161,6 @@ public class SftpClientUtil {
         return recentFiles;
     }
 
-    // Helper class to store file information
     public static class FileInfo {
         private String folder;
         private String fileName;
@@ -122,82 +204,6 @@ public class SftpClientUtil {
 
 
 
-package com.epay.rns.utils;
-
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.SftpException;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-
-class SftpClientMain {
-    private static final String HOST = "localhost";
-    private static final String USERNAME = "root";
-    private static final String PASSWORD = "root";
-    private static final int PORT = 2222;
-    private static final String LOCAL_DOWNLOAD_DIR = "C:\\Downloads"; // Change as needed
-
-    public static void main(String[] args) {
-        SftpClientUtil sftpClient = new SftpClientUtil(HOST, USERNAME, PASSWORD, PORT);
-
-        try {
-            // Ensure local download directory exists
-            Path downloadDir = Paths.get(LOCAL_DOWNLOAD_DIR);
-            if (!Files.exists(downloadDir)) {
-                Files.createDirectories(downloadDir);
-            }
-
-            // Connect to the SFTP server
-            sftpClient.connect();
-            System.out.println("Connected to SFTP server");
-
-            // List subfolders to check for recent files
-            List<String> subfolders = Arrays.asList("/RnS/SBI", "/RnS/HDFC", "/RnS/BOB");
-
-            // Find files modified within the last 1 hour
-            List<SftpClientUtil.FileInfo> recentFiles = sftpClient.findFilesModifiedWithinLastHour(subfolders);
-            if (recentFiles.isEmpty()) {
-                System.out.println("No files found modified within the last 1 hour.");
-                return;
-            }
-
-            System.out.println("Files modified within the last 1 hour:");
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            for (SftpClientUtil.FileInfo fileInfo : recentFiles) {
-                System.out.println("  Folder: " + fileInfo.getFolder());
-                System.out.println("  File: " + fileInfo.getFileName());
-                System.out.println("  Path: " + fileInfo.getRemotePath());
-                System.out.println("  Modified: " + sdf.format(new Date(fileInfo.getModificationTime())));
-
-                // Download the file
-                Path downloadedFile = downloadDir.resolve(fileInfo.getFileName());
-                String downloadedFilePath = downloadedFile.toString();
-                sftpClient.downloadFile(fileInfo.getRemotePath(), downloadedFilePath);
-                System.out.println("  Downloaded to: " + downloadedFilePath);
-
-                // Verify content (optional)
-                String downloadedContent = Files.readString(downloadedFile);
-                System.out.println("  Content: " + downloadedContent);
-                System.out.println();
-            }
-
-            System.out.println("Total files downloaded: " + recentFiles.size());
-
-        } catch (JSchException | SftpException | IOException e) {
-            System.err.println("Error occurred: " + e.getMessage());
-            e.printStackTrace();
-        } finally {
-            sftpClient.disconnect();
-            System.out.println("Disconnected from SFTP server");
-        }
-    }
-}
 
 
 
