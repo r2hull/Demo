@@ -1,78 +1,3 @@
-package com.epay.rns.helpers;
-
-import com.epay.rns.beans.SftpServerBean;
-import com.epay.rns.server.SFTPServer;
-import org.apache.sshd.common.NamedFactory;
-import org.apache.sshd.common.file.virtualfs.VirtualFileSystemFactory;
-import org.apache.sshd.server.SshServer;
-import org.apache.sshd.server.auth.UserAuth;
-import org.apache.sshd.server.auth.password.UserAuthPasswordFactory;
-import org.apache.sshd.server.command.Command;
-import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
-import org.apache.sshd.server.shell.ProcessShellCommandFactory;
-import org.apache.sshd.server.subsystem.sftp.SftpSubsystemFactory;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-
-public class SftpServerUtils {
-    public static SftpServerBean setupSftpServer(String username, String password, int port) throws IOException {
-        Path tempSftpDir = Paths.get("C:\\SFTP");
-        Path rnsDir = tempSftpDir.resolve("RnS");
-        Path sbiDir = rnsDir.resolve("SBI");
-        Path hdfcDir = rnsDir.resolve("HDFC");
-        Path bobDir = rnsDir.resolve("BOB");
-        Path processedDir = tempSftpDir.resolve("processed"); // New processed folder
-        for (Path dir : Arrays.asList(rnsDir, sbiDir, hdfcDir, bobDir, processedDir)) {
-            if (!Files.exists(dir)) {
-                Files.createDirectories(dir);
-            }
-        }
-
-        List<NamedFactory<UserAuth>> userAuthFactories = new ArrayList<>();
-        userAuthFactories.add(new UserAuthPasswordFactory());
-
-        List<NamedFactory<Command>> sftpCommandFactory = new ArrayList<>();
-        sftpCommandFactory.add(new SftpSubsystemFactory());
-
-        SshServer sshd = SshServer.setUpDefaultServer();
-        sshd.setPort(port);
-        sshd.setKeyPairProvider(new SimpleGeneratorHostKeyProvider());
-        sshd.setUserAuthFactories(userAuthFactories);
-        sshd.setCommandFactory(new ProcessShellCommandFactory());
-        sshd.setSubsystemFactories(sftpCommandFactory);
-        sshd.setPasswordAuthenticator((usernameAuth, passwordAuth, session) -> {
-            if ((username.equals(usernameAuth)) && (password.equals(passwordAuth))) {
-                sshd.setFileSystemFactory(new VirtualFileSystemFactory(tempSftpDir));
-                return true;
-            }
-            return false;
-        });
-
-        sshd.start();
-        System.out.println("Started SFTP server with root path: " + tempSftpDir.toFile().getAbsolutePath());
-        return new SftpServerBean(sshd, tempSftpDir);
-    }
-
-    public static void stopServer(SftpServerBean sftpServerBean) throws IOException {
-        sftpServerBean.getSshServer().stop();
-        // Optionally, skip deleting processed folder if you want to keep it
-        Files.walk(sftpServerBean.getRootPath())
-                .sorted(Comparator.reverseOrder())
-                .map(Path::toFile)
-                .forEach(File::delete);
-    }
-}
-
-
-
-
 package com.epay.rns.utils;
 
 import com.jcraft.jsch.*;
@@ -123,7 +48,6 @@ public class SftpClientUtil {
         channelSftp.get(remoteFilePath, localFilePath);
     }
 
-    // New method to move a file on the server
     public void moveFile(String sourcePath, String destinationPath) throws SftpException {
         try {
             channelSftp.rename(sourcePath, destinationPath);
@@ -132,10 +56,25 @@ public class SftpClientUtil {
         }
     }
 
+    // New method to create an acknowledgment file
+    public void createAcknowledgmentFile(String fileName, boolean success) throws SftpException {
+        String status = success ? "processed" : "failed";
+        String ackPath = "/acknowledgment/" + fileName + "." + status;
+        try {
+            // Create an empty file by uploading a temporary empty file
+            Path tempFile = Files.createTempFile("ack-", ".tmp");
+            channelSftp.put(tempFile.toString(), ackPath);
+            Files.delete(tempFile); // Clean up temporary file
+            System.out.println("Created acknowledgment file: " + ackPath);
+        } catch (IOException | SftpException e) {
+            throw new SftpException(ChannelSftp.SSH_FX_FAILURE, "Failed to create acknowledgment file " + ackPath + ": " + e.getMessage());
+        }
+    }
+
     public List<FileInfo> findFilesModifiedWithinLastHour(List<String> remoteSubfolders) throws SftpException {
         List<FileInfo> recentFiles = new ArrayList<>();
         long currentTime = System.currentTimeMillis();
-        long oneHourAgo = currentTime - 3600_000; // 1 hour in milliseconds
+        long oneHourAgo = currentTime - 3600_000;
 
         for (String subfolder : remoteSubfolders) {
             try {
@@ -204,6 +143,9 @@ public class SftpClientUtil {
 
 
 
+
+
+
 package com.epay.rns.utils;
 
 import com.jcraft.jsch.JSchException;
@@ -223,8 +165,9 @@ class SftpClientMain {
     private static final String USERNAME = "root";
     private static final String PASSWORD = "root";
     private static final int PORT = 2222;
-    private static final String LOCAL_DOWNLOAD_DIR = "C:\\Downloads"; // Change as needed
-    private static final String PROCESSED_DIR = "/processed"; // Server's processed folder
+    private static final String LOCAL_DOWNLOAD_DIR = "C:\\Downloads";
+    private static final String PROCESSED_DIR = "/processed";
+    private static final String ACKNOWLEDGMENT_DIR = "/acknowledgment";
 
     public static void main(String[] args) {
         SftpClientUtil sftpClient = new SftpClientUtil(HOST, USERNAME, PASSWORD, PORT);
@@ -252,32 +195,49 @@ class SftpClientMain {
 
             System.out.println("Files modified within the last 1 hour:");
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            int processedCount = 0;
+
             for (SftpClientUtil.FileInfo fileInfo : recentFiles) {
                 System.out.println("  Folder: " + fileInfo.getFolder());
                 System.out.println("  File: " + fileInfo.getFileName());
                 System.out.println("  Path: " + fileInfo.getRemotePath());
                 System.out.println("  Modified: " + sdf.format(new Date(fileInfo.getModificationTime())));
 
-                // Download the file
-                Path downloadedFile = downloadDir.resolve(fileInfo.getFileName());
-                String downloadedFilePath = downloadedFile.toString();
-                sftpClient.downloadFile(fileInfo.getRemotePath(), downloadedFilePath);
-                System.out.println("  Downloaded to: " + downloadedFilePath);
+                boolean success = false;
+                try {
+                    // Download the file
+                    Path downloadedFile = downloadDir.resolve(fileInfo.getFileName());
+                    String downloadedFilePath = downloadedFile.toString();
+                    sftpClient.downloadFile(fileInfo.getRemotePath(), downloadedFilePath);
+                    System.out.println("  Downloaded to: " + downloadedFilePath);
 
-                // Verify content (optional)
-                String downloadedContent = Files.readString(downloadedFile);
-                System.out.println("  Content: " + downloadedContent);
+                    // Verify content (optional)
+                    String downloadedContent = Files.readString(downloadedFile);
+                    System.out.println("  Content: " + downloadedContent);
 
-                // Move the file to /processed
-                String processedPath = PROCESSED_DIR + "/" + fileInfo.getFileName();
-                sftpClient.moveFile(fileInfo.getRemotePath(), processedPath);
-                System.out.println("  Moved to: " + processedPath);
+                    // Move the file to /processed
+                    String processedPath = PROCESSED_DIR + "/" + fileInfo.getFileName();
+                    sftpClient.moveFile(fileInfo.getRemotePath(), processedPath);
+                    System.out.println("  Moved to: " + processedPath);
+
+                    success = true;
+                    processedCount++;
+                } catch (SftpException | IOException e) {
+                    System.err.println("  Error processing file: " + e.getMessage());
+                }
+
+                // Create acknowledgment file
+                try {
+                    sftpClient.createAcknowledgmentFile(fileInfo.getFileName(), success);
+                } catch (SftpException e) {
+                    System.err.println("  Error creating acknowledgment file: " + e.getMessage());
+                }
                 System.out.println();
             }
 
-            System.out.println("Total files downloaded and moved: " + recentFiles.size());
+            System.out.println("Total files processed: " + processedCount + "/" + recentFiles.size());
 
-        } catch (JSchException | SftpException | IOException e) {
+        } catch (JSchException | SftpException e) {
             System.err.println("Error occurred: " + e.getMessage());
             e.printStackTrace();
         } finally {
@@ -286,6 +246,11 @@ class SftpClientMain {
         }
     }
 }
+
+
+
+
+
 
 
 
