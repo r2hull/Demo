@@ -1,11 +1,11 @@
-PreparedStatementCallback; bad SQL grammar [SELECT SUM(REFUND_COUNT) AS refundCount, SUM(TOTAL_AVAILABLE_AMT) AS totalAvailableAmt, SUM(TOTAL_REFUND_AMT) AS totalRefundAmt, TO_CHAR(CREATED_DATE, 'DD MON YYYY') AS createdDate FROM VIEW_REFUND_DASHBOARD_SUMMARY WHERE MERCHANT_ID = ? AND TRUNC(CREATED_DATE) = TO_DATE(?, 'DD/MM/YYYY') GROUP BY CREATED_DATE]
-
-
-  public static final String JDBC_CURRENT_REFUND_SUMMARY = "SELECT SUM(REFUND_COUNT) AS refundCount," +
-            " SUM(TOTAL_AVAILABLE_AMT) AS totalAvailableAmt," +
-            " SUM(TOTAL_REFUND_AMT) AS totalRefundAmt," +
-            " TO_CHAR(CREATED_DATE, 'DD MON YYYY') AS createdDate" +
-            " FROM VIEW_REFUND_DASHBOARD_SUMMARY" +
-            " WHERE MERCHANT_ID = :mId" +
-            " AND TRUNC(CREATED_DATE) = TO_DATE(:currDate, 'DD/MM/YYYY')" +
-            " GROUP BY CREATED_DATE";
+  public List<RefundSummaryReport> getRefundSummaryForCurrentDate(String mId) {
+        try {
+            String sql = TransactionDashboardQueries.JDBC_CURRENT_REFUND_SUMMARY;
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue(MID, mId);
+            parameters.addValue(CURR_DATE, DateTimeUtils.getDate(DateTimeUtils.getCurrentTimeInMills(), DateTimeUtils.FORMATTER_DD_MM_YYYY));
+            return namedParameterJdbcTemplate.query(sql, parameters, new BeanPropertyRowMapper<>(RefundSummaryReport.class));
+        } catch (EmptyResultDataAccessException e) {
+            throw new ReportingException(ErrorConstants.NOT_FOUND_ERROR_CODE, MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, REFUND));
+        }
+    }
