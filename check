@@ -1,11 +1,4 @@
-  public List<RefundSummaryReport> getRefundSummaryForCurrentDate(String mId) {
-        try {
-            String sql = TransactionDashboardQueries.JDBC_CURRENT_REFUND_SUMMARY;
-            MapSqlParameterSource parameters = new MapSqlParameterSource();
-            parameters.addValue(MID, mId);
-            parameters.addValue(CURR_DATE, DateTimeUtils.getDate(DateTimeUtils.getCurrentTimeInMills(), DateTimeUtils.FORMATTER_DD_MM_YYYY));
-            return namedParameterJdbcTemplate.query(sql, parameters, new BeanPropertyRowMapper<>(RefundSummaryReport.class));
-        } catch (EmptyResultDataAccessException e) {
-            throw new ReportingException(ErrorConstants.NOT_FOUND_ERROR_CODE, MessageFormat.format(ErrorConstants.NOT_FOUND_ERROR_MESSAGE, REFUND));
-        }
-    }
+
+  CREATE OR REPLACE FORCE EDITIONABLE VIEW "RAHUL_Y"."VIEW_REFUND_DASHBOARD_SUMMARY" ("MERCHANT_ID", "REFUND_COUNT", "TOTAL_AVAILABLE_AMT", "TOTAL_REFUND_AMT", "CREATED_DATE") AS 
+  select "MERCHANT_ID","REFUND_COUNT","TOTAL_AVAILABLE_AMT","TOTAL_REFUND_AMT","CREATED_DATE" from PAYAGGREPORT.view_refund_dashboard_summary;
+
