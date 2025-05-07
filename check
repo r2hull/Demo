@@ -1,4 +1,6 @@
-
-  CREATE OR REPLACE FORCE EDITIONABLE VIEW "RAHUL_Y"."VIEW_REFUND_DASHBOARD_SUMMARY" ("MERCHANT_ID", "REFUND_COUNT", "TOTAL_AVAILABLE_AMT", "TOTAL_REFUND_AMT", "CREATED_DATE") AS 
-  select "MERCHANT_ID","REFUND_COUNT","TOTAL_AVAILABLE_AMT","TOTAL_REFUND_AMT","CREATED_DATE" from PAYAGGREPORT.view_refund_dashboard_summary;
-
+ORA-01031: insufficient privileges
+01031. 00000 -  "insufficient privileges"
+*Cause:    An attempt was made to perform a database operation without
+           the necessary privileges.
+*Action:   Ask your database administrator or designated security
+           administrator to grant you the necessary privileges
