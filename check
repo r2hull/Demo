@@ -1,23 +1,47 @@
-Here is a short and simple mail you can send:
+public void validatedTokenByOrderHash(String orderHash) {
+        logger.debug("Validating token for order hash: {}", orderHash);
+        Optional<Token> token = tokenRepository.findLatestTokenByOrderHash(orderHash);
+        if (token.isPresent()) {
+            if (TokenStatus.INACTIVE.equals(token.get().getStatus())) {
+                logger.debug("Token status is inactive for orderHash: {}", orderHash);
+                throw new TransactionException(ATTEMPT_EXPIRED_ERROR_CODE, ATTEMPT_EXPIRED_ERROR_MESSAGE);
+            }
+            logger.info("Token already exist for that order");
+        }
+    }
 
 
----
+public TransactionResponse<TransactionTokenResponse> generateTransactionToken(String businessUrl, String orderHash, DeviceDetailsRequest deviceDetailsRequest, String clientIp) {
+        logger.info("Starting transaction token generation request for orderHash {}", orderHash);
+        tokenValidator.validateOrderHash(orderHash);
+        //Step 1 : Save Device Details
+        if (ObjectUtils.isNotEmpty(deviceDetailsRequest)) {
+            logger.debug("Going to save device details, deviceDetails: {} and client ip: {}", deviceDetailsRequest, clientIp);
+            deviceDetailsRequest.setClientIp(clientIp);
+            tokenDao.saveTransactionRequestedDeviceInfo(buildTransactionDeviceInfoDto(orderHash, deviceDetailsRequest));
+        }
 
-Subject: Request for Privilege Grant — ORA-01031 Insufficient Privileges Error
+        //Step 2 : validate If Token is already create for Given Order Hash
+        logger.info("Fetching Existing Valid token by orderHash");
+        tokenDao.validatedTokenByOrderHash(orderHash);
 
-Hi Team
+        //Step 3 : Get Merchant Order By Order Hash
+        OrderDto orderDto = tokenDao.getMerchantOrderByOrderHash(orderHash);
+        logger.debug("Received details of merchant order, orderDto: {}", orderDto);
 
-I am getting the following error while executing a query: ORA-01031: insufficient privileges
-Request you to please check and grant the necessary privileges to resolve this.
+        //Step 4 : Get Merchant By MID For Token Expiration Time
+        MerchantInfoResponse merchantDto = tokenDao.getMerchantByMId(orderDto.getMId());
+        logger.debug("Received details of Merchant, merchantDto: {}", merchantDto);
 
-Thanks
-Rahul
+        //Step 5 : Validate Business url passed in x-referrer header
+        tokenValidator.validateBusinessUrl(businessUrl, merchantDto.getMerchantBusinessUrl());
+        logger.debug("Business url:{} validated for mId: {}", businessUrl, merchantDto.getMId());
 
+        //Step 6 : Token Generation
+        TransactionTokenResponse transactionTokenResponse = generatingTransactionToken(orderDto, merchantDto.getTransactionTokenExpiryTime());
+        logger.info("Completed transaction token generation request for orderHash {0}", orderHash);
 
----
+        logger.debug("Received transaction token response: {}", transactionTokenResponse);
 
-Would you also like a slightly more formal version just in case?
-
-
-
-
+        return TransactionResponse.<TransactionTokenResponse>builder().data(List.of(transactionTokenResponse)).status(TransactionConstant.RESPONSE_SUCCESS).build();
+    }
