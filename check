@@ -1,47 +1,27 @@
-public void validatedTokenByOrderHash(String orderHash) {
-        logger.debug("Validating token for order hash: {}", orderHash);
-        Optional<Token> token = tokenRepository.findLatestTokenByOrderHash(orderHash);
-        if (token.isPresent()) {
-            if (TokenStatus.INACTIVE.equals(token.get().getStatus())) {
-                logger.debug("Token status is inactive for orderHash: {}", orderHash);
-                throw new TransactionException(ATTEMPT_EXPIRED_ERROR_CODE, ATTEMPT_EXPIRED_ERROR_MESSAGE);
-            }
-            logger.info("Token already exist for that order");
-        }
-    }
 
+  CREATE TABLE "RAHUL_Y"."TOKEN" 
+   (	"ID" RAW(16), 
+	"MERCHANT_ID" VARCHAR2(20 BYTE) NOT NULL ENABLE, 
+	"TOKEN_TYPE" VARCHAR2(50 BYTE) NOT NULL ENABLE, 
+	"GENERATED_TOKEN" VARCHAR2(2000 BYTE), 
+	"ORDER_HASH" VARCHAR2(2000 BYTE), 
+	"TOKEN_EXPIRY_TIME" NUMBER, 
+	"IS_TOKEN_VALID" NUMBER(1,0) NOT NULL ENABLE, 
+	"FAILED_REASON" VARCHAR2(100 BYTE), 
+	"REMARKS" VARCHAR2(100 BYTE), 
+	"EXPIRED_AT" NUMBER, 
+	"AES_KEY" VARCHAR2(2000 BYTE), 
+	"STATUS" VARCHAR2(20 BYTE), 
+	"CREATED_DATE" NUMBER NOT NULL ENABLE, 
+	"UPDATED_DATE" NUMBER, 
+	"CREATED_BY" VARCHAR2(100 BYTE) NOT NULL ENABLE, 
+	"UPDATED_BY" VARCHAR2(100 BYTE), 
+	"PARTITION_DATE" DATE
+   ) SEGMENT CREATION IMMEDIATE 
+  PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 
+ NOCOMPRESS LOGGING
+  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+  TABLESPACE "DEV_TEST_USERS" ;
 
-public TransactionResponse<TransactionTokenResponse> generateTransactionToken(String businessUrl, String orderHash, DeviceDetailsRequest deviceDetailsRequest, String clientIp) {
-        logger.info("Starting transaction token generation request for orderHash {}", orderHash);
-        tokenValidator.validateOrderHash(orderHash);
-        //Step 1 : Save Device Details
-        if (ObjectUtils.isNotEmpty(deviceDetailsRequest)) {
-            logger.debug("Going to save device details, deviceDetails: {} and client ip: {}", deviceDetailsRequest, clientIp);
-            deviceDetailsRequest.setClientIp(clientIp);
-            tokenDao.saveTransactionRequestedDeviceInfo(buildTransactionDeviceInfoDto(orderHash, deviceDetailsRequest));
-        }
-
-        //Step 2 : validate If Token is already create for Given Order Hash
-        logger.info("Fetching Existing Valid token by orderHash");
-        tokenDao.validatedTokenByOrderHash(orderHash);
-
-        //Step 3 : Get Merchant Order By Order Hash
-        OrderDto orderDto = tokenDao.getMerchantOrderByOrderHash(orderHash);
-        logger.debug("Received details of merchant order, orderDto: {}", orderDto);
-
-        //Step 4 : Get Merchant By MID For Token Expiration Time
-        MerchantInfoResponse merchantDto = tokenDao.getMerchantByMId(orderDto.getMId());
-        logger.debug("Received details of Merchant, merchantDto: {}", merchantDto);
-
-        //Step 5 : Validate Business url passed in x-referrer header
-        tokenValidator.validateBusinessUrl(businessUrl, merchantDto.getMerchantBusinessUrl());
-        logger.debug("Business url:{} validated for mId: {}", businessUrl, merchantDto.getMId());
-
-        //Step 6 : Token Generation
-        TransactionTokenResponse transactionTokenResponse = generatingTransactionToken(orderDto, merchantDto.getTransactionTokenExpiryTime());
-        logger.info("Completed transaction token generation request for orderHash {0}", orderHash);
-
-        logger.debug("Received transaction token response: {}", transactionTokenResponse);
-
-        return TransactionResponse.<TransactionTokenResponse>builder().data(List.of(transactionTokenResponse)).status(TransactionConstant.RESPONSE_SUCCESS).build();
-    }
