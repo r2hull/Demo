@@ -1,27 +1,10 @@
-
-  CREATE TABLE "RAHUL_Y"."TOKEN" 
-   (	"ID" RAW(16), 
-	"MERCHANT_ID" VARCHAR2(20 BYTE) NOT NULL ENABLE, 
-	"TOKEN_TYPE" VARCHAR2(50 BYTE) NOT NULL ENABLE, 
-	"GENERATED_TOKEN" VARCHAR2(2000 BYTE), 
-	"ORDER_HASH" VARCHAR2(2000 BYTE), 
-	"TOKEN_EXPIRY_TIME" NUMBER, 
-	"IS_TOKEN_VALID" NUMBER(1,0) NOT NULL ENABLE, 
-	"FAILED_REASON" VARCHAR2(100 BYTE), 
-	"REMARKS" VARCHAR2(100 BYTE), 
-	"EXPIRED_AT" NUMBER, 
-	"AES_KEY" VARCHAR2(2000 BYTE), 
-	"STATUS" VARCHAR2(20 BYTE), 
-	"CREATED_DATE" NUMBER NOT NULL ENABLE, 
-	"UPDATED_DATE" NUMBER, 
-	"CREATED_BY" VARCHAR2(100 BYTE) NOT NULL ENABLE, 
-	"UPDATED_BY" VARCHAR2(100 BYTE), 
-	"PARTITION_DATE" DATE
-   ) SEGMENT CREATION IMMEDIATE 
-  PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 
- NOCOMPRESS LOGGING
-  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
-  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
-  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
-  TABLESPACE "DEV_TEST_USERS" ;
-
+  private TransactionTokenResponse generatingTransactionToken(OrderDto orderDto, Long transactionTokenExpiryTime) {
+        TransactionTokenRequest tokenRequest = buildTransactionTokenRequest(orderDto, transactionTokenExpiryTime);
+        logger.info("Generating transaction token");
+        String token = authenticationService.generateTransactionToken(tokenRequest);
+        logger.info("Updating token details after generating token");
+        TokenDto tokenDto = buildTransactionToken(tokenRequest, token, orderDto.getOrderHash());
+        tokenDao.saveToken(tokenDto);
+        logger.info("Updated token details after generating token");
+        return TransactionTokenResponse.builder().token(token).hval(tokenDto.getAesKey()).build();
+    }
