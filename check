@@ -9,22 +9,28 @@ public TransactionResponse<TransactionTokenResponse> generateTransactionToken(St
         tokenDao.saveTransactionRequestedDeviceInfo(buildTransactionDeviceInfoDto(orderHash, deviceDetailsRequest));
     }
 
-    // Step 2: Check if a valid token already exists for the given orderHash
+    // Step 2: Check if a token already exists for the given orderHash
     logger.info("Fetching existing valid token by orderHash");
     Optional<Token> existingToken = tokenRepository.findLatestTokenByOrderHash(orderHash);
-    if (existingToken.isPresent() && TokenStatus.ACTIVE.equals(existingToken.get().getStatus())) {
-        logger.info("Valid token already exists for orderHash: {}", orderHash);
+    if (existingToken.isPresent()) {
         Token token = existingToken.get();
-        // Build response with existing token and hval
-        TransactionTokenResponse transactionTokenResponse = TransactionTokenResponse.builder()
-                .token(token.getGeneratedToken())
-                .hval(token.getAesKey())
-                .build();
-        logger.debug("Returning existing transaction token response: {}", transactionTokenResponse);
-        return TransactionResponse.<TransactionTokenResponse>builder()
-                .data(List.of(transactionTokenResponse))
-                .status(TransactionConstant.RESPONSE_SUCCESS)
-                .build();
+        if (TokenStatus.INACTIVE.equals(token.getStatus())) {
+            logger.debug("Token status is inactive for orderHash: {}", orderHash);
+            throw new TransactionException(ATTEMPT_EXPIRED_ERROR_CODE, ATTEMPT_EXPIRED_ERROR_MESSAGE);
+        }
+        if (TokenStatus.ACTIVE.equals(token.getStatus())) {
+            logger.info("Valid token already exists for orderHash: {}", orderHash);
+            // Build response with existing token and hval
+            TransactionTokenResponse transactionTokenResponse = TransactionTokenResponse.builder()
+                    .token(token.getGeneratedToken())
+                    .hval(token.getAesKey())
+                    .build();
+            logger.debug("Returning existing transaction token response: {}", transactionTokenResponse);
+            return TransactionResponse.<TransactionTokenResponse>builder()
+                    .data(List.of(transactionTokenResponse))
+                    .status(TransactionConstant.RESPONSE_SUCCESS)
+                    .build();
+        }
     }
 
     // Step 3: Get Merchant Order By Order Hash
