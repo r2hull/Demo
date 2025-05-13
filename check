@@ -1,73 +1,44 @@
-public TransactionResponse<TransactionTokenResponse> generateTransactionToken(String businessUrl, String orderHash, DeviceDetailsRequest deviceDetailsRequest, String clientIp) {
-    logger.info("Starting transaction token generation for orderHash: {}", orderHash);
-    tokenValidator.validateOrderHash(orderHash);
-
-    // Step 1: Save device details if provided
-    if (ObjectUtils.isNotEmpty(deviceDetailsRequest)) {
-        logger.debug("Saving device details for orderHash: {}, clientIp: {}", orderHash, clientIp);
-        deviceDetailsRequest.setClientIp(clientIp);
-        tokenDao.saveTransactionRequestedDeviceInfo(buildTransactionDeviceInfoDto(orderHash, deviceDetailsRequest));
+    @GetMapping("/users/{mid}")
+    @Operation(summary = "Retrieve All Users for a merchant.", description = "This API provides a list of all users for a specific merchant.")
+    public MerchantResponse<MerchantUserResponse> getAllUser(@Parameter(description = "Merchant ID for Retrieving all users for a merchant.", required = true)@PathVariable String mid, @Parameter(description = "Pagination details for the request") @PageableDefault(sort = {"createdAt"}, direction = Sort.Direction.DESC, size = 50, page = 0) Pageable pageable) {
+        log.info("Received request to get user list based on mid: {}", mid);
+        return adminService.getAllMerchantUsers(mid, pageable);
     }
 
-    // Step 2: Check for existing token
-    TransactionResponse<TransactionTokenResponse> existingTokenResponse = handleExistingToken(orderHash);
-    if (existingTokenResponse != null) {
-        return existingTokenResponse;
-    }
 
-    // Step 3: Fetch merchant order
-    logger.debug("Fetching merchant order for orderHash: {}", orderHash);
-    OrderDto orderDto = tokenDao.getMerchantOrderByOrderHash(orderHash);
+test:User should see result with values for page number 0 and Page size =10
 
-    // Step 4: Fetch merchant details
-    logger.debug("Fetching merchant details for MID: {}", orderDto.getMId());
-    MerchantInfoResponse merchantDto = tokenDao.getMerchantByMId(orderDto.getMId());
-
-    // Step 5: Validate business URL
-    logger.debug("Validating business URL: {} for MID: {}", businessUrl, merchantDto.getMId());
-    tokenValidator.validateBusinessUrl(businessUrl, merchantDto.getMerchantBusinessUrl());
-
-    // Step 6: Generate new token
-    logger.info("Generating new token for orderHash: {}", orderHash);
-    TransactionTokenResponse transactionTokenResponse = generatingTransactionToken(orderDto, merchantDto.getTransactionTokenExpiryTime());
-
-    return TransactionResponse.<TransactionTokenResponse>builder()
-            .data(List.of(transactionTokenResponse))
-            .status(TransactionConstant.RESPONSE_SUCCESS)
-            .build();
-}
-
-/**
- * Checks for an existing token for the given orderHash and returns a response if active, throws an exception if inactive.
- *
- * @param orderHash The order hash to check for an existing token.
- * @return TransactionResponse with the existing token if active, or null if no valid token exists.
- * @throws TransactionException if the token is inactive.
- */
-private TransactionResponse<TransactionTokenResponse> handleExistingToken(String orderHash) {
-    logger.debug("Checking for existing token for orderHash: {}", orderHash);
-    Optional<Token> existingToken = tokenDao.findLatestTokenByOrderHash(orderHash);
-    if (existingToken.isPresent()) {
-        Token token = existingToken.get();
-        if (TokenStatus.INACTIVE.equals(token.getStatus())) {
-            logger.debug("Inactive token found for orderHash: {}", orderHash);
-            throw new TransactionException(ATTEMPT_EXPIRED_ERROR_CODE, ATTEMPT_EXPIRED_ERROR_MESSAGE);
-        }
-        if (TokenStatus.ACTIVE.equals(token.getStatus())) {
-            logger.info("Reusing active token for orderHash: {}", orderHash);
-            TransactionTokenResponse response = TransactionTokenResponse.builder()
-                    .token(token.getGeneratedToken())
-                    .hval(token.getAesKey())
-                    .build();
-            return TransactionResponse.<TransactionTokenResponse>builder()
-                    .data(List.of(response))
-                    .status(TransactionConstant.RESPONSE_SUCCESS)
-                    .build();
-        }
-    }
-    return null;
-}
+"{
+    ""status"": 1,
+    ""data"": [
+        {
+            ""userName"": ""ASas"",
+            ""firstName"": ""ASsASAs"",
+            ""email"": ""asasasa@gmail.com"",
+            ""emailMasked"": ""a*****sa@*****om"",
+            ""mobilePhone"": ""9898989898"",
+            ""mobilePhoneMasked"": ""*******898"",
+            ""roleName"": ""ADMIN"",
+            ""status"": ""ACTIVE"",
+            ""createdAt"": 1745053275578,
+            ""updatedAt"": 1745229154867,
+            ""firstLogin"": true
+.
+.
+.
+.
+.
+.
+.
+.
+ }
+    ],
+    ""count"": 10,
+    ""total"": 61"
 
 
+tester comment:Total Records shown here are 3
 
+> but if page=0 amd size =1 provided shows 61 records
 
+>Total records should be always same
