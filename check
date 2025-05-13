@@ -1,15 +1,25 @@
-/**
-     * Get all users for a merchant.
-     * Destination: AdminDao.findAllMerchantUsersByMId
-     *
-     * @param mId      String
-     * @param pageable Pageable
-     * @return MerchantResponse with MerchantUserResponse
-     */
-    public MerchantResponse<MerchantUserResponse> getAllMerchantUsers(String mId, Pageable pageable) {
+@GetMapping("/users/{mid}")
+    @Operation(summary = "Retrieve All Users for a merchant.", description = "This API provides a list of all users for a specific merchant.")
+    public MerchantResponse<MerchantUserResponse> getAllUser(@Parameter(description = "Merchant ID for Retrieving all users for a merchant.", required = true)@PathVariable String mid, @Parameter(description = "Pagination details for the request") @PageableDefault(sort = {"createdAt"}, direction = Sort.Direction.DESC, size = 50, page = 0) Pageable pageable) {
+        log.info("Received request to get user list based on mid: {}", mid);
+        return adminService.getAllMerchantUsers(mid, pageable);
+    }
+
+  public MerchantResponse<MerchantUserResponse> getAllMerchantUsers(String mId, Pageable pageable) {
         log.info("getting userList based on mId: {}", mId);
         Page<MerchantUserDto> merchantUsers = adminDao.findAllMerchantUsersByMId(mId, pageable);
         log.info("Mapping users for Merchant ID: {}", mId);
         List<MerchantUserResponse> merchantUserResponseList = merchantMapper.mapMerchantUserDTOListToResponseList(merchantUsers.getContent());
         return MerchantResponse.<MerchantUserResponse>builder().status(RESPONSE_SUCCESS).data(merchantUserResponseList).count((long) merchantUsers.getContent().size()).total(merchantUsers.getTotalElements()).build();
     }
+
+public Page<MerchantUserDto> findAllMerchantUsersByMId(String mId, Pageable pageable) {
+        return merchantUserDao.getAllMerchantUsersByMId(mId, pageable);
+    }
+
+public Page<MerchantUserDto> getAllMerchantUsersByMId(String mId, Pageable pageable) {
+        return merchantUserRepository.findBymId(mId, pageable).map(this::convertEntityToDTO);
+    }
+
+    @Query("select m FROM MerchantUser m, MerchantEntityUser meu, MerchantEntityGroup meg " + "WHERE m.id = meu.userId and ((meu.mId = :mid and meu.entityId is null) or (meg.entityId = meu.entityId and meg.mId = :mid ))")
+    Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
