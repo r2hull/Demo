@@ -1,44 +1,15 @@
-    @GetMapping("/users/{mid}")
-    @Operation(summary = "Retrieve All Users for a merchant.", description = "This API provides a list of all users for a specific merchant.")
-    public MerchantResponse<MerchantUserResponse> getAllUser(@Parameter(description = "Merchant ID for Retrieving all users for a merchant.", required = true)@PathVariable String mid, @Parameter(description = "Pagination details for the request") @PageableDefault(sort = {"createdAt"}, direction = Sort.Direction.DESC, size = 50, page = 0) Pageable pageable) {
-        log.info("Received request to get user list based on mid: {}", mid);
-        return adminService.getAllMerchantUsers(mid, pageable);
+/**
+     * Get all users for a merchant.
+     * Destination: AdminDao.findAllMerchantUsersByMId
+     *
+     * @param mId      String
+     * @param pageable Pageable
+     * @return MerchantResponse with MerchantUserResponse
+     */
+    public MerchantResponse<MerchantUserResponse> getAllMerchantUsers(String mId, Pageable pageable) {
+        log.info("getting userList based on mId: {}", mId);
+        Page<MerchantUserDto> merchantUsers = adminDao.findAllMerchantUsersByMId(mId, pageable);
+        log.info("Mapping users for Merchant ID: {}", mId);
+        List<MerchantUserResponse> merchantUserResponseList = merchantMapper.mapMerchantUserDTOListToResponseList(merchantUsers.getContent());
+        return MerchantResponse.<MerchantUserResponse>builder().status(RESPONSE_SUCCESS).data(merchantUserResponseList).count((long) merchantUsers.getContent().size()).total(merchantUsers.getTotalElements()).build();
     }
-
-
-test:User should see result with values for page number 0 and Page size =10
-
-"{
-    ""status"": 1,
-    ""data"": [
-        {
-            ""userName"": ""ASas"",
-            ""firstName"": ""ASsASAs"",
-            ""email"": ""asasasa@gmail.com"",
-            ""emailMasked"": ""a*****sa@*****om"",
-            ""mobilePhone"": ""9898989898"",
-            ""mobilePhoneMasked"": ""*******898"",
-            ""roleName"": ""ADMIN"",
-            ""status"": ""ACTIVE"",
-            ""createdAt"": 1745053275578,
-            ""updatedAt"": 1745229154867,
-            ""firstLogin"": true
-.
-.
-.
-.
-.
-.
-.
-.
- }
-    ],
-    ""count"": 10,
-    ""total"": 61"
-
-
-tester comment:Total Records shown here are 3
-
-> but if page=0 amd size =1 provided shows 61 records
-
->Total records should be always same
