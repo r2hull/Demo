@@ -1,6 +1,17 @@
-  public Page<MerchantUserDto> getAllMerchantUsersByMId(String mId, Pageable pageable) {
+public Page<MerchantUserDto> getAllMerchantUsersByMId(String mId, Pageable pageable) {
+    List<MerchantUser> users = Optional.ofNullable(merchantUserRepository.findBymId(mId))
+                                       .orElse(Collections.emptyList());
 
-        Stream<MerchantUserDto> merchantUserDtoStream = merchantUserRepository.findBymId(mId).stream().map(this::convertEntityToDTO);
+    List<MerchantUserDto> dtoList = users.stream()
+                                         .filter(Objects::nonNull)
+                                         .map(this::convertEntityToDTO)
+                                         .collect(Collectors.toList());
 
-        return null;
-    }
+    int total = dtoList.size();
+    int start = Math.toIntExact(pageable.getOffset());
+    int end = Math.min(start + pageable.getPageSize(), total);
+
+    List<MerchantUserDto> pagedList = (start <= end) ? dtoList.subList(start, end) : Collections.emptyList();
+
+    return new PageImpl<>(pagedList, pageable, total);
+}
