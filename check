@@ -1,7 +1,10 @@
-    public Page<MerchantUser> getAllMerchantUsersByMId(String mId, Pageable pageable) {
-
-      return  merchantUserRepository.findBymId(mId,pageable);
-
-}
-    @Query(value="SELECT * FROM (SELECT M.*,ROW_NUMBER () OVER (PARTITION BY  m.id ORDER BY m.id ) R FROM merchant_user m, merchant_entity_user  meu, merchant_entity_group meg WHERE m.id = meu.user_id AND ( ( meu.mid = :mid AND meu.entity_id IS NULL ) OR ( meg.entity_id = meu.entity_id AND meg.mid = :mid ))) WHERE R=1",nativeQuery = true)
-    Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
+@Query(value = "SELECT * FROM ( " +
+        "SELECT M.*, ROW_NUMBER() OVER (PARTITION BY m.id ORDER BY m.id) AS R " +
+        "FROM merchant_user m " +
+        "JOIN merchant_entity_user meu ON m.id = meu.user_id " +
+        "LEFT JOIN merchant_entity_group meg ON meg.entity_id = meu.entity_id " +
+        "WHERE ( (meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.mid = :mid) ) " +
+        ") AS result " +
+        "WHERE R = 1 " +
+        "LIMIT :limit OFFSET :offset", nativeQuery = true)
+List<MerchantUser> findMerchantUsersByMidManualPagination(@Param("mid") String mId, @Param("limit") int limit, @Param("offset") int offset);
