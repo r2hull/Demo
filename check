@@ -1,9 +1,1 @@
-@Query(value = "SELECT * FROM ( " +
-        "SELECT m.*, ROW_NUMBER() OVER (PARTITION BY m.id ORDER BY m.id) AS r " +
-        "FROM merchant_user m, merchant_entity_user meu, merchant_entity_group meg " +
-        "WHERE m.id = meu.user_id AND " +
-        "( (meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.entity_id = meu.entity_id AND meg.mid = :mid) ) " +
-        ") AS result " +
-        "WHERE r = 1 " +
-        "LIMIT :limit OFFSET :offset", nativeQuery = true)
-List<MerchantUser> findByMidManual(@Param("mid") String mid, @Param("limit") int limit, @Param("offset") int offset);
+ "errorMessage": "ORA-00933: SQL command not properly ended\n"
