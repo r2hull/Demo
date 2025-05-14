@@ -1,25 +1,6 @@
-public MerchantResponse<MerchantUserResponse> getAllMerchantUsers(String mId, Pageable pageable) {
-    log.info("Fetching all MerchantUser records for merchant ID: {}", mId);
-    List<MerchantUser> fullList = merchantUserRepository.findAllByMid(mId);
 
-    // Remove duplicates if needed
-    Set<String> uniqueIds = new HashSet<>();
-    List<MerchantUser> distinctList = fullList.stream()
-        .filter(user -> uniqueIds.add(user.getId()))
-        .collect(Collectors.toList());
+    @Query("SELECT MerchantUser FROM (SELECT m,ROW_NUMBER () OVER (PARTITION BY  m.id ORDER BY m.id ) R FROM MerchantUser m, MerchantEntityUser  meu, MerchantEntityGroup meg WHERE m.id = meu.userId AND ( ( meu.mId = :mid AND meu.entityId IS NULL ) OR ( meg.entityId = meu.entityId AND meg.mId = :mid))) WHERE R=1")
+    Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
 
-    // Pagination manually
-    int start = (int) pageable.getOffset();
-    int end = Math.min(start + pageable.getPageSize(), distinctList.size());
-    List<MerchantUser> pagedList = distinctList.subList(start, end);
 
-    log.info("Mapping users for response");
-    List<MerchantUserResponse> responseList = merchantMapper.mapMerchantUserListToResponseList(pagedList);
-
-    return MerchantResponse.<MerchantUserResponse>builder()
-            .status(RESPONSE_SUCCESS)
-            .data(responseList)
-            .count((long) responseList.size())
-            .total((long) distinctList.size())
-            .build();
-}
+SELECT * FROM (SELECT M.*,ROW_NUMBER () OVER (PARTITION BY  m.id ORDER BY m.id ) R FROM merchant_user m, merchant_entity_user  meu, merchant_entity_group meg WHERE m.id = meu.user_id AND ( ( meu.mid = '1000003' AND meu.entity_id IS NULL ) OR ( meg.entity_id = meu.entity_id AND meg.mid = '1000003'))) WHERE R=1;
