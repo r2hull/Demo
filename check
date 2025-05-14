@@ -1,11 +1,20 @@
-created by me which is showing error on run tym
-    @Query("SELECT MerchantUser FROM (SELECT m,ROW_NUMBER () OVER (PARTITION BY  m.id ORDER BY m.id ) R FROM MerchantUser m, MerchantEntityUser  meu, MerchantEntityGroup meg WHERE m.id = meu.userId AND ( ( meu.mId = :mid AND meu.entityId IS NULL ) OR ( meg.entityId = meu.entityId AND meg.mId = :mid))) WHERE R=1")
-    Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
-
-
-
-db team give me this query 
-SELECT * FROM (SELECT M.*,ROW_NUMBER () OVER (PARTITION BY  m.id ORDER BY m.id ) R FROM merchant_user m, merchant_entity_user  meu, merchant_entity_group meg WHERE m.id = meu.user_id AND ( ( meu.mid = '1000003' AND meu.entity_id IS NULL ) OR ( meg.entity_id = meu.entity_id AND meg.mid = '1000003'))) WHERE R=1;
-
-
-i want to use this query as joa query 
+@Query(
+    value = "SELECT * FROM (" +
+            " SELECT m.*, ROW_NUMBER() OVER (PARTITION BY m.id ORDER BY m.id) AS R " +
+            " FROM merchant_user m " +
+            " JOIN merchant_entity_user meu ON m.id = meu.user_id " +
+            " LEFT JOIN merchant_entity_group meg ON meg.entity_id = meu.entity_id " +
+            " WHERE ( (meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.mid = :mid) )" +
+            ") AS sub " +
+            "WHERE sub.R = 1",
+    countQuery = "SELECT COUNT(*) FROM (" +
+                 " SELECT m.id, ROW_NUMBER() OVER (PARTITION BY m.id ORDER BY m.id) AS R " +
+                 " FROM merchant_user m " +
+                 " JOIN merchant_entity_user meu ON m.id = meu.user_id " +
+                 " LEFT JOIN merchant_entity_group meg ON meg.entity_id = meu.entity_id " +
+                 " WHERE ( (meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.mid = :mid) )" +
+                 ") AS sub " +
+                 "WHERE sub.R = 1",
+    nativeQuery = true
+)
+Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
