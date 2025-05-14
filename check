@@ -1,7 +1,9 @@
     @Query(value="SELECT * FROM (SELECT M.*,ROW_NUMBER () OVER (PARTITION BY  m.id ORDER BY m.id ) R FROM merchant_user m, merchant_entity_user  meu, merchant_entity_group meg WHERE m.id = meu.user_id AND ( ( meu.mid = :mid AND meu.entity_id IS NULL ) OR ( meg.entity_id = meu.entity_id AND meg.mid = :mid ))) WHERE R=1",nativeQuery = true)
     List<Object[]> findBymId(@Param("mid") String mId);
 
+List<Object[]> bymId = merchantUserRepository.findBymId(mId);
 
+i want to convert Object[] into following entity
 package com.epay.merchant.entity;
 
 import com.epay.merchant.config.listener.AuditRevisionListener;
