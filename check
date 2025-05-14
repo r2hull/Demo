@@ -1,34 +1,5 @@
-@GetMapping("/users/{mid}")
-    @Operation(summary = "Retrieve All Users for a merchant.", description = "This API provides a list of all users for a specific merchant.")
-    public MerchantResponse<MerchantUserResponse> getAllUser(@Parameter(description = "Merchant ID for Retrieving all users for a merchant.", required = true)@PathVariable String mid, @Parameter(description = "Pagination details for the request") @PageableDefault(sort = {"createdAt"}, direction = Sort.Direction.DESC, size = 50, page = 0) Pageable pageable) {
-        log.info("Received request to get user list based on mid: {}", mid);
-        return adminService.getAllMerchantUsers(mid, pageable);
-    }
-
-  public MerchantResponse<MerchantUserResponse> getAllMerchantUsers(String mId, Pageable pageable) {
-        log.info("getting userList based on mId: {}", mId);
-        Page<MerchantUserDto> merchantUsers = adminDao.findAllMerchantUsersByMId(mId, pageable);
-        log.info("Mapping users for Merchant ID: {}", mId);
-        List<MerchantUserResponse> merchantUserResponseList = merchantMapper.mapMerchantUserDTOListToResponseList(merchantUsers.getContent());
-        return MerchantResponse.<MerchantUserResponse>builder().status(RESPONSE_SUCCESS).data(merchantUserResponseList).count((long) merchantUsers.getContent().size()).total(merchantUsers.getTotalElements()).build();
-    }
-
-public Page<MerchantUserDto> findAllMerchantUsersByMId(String mId, Pageable pageable) {
-        return merchantUserDao.getAllMerchantUsersByMId(mId, pageable);
-    }
-
-public Page<MerchantUserDto> getAllMerchantUsersByMId(String mId, Pageable pageable) {
-        return merchantUserRepository.findBymId(mId, pageable).map(this::convertEntityToDTO);
-    }
-
-private MerchantUserDto convertEntityToDTO(MerchantUser merchantUser) {
-        MerchantUserDto merchantUserDto = merchantMapper.mapMerchantUserEntityToDto(merchantUser);
-        merchantUserDto.setRoleName(merchantUserRepository.findUserRoleByUserId(merchantUser.getId()));
-        return merchantUserDto;
-    }
-
-  @Query("SELECT r.role FROM MerchantUser u JOIN MerchantUserRole r ON u.role = r.id WHERE u.id = :userId")
-    String findUserRoleByUserId(@Param("userId") UUID userId);
-
-    @Query("select m FROM MerchantUser m, MerchantEntityUser meu, MerchantEntityGroup meg " + "WHERE m.id = meu.userId and ((meu.mId = :mid and meu.entityId is null) or (meg.entityId = meu.entityId and meg.mId = :mid ))")
-    Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
+@Query("SELECT m FROM MerchantUser m " +
+       "JOIN MerchantEntityUser meu ON m.id = meu.userId " +
+       "LEFT JOIN MerchantEntityGroup meg ON meg.entityId = meu.entityId AND meg.mId = :mid " +
+       "WHERE meu.mId = :mid AND (meu.entityId IS NULL OR meg.entityId IS NOT NULL)")
+Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
