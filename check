@@ -1,17 +1,1 @@
-public Page<MerchantUserDto> getAllMerchantUsersByMId(String mId, Pageable pageable) {
-    List<MerchantUser> users = Optional.ofNullable(merchantUserRepository.findBymId(mId))
-                                       .orElse(Collections.emptyList());
-
-    List<MerchantUserDto> dtoList = users.stream()
-                                         .filter(Objects::nonNull)
-                                         .map(this::convertEntityToDTO)
-                                         .collect(Collectors.toList());
-
-    int total = dtoList.size();
-    int start = Math.toIntExact(pageable.getOffset());
-    int end = Math.min(start + pageable.getPageSize(), total);
-
-    List<MerchantUserDto> pagedList = (start <= end) ? dtoList.subList(start, end) : Collections.emptyList();
-
-    return new PageImpl<>(pagedList, pageable, total);
-}
+For now we are implementing this we will change it later.
