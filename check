@@ -21,5 +21,14 @@ public Page<MerchantUserDto> getAllMerchantUsersByMId(String mId, Pageable pagea
         return merchantUserRepository.findBymId(mId, pageable).map(this::convertEntityToDTO);
     }
 
+private MerchantUserDto convertEntityToDTO(MerchantUser merchantUser) {
+        MerchantUserDto merchantUserDto = merchantMapper.mapMerchantUserEntityToDto(merchantUser);
+        merchantUserDto.setRoleName(merchantUserRepository.findUserRoleByUserId(merchantUser.getId()));
+        return merchantUserDto;
+    }
+
+  @Query("SELECT r.role FROM MerchantUser u JOIN MerchantUserRole r ON u.role = r.id WHERE u.id = :userId")
+    String findUserRoleByUserId(@Param("userId") UUID userId);
+
     @Query("select m FROM MerchantUser m, MerchantEntityUser meu, MerchantEntityGroup meg " + "WHERE m.id = meu.userId and ((meu.mId = :mid and meu.entityId is null) or (meg.entityId = meu.entityId and meg.mId = :mid ))")
     Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
