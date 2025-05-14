@@ -1,12 +1,6 @@
-@Query(value = "SELECT * FROM ( " +
-        "  SELECT m.*, ROW_NUMBER() OVER (ORDER BY m.id) AS rn " +
-        "  FROM merchant_user m, merchant_entity_user meu, merchant_entity_group meg " +
-        "  WHERE m.id = meu.user_id AND " +
-        "  ( (meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.entity_id = meu.entity_id AND meg.mid = :mid) ) " +
-        ") " +
-        "WHERE rn > :startRow AND rn <= :endRow", nativeQuery = true)
-List<MerchantUser> findByMidManual(
-    @Param("mid") String mid,
-    @Param("startRow") int startRow,
-    @Param("endRow") int endRow
-);
+  public Page<MerchantUserDto> getAllMerchantUsersByMId(String mId, Pageable pageable) {
+
+        Stream<MerchantUserDto> merchantUserDtoStream = merchantUserRepository.findBymId(mId).stream().map(this::convertEntityToDTO);
+
+        return null;
+    }
