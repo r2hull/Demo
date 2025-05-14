@@ -8,3 +8,27 @@
         "WHERE R = 1 " +
         "LIMIT :limit OFFSET :offset", nativeQuery = true)
 List<MerchantUser> findMerchantUsersByMidManualPagination(@Param("mid") String mId, @Param("limit") int limit, @Param("offset") int offset);
+
+
+
+
+@Query(value = "SELECT COUNT(*) FROM ( " +
+        "SELECT m.id, ROW_NUMBER() OVER (PARTITION BY m.id ORDER BY m.id) AS R " +
+        "FROM merchant_user m " +
+        "JOIN merchant_entity_user meu ON m.id = meu.user_id " +
+        "LEFT JOIN merchant_entity_group meg ON meg.entity_id = meu.entity_id " +
+        "WHERE ( (meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.mid = :mid) ) " +
+        ") AS count_table WHERE R = 1", nativeQuery = true)
+long countMerchantUsersByMid(@Param("mid") String mId);
+
+
+
+public Page<MerchantUser> getAllMerchantUsersByMId(String mId, Pageable pageable) {
+    int limit = pageable.getPageSize();
+    int offset = (int) pageable.getOffset();
+
+    List<MerchantUser> users = merchantUserRepository.findMerchantUsersByMidManualPagination(mId, limit, offset);
+    long total = merchantUserRepository.countMerchantUsersByMid(mId);
+
+    return new PageImpl<>(users, pageable, total);
+}
