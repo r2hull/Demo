@@ -1,20 +1,75 @@
-@Query(
-    value = "SELECT * FROM (" +
-            " SELECT m.*, ROW_NUMBER() OVER (PARTITION BY m.id ORDER BY m.id) AS R " +
-            " FROM merchant_user m " +
-            " JOIN merchant_entity_user meu ON m.id = meu.user_id " +
-            " LEFT JOIN merchant_entity_group meg ON meg.entity_id = meu.entity_id " +
-            " WHERE ( (meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.mid = :mid) )" +
-            ") AS sub " +
-            "WHERE sub.R = 1",
-    countQuery = "SELECT COUNT(*) FROM (" +
-                 " SELECT m.id, ROW_NUMBER() OVER (PARTITION BY m.id ORDER BY m.id) AS R " +
-                 " FROM merchant_user m " +
-                 " JOIN merchant_entity_user meu ON m.id = meu.user_id " +
-                 " LEFT JOIN merchant_entity_group meg ON meg.entity_id = meu.entity_id " +
-                 " WHERE ( (meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.mid = :mid) )" +
-                 ") AS sub " +
-                 "WHERE sub.R = 1",
-    nativeQuery = true
-)
-Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
+    @Query(value="SELECT * FROM (SELECT M.*,ROW_NUMBER () OVER (PARTITION BY  m.id ORDER BY m.id ) R FROM merchant_user m, merchant_entity_user  meu, merchant_entity_group meg WHERE m.id = meu.user_id AND ( ( meu.mid = :mid AND meu.entity_id IS NULL ) OR ( meg.entity_id = meu.entity_id AND meg.mid = :mid ))) WHERE R=1",nativeQuery = true)
+    List<Object[]> findBymId(@Param("mid") String mId);
+
+
+package com.epay.merchant.entity;
+
+import com.epay.merchant.config.listener.AuditRevisionListener;
+import com.epay.merchant.util.enums.UserStatus;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.envers.AuditTable;
+import org.hibernate.envers.Audited;
+
+import java.util.UUID;
+
+/**
+ * Class Name: MerchantUser
+ * *
+ * Description:
+ * *
+ * Author: Bhoopendra Rajput
+ * <p>
+ * Copyright (c) 2024 [State Bank of India]
+ * All rights reserved
+ * *
+ * Version:1.0
+ */
+@EqualsAndHashCode(callSuper = true)
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "MERCHANT_USER")
+@Audited
+@AuditTable(value = "MERCHANT_USER_AUDIT")
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class MerchantUser extends AuditEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(nullable = false, updatable = false, unique = true)
+    private UUID id;
+    @Version
+    private int version;
+
+    @Column(name = "PARENT_USERID")
+    private UUID parentUserId;
+
+    private String userName;
+    private String firstName;
+    private String email;
+    private String emailMasked;
+    private String mobilePhone;
+    private String mobilePhoneMasked;
+    private String remark;
+    @Column(name = "ROLE_ID")
+    private UUID role;
+    @Enumerated(EnumType.STRING)
+    private UserStatus status;
+    private String password;
+    private Long lastPasswordChange;
+    private Long passwordExpiryTime;
+    private int loginFailAttempt;
+    private Long lastSuccessLogin;
+    private Long lastFailLogin;
+    private boolean isFirstLogin;
+
+    @PrePersist
+    @PreUpdate
+    public void setEntityNameForRevision(){
+        AuditRevisionListener.setEntityName(this.getClass().getSimpleName());
+    }
+}
