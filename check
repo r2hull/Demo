@@ -1,1 +1,6 @@
-For now we are implementing this we will change it later.
+@GetMapping("/users/{mid}")
+    @Operation(summary = "Retrieve All Users for a merchant.", description = "This API provides a list of all users for a specific merchant.")
+    public MerchantResponse<MerchantUserResponse> getAllUser(@Parameter(description = "Merchant ID for Retrieving all users for a merchant.", required = true)@PathVariable String mid, @Parameter(description = "Pagination details for the request") @PageableDefault(sort = {"createdAt"}, direction = Sort.Direction.DESC, size = 50, page = 0) @Valid Pageable pageable) {
+        log.info("Received request to get user list based on mid: {}", mid);
+        return adminService.getAllMerchantUsers(mid, pageable);
+    }
