@@ -1,6 +1,180 @@
-@GetMapping("/users/{mid}")
-    @Operation(summary = "Retrieve All Users for a merchant.", description = "This API provides a list of all users for a specific merchant.")
-    public MerchantResponse<MerchantUserResponse> getAllUser(@Parameter(description = "Merchant ID for Retrieving all users for a merchant.", required = true)@PathVariable String mid, @Parameter(description = "Pagination details for the request") @PageableDefault(sort = {"createdAt"}, direction = Sort.Direction.DESC, size = 50, page = 0) @Valid Pageable pageable) {
-        log.info("Received request to get user list based on mid: {}", mid);
-        return adminService.getAllMerchantUsers(mid, pageable);
+private BulkRefundBookingDetails buildBulkRefundBookingDetails(String bulkId, int rowNumber, String[] rowData) {
+    logger.info("Building BulkRefundBookingDetails for bulkId: {}, row: {}", bulkId, rowNumber);
+
+    // Check if row is null or has insufficient fields
+    if (rowData == null || rowData.length < 5 || Arrays.stream(rowData).anyMatch(Objects::isNull)) {
+        logger.warn("Invalid row for bulkId: {}, row: {}", bulkId, rowNumber);
+        return createInvalidRow(bulkId, rowNumber, "Invalid row: Missing or null fields");
     }
+
+    // Extract and trim fields
+    String refundType = rowData[0].trim();
+    String merchantOrderId = rowData[1].trim();
+    String atrn = rowData[2].trim();
+    String refundAmount = rowData[3].trim();
+    String refundCurrency = rowData[4].trim();
+    String comments = rowData.length > 5 ? rowData[5].trim() : "";
+
+    // Validate required fields
+    if (!StringUtils.equals(refundType, "PARTIAL") && !StringUtils.equals(refundType, "FULL")) {
+        logger.warn("Invalid refund type for bulkId: {}, row: {}", bulkId, rowNumber);
+        return createInvalidRow(bulkId, rowNumber, "Invalid row: Invalid refund type");
+    }
+    if (StringUtils.isEmpty(merchantOrderId)) {
+        logger.warn("Missing merchant order ID for bulkId: {}, row: {}", bulkId, rowNumber);
+        return createInvalidRow(bulkId, rowNumber, "Invalid row: Missing merchant order ID");
+    }
+    if (StringUtils.isEmpty(atrn)) {
+        logger.warn("Missing ATRN for bulkId: {}, row: {}", bulkId, rowNumber);
+        return createInvalidRow(bulkId, rowNumber, "Invalid row: Missing ATRN");
+    }
+    if (StringUtils.isEmpty(refundAmount)) {
+        logger.warn("Missing refund amount for bulkId: {}, row: {}", bulkId, rowNumber);
+        return createInvalidRow(bulkId, rowNumber, "Invalid row: Missing refund amount");
+    }
+    if (!StringUtils.equals(refundCurrency, "INR")) {
+        logger.warn("Invalid refund currency for bulkId: {}, row: {}", bulkId, rowNumber);
+        return createInvalidRow(bulkId, rowNumber, "Invalid row: Invalid refund currency");
+    }
+
+    // Validate refund amount format
+    try {
+        Double.parseDouble(refundAmount);
+    } catch (NumberFormatException e) {
+        logger.warn("Invalid refund amount format for bulkId: {}, row: {}", bulkId, rowNumber);
+        return createInvalidRow(bulkId, rowNumber, "Invalid row: Invalid refund amount format");
+    }
+
+    // Build valid row
+    return BulkRefundBookingDetails.builder()
+            .bulkId(bulkId)
+            .rowNumber(rowNumber)
+            .refundType(refundType)
+            .merchantOrderId(merchantOrderId)
+            .atrnNum(atrn)
+            .refundAmount(refundAmount)
+            .refundCurrency(refundCurrency)
+            .comments(comments)
+            .refundStatus(RefundStatus.INITIATED.name())
+            .remark("Valid row")
+            .build();
+}
+
+// Helper method for invalid rows
+private BulkRefundBookingDetails createInvalidRow(String bulkId, int rowNumber, String remark) {
+    return BulkRefundBookingDetails.builder()
+            .bulkId(bulkId)
+            .rowNumber(rowNumber)
+            .refundStatus(RefundStatus.REFUND_FAILED.name())
+            .remark(remark)
+            .build();
+}
+
+
+
+
+private void processingRefundBooking(String bulkId, List<String[]> refundData, BulkRefundBooking bulkRefundBooking) {
+    logger.info("Processing refund booking for bulkId: {}", bulkId);
+    int totalRecords = refundData.size() - 1;
+
+    // Initialize BulkRefundBooking
+    bulkRefundBooking.setTotalRecords(totalRecords);
+    bulkRefundBooking.setBulkRefundStatus(BulkRefundStatus.IN_QUEUE.name());
+    refundDao.saveBulkRefundBooking(bulkRefundBooking);
+
+    // Process each row
+    int validRecords = 0;
+    for (int row = 1; row <= totalRecords; row++) {
+        BulkRefundBookingDetails details = buildBulkRefundBookingDetails(bulkId, row, refundData.get(row));
+        details = refundDao.saveBulkRefundBookingDetailsForRow(details);
+
+        // Send valid rows to Kafka
+        if (StringUtils.equals(details.getRefundStatus(), RefundStatus.INITIATED.name())) {
+            refundBookingDetailsProducer.publish("BOOKING_DETAILS", details.getId().toString(), details.getId());
+            validRecords++;
+            logger.info("Row {} queued for bulkId: {}", row, bulkId);
+        } else {
+            logger.info("Row {} invalid for bulkId: {}", row, bulkId);
+        }
+    }
+
+    // If no valid records, mark as PROCESSED
+    if (validRecords == 0) {
+        bulkRefundBooking.setValidRecords(0);
+        bulkRefundBooking.setInvalidRecords(totalRecords);
+        bulkRefundBooking.setBulkRefundStatus(BulkRefundStatus.PROCESSED.name());
+        refundDao.saveBulkRefundBooking(bulkRefundBooking);
+        logger.info("No valid rows for bulkId: {}. Status: PROCESSED.", bulkId);
+    }
+}
+
+
+
+public void processBulkRefundRow(UUID bookingDetailsId) {
+    logger.info("Processing BulkRefundBookingDetails id: {}", bookingDetailsId);
+
+    // Fetch details
+    BulkRefundBookingDetails details = refundDao.findBulkRefundBookingDetailsById(bookingDetailsId);
+
+    // Skip if already failed
+    if (StringUtils.equals(details.getRefundStatus(), RefundStatus.REFUND_FAILED.name())) {
+        logger.info("Row {} already failed for bulkId: {}", details.getRowNumber(), details.getBulkId());
+        checkAndUpdateBulkRefundBooking(details.getBulkId());
+        return;
+    }
+
+    // Process refund
+    TransactionResponse<RefundResponse> bulkRefundResponse = bookBulkRefund(details);
+
+    // Update details
+    if (StringUtils.equals(bulkRefundResponse.getStatus(), TransactionConstant.RESPONSE_SUCCESS)) {
+        details.setRefundStatus(bulkRefundResponse.getData().getFirst().getRefundStatus());
+        details.setRemark("Refund Booked Successfully");
+    } else {
+        details.setRefundStatus(RefundStatus.REFUND_FAILED.name());
+        details.setRemark(bulkRefundResponse.getErrors().getFirst().getErrorMessage());
+    }
+
+    refundDao.saveBulkRefundBookingDetails(details);
+    checkAndUpdateBulkRefundBooking(details.getBulkId());
+}
+
+
+
+
+
+
+private void checkAndUpdateBulkRefundBooking(String bulkId) {
+    BulkRefundBooking booking = refundDao.findByBulkId(bulkId);
+    long processedCount = refundDao.countProcessedRowsByBulkId(bulkId);
+    
+    // Update counts based on final refundStatus
+    long validRecords = refundDao.countValidRowsByBulkId(bulkId);
+    long invalidRecords = processedCount - validRecords;
+
+    booking.setValidRecords((int) validRecords);
+    booking.setInvalidRecords((int) invalidRecords);
+
+    // Set status to PROCESSED if all rows are done
+    if (processedCount >= booking.getTotalRecords()) {
+        booking.setBulkRefundStatus(BulkRefundStatus.PROCESSED.name());
+        logger.info("BulkId: {} fully processed. Valid: {}, Invalid: {}. Status: PROCESSED.", 
+                    bulkId, validRecords, invalidRecords);
+    }
+
+    refundDao.saveBulkRefundBooking(booking);
+}
+
+
+
+
+@Query("SELECT COUNT(d) FROM BulkRefundBookingDetails d WHERE d.bulkId = :bulkId AND d.refundStatus IS NOT NULL")
+long countProcessedRowsByBulkId(@Param("bulkId") String bulkId);
+
+@Query("SELECT COUNT(d) FROM BulkRefundBookingDetails d WHERE d.bulkId = :bulkId AND d.refundStatus = :status")
+long countValidRowsByBulkId(@Param("bulkId") String bulkId, @Param("status") String status);
+
+
+
+
+long validRecords = refundDao.countValidRowsByBulkId(bulkId, RefundStatus.REFUND_SUCCESS.name());
