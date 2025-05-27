@@ -1,2 +1,9 @@
-To verify whether ApI returns an Error when remark is sent with special character except 
-1 _(underscore) -2 .(dot) -3 @(at the rate) -4 /(forward slash) -5 (space) -6 ,(comma) -7 -(hyphen) -8 :(colon)
+import jakarta.validation.constraints.Pattern;
+
+public class RemarkRequest {
+
+    @Pattern(regexp = "^[a-zA-Z0-9_@./,:\\-\\s]*$", message = "Remark contains invalid characters")
+    private String remark;
+
+    // Getter and Setter
+}
