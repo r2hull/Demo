@@ -1,1 +1,2 @@
-Since the UUID is directly mapped to a UUID type in the request body, any leading or trailing spaces are automatically handled by the parser (like Jackson in Java). That’s why even if we send spaces from Postman, it still works fine.
+a
+
