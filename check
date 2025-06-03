@@ -1,31 +1,3 @@
-@Query(value = """
-    SELECT * FROM (
-        SELECT M.*, ROW_NUMBER() OVER (PARTITION BY m.id ORDER BY m.id) AS R 
-        FROM merchant_user m
-        JOIN merchant_entity_user meu ON m.id = meu.user_id
-        LEFT JOIN merchant_entity_group meg ON meg.entity_id = meu.entity_id
-        WHERE ( (meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.mid = :mid) )
-    ) sub
-    WHERE R = 1
-    """, 
-    countQuery = """
-    SELECT COUNT(*) FROM (
-        SELECT ROW_NUMBER() OVER (PARTITION BY m.id ORDER BY m.id) AS R 
-        FROM merchant_user m
-        JOIN merchant_entity_user meu ON m.id = meu.user_id
-        LEFT JOIN merchant_entity_group meg ON meg.entity_id = meu.entity_id
-        WHERE ( (meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.mid = :mid) )
-    ) sub
-    """,
-    nativeQuery = true)
-Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
+JDBC exception executing SQL [SELECT * FROM (SELECT M.*,ROW_NUMBER () OVER (PARTITION BY  m.id ORDER BY m.id ) R FROM merchant_user m, merchant_entity_user  meu, merchant_entity_group meg WHERE m.id = meu.user_id AND ( ( meu.mid = ? AND meu.entity_id IS NULL ) OR ( meg.entity_id = meu.entity_id AND meg.mid = ? ))) WHERE R=1 order by R.created_at desc fetch first ? rows only] [ORA-19200: Invalid column specification
 
-
-
-Pageable pageable = PageRequest.of(pageNumber, pageSize);
-Page<MerchantUser> page = merchantUserRepository.findBymId(mId, pageable);
-
-List<MerchantUserDto> dtoList = page.getContent()
-    .stream()
-    .map(this::convertEntityToDTO)
-    .toList();
+https://docs.oracle.com/error-help/db/ora-19200/] [n/a]
