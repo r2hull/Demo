@@ -1,2 +1,8 @@
-a
-
+ public Page<MerchantUserDto> getAllMerchantUsersByMId(String mId, Pageable pageable) {
+        List<MerchantUserDto> merchantUserDtoStream = merchantUserRepository.findBymId(mId).stream().map(this::convertEntityToDTO).toList();
+        int total = merchantUserDtoStream.size();
+        int start = Math.toIntExact(pageable.getOffset());
+        int end = Math.min(start + pageable.getPageSize(), total);
+        List<MerchantUserDto> pagedList = (start <= end) ? merchantUserDtoStream.subList(start, end) : Collections.emptyList();
+        return new PageImpl<>(pagedList, pageable, total);
+    }
