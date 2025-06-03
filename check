@@ -1,2 +1,31 @@
-    @Query(value="SELECT * FROM (SELECT M.*,ROW_NUMBER () OVER (PARTITION BY  m.id ORDER BY m.id ) R FROM merchant_user m, merchant_entity_user  meu, merchant_entity_group meg WHERE m.id = meu.user_id AND ( ( meu.mid = :mid AND meu.entity_id IS NULL ) OR ( meg.entity_id = meu.entity_id AND meg.mid = :mid ))) WHERE R=1",nativeQuery = true)
-    List<MerchantUser> findBymId(@Param("mid") String mId);
+@Query(value = """
+    SELECT * FROM (
+        SELECT M.*, ROW_NUMBER() OVER (PARTITION BY m.id ORDER BY m.id) AS R 
+        FROM merchant_user m
+        JOIN merchant_entity_user meu ON m.id = meu.user_id
+        LEFT JOIN merchant_entity_group meg ON meg.entity_id = meu.entity_id
+        WHERE ( (meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.mid = :mid) )
+    ) sub
+    WHERE R = 1
+    """, 
+    countQuery = """
+    SELECT COUNT(*) FROM (
+        SELECT ROW_NUMBER() OVER (PARTITION BY m.id ORDER BY m.id) AS R 
+        FROM merchant_user m
+        JOIN merchant_entity_user meu ON m.id = meu.user_id
+        LEFT JOIN merchant_entity_group meg ON meg.entity_id = meu.entity_id
+        WHERE ( (meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.mid = :mid) )
+    ) sub
+    """,
+    nativeQuery = true)
+Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
+
+
+
+Pageable pageable = PageRequest.of(pageNumber, pageSize);
+Page<MerchantUser> page = merchantUserRepository.findBymId(mId, pageable);
+
+List<MerchantUserDto> dtoList = page.getContent()
+    .stream()
+    .map(this::convertEntityToDTO)
+    .toList();
