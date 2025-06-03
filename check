@@ -1,20 +1,9 @@
-@Query(value = """
-    SELECT * FROM (
-        SELECT inner_query.*, ROWNUM rnum FROM (
-            SELECT M.* 
-            FROM merchant_user m
-            JOIN merchant_entity_user meu ON m.id = meu.user_id
-            LEFT JOIN merchant_entity_group meg ON meg.entity_id = meu.entity_id
-            WHERE ((meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.mid = :mid))
-            ORDER BY m.created_at DESC
-        ) inner_query
-        WHERE ROWNUM <= :endRow
-    )
-    WHERE rnum > :startRow
-    """, 
-    nativeQuery = true)
-List<MerchantUser> findBymIdPaged(
-    @Param("mid") String mid,
-    @Param("startRow") int startRow,
-    @Param("endRow") int endRow
-);
+int page = 0;
+int size = 10;
+int startRow = page * size;
+int endRow = startRow + size;
+
+List<MerchantUserDto> dtos = merchantUserRepository.findBymIdPaged(mId, startRow, endRow)
+    .stream()
+    .map(this::convertEntityToDTO)
+    .toList();
