@@ -1,8 +1,10 @@
- public Page<MerchantUserDto> getAllMerchantUsersByMId(String mId, Pageable pageable) {
-        List<MerchantUserDto> merchantUserDtoStream = merchantUserRepository.findBymId(mId).stream().map(this::convertEntityToDTO).toList();
-        int total = merchantUserDtoStream.size();
-        int start = Math.toIntExact(pageable.getOffset());
-        int end = Math.min(start + pageable.getPageSize(), total);
-        List<MerchantUserDto> pagedList = (start <= end) ? merchantUserDtoStream.subList(start, end) : Collections.emptyList();
-        return new PageImpl<>(pagedList, pageable, total);
-    }
+SELECT * FROM (SELECT
+M.*,ROW_NUMBER () OVER (PARTITION BY  m.id ORDER BY m.id ) R
+FROM
+merchant_user        m,
+merchant_entity_user  meu,
+merchant_entity_group meg
+WHERE
+m.id = meu.user_id AND ( ( meu.mid = '1000003' AND meu.entity_id IS NULL ) OR ( meg.entity_id = meu.entity_id AND meg.mid = '1000003'))) WHERE R=1
+OFFSET 0 ROWS
+FETCH NEXT 5 ROWS ONLY;
