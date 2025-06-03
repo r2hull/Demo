@@ -1,3 +1,20 @@
-JDBC exception executing SQL [SELECT * FROM (SELECT M.*,ROW_NUMBER () OVER (PARTITION BY  m.id ORDER BY m.id ) R FROM merchant_user m, merchant_entity_user  meu, merchant_entity_group meg WHERE m.id = meu.user_id AND ( ( meu.mid = ? AND meu.entity_id IS NULL ) OR ( meg.entity_id = meu.entity_id AND meg.mid = ? ))) WHERE R=1 order by R.created_at desc fetch first ? rows only] [ORA-19200: Invalid column specification
-
-https://docs.oracle.com/error-help/db/ora-19200/] [n/a]
+@Query(value = """
+    SELECT * FROM (
+        SELECT inner_query.*, ROWNUM rnum FROM (
+            SELECT M.* 
+            FROM merchant_user m
+            JOIN merchant_entity_user meu ON m.id = meu.user_id
+            LEFT JOIN merchant_entity_group meg ON meg.entity_id = meu.entity_id
+            WHERE ((meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.mid = :mid))
+            ORDER BY m.created_at DESC
+        ) inner_query
+        WHERE ROWNUM <= :endRow
+    )
+    WHERE rnum > :startRow
+    """, 
+    nativeQuery = true)
+List<MerchantUser> findBymIdPaged(
+    @Param("mid") String mid,
+    @Param("startRow") int startRow,
+    @Param("endRow") int endRow
+);
