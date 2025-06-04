@@ -1,9 +1,21 @@
-int page = 0;
-int size = 10;
-int startRow = page * size;
-int endRow = startRow + size;
-
-List<MerchantUserDto> dtos = merchantUserRepository.findBymIdPaged(mId, startRow, endRow)
-    .stream()
-    .map(this::convertEntityToDTO)
-    .toList();
+ @Query(value = """
+    SELECT * FROM (
+        SELECT M.*, ROW_NUMBER() OVER (PARTITION BY m.id ORDER BY m.id) AS R 
+        FROM merchant_user m
+        JOIN merchant_entity_user meu ON m.id = meu.user_id
+        LEFT JOIN merchant_entity_group meg ON meg.entity_id = meu.entity_id
+        WHERE ( (meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.mid = :mid) )
+    ) sub
+    WHERE R = 1
+    """,
+            countQuery = """
+    SELECT COUNT(*) FROM (
+        SELECT ROW_NUMBER() OVER (PARTITION BY m.id ORDER BY m.id) AS R 
+        FROM merchant_user m
+        JOIN merchant_entity_user meu ON m.id = meu.user_id
+        LEFT JOIN merchant_entity_group meg ON meg.entity_id = meu.entity_id
+        WHERE ( (meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.mid = :mid) )
+    ) sub
+    """,
+            nativeQuery = true)
+    Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
