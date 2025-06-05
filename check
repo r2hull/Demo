@@ -1,4 +1,31 @@
-@Query("SELECT m FROM MerchantUser m " +
-       "LEFT JOIN MerchantEntityUser meu ON m.id = meu.userId AND meu.mId = :mid " +
-       "WHERE EXISTS (SELECT 1 FROM MerchantEntityGroup meg WHERE meg.mId = :mid AND (meg.entityId = meu.entityId OR meu.entityId IS NULL))")
-Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
+@Getter
+public class MerchantException extends RuntimeException {
+    private String errorCode;
+    private String errorMessage;
+    private List<ErrorDto> errorMessages;
+
+    public MerchantException(String errorCode, String errorMessage) {
+        this.errorCode = errorCode;
+        this.errorMessage = errorMessage;
+    }
+
+    public MerchantException(List<ErrorDto> errorMessages) {
+        this.errorMessages = errorMessages;
+    }
+
+}
+
+ @ExceptionHandler(value = {MerchantException.class, EncryptionDecryptionException.class})
+    public ResponseEntity<Object> handleEPayServiceException(RuntimeException ex) {
+        logger.error("Handling MerchantException or EncryptionDecryptionException: {}", ex.getMessage(), ex);
+        ErrorDto errorDto;
+        switch (ex) {
+            case MerchantException me ->
+                    errorDto = ErrorDto.builder().errorCode(me.getErrorCode()).errorMessage(me.getErrorMessage()).build();
+            case EncryptionDecryptionException me ->
+                    errorDto = ErrorDto.builder().errorCode(me.getErrorCode()).errorMessage(me.getErrorMessage()).build();
+            default ->
+                    errorDto = ErrorDto.builder().errorCode(ErrorConstants.GENERIC_ERROR_CODE).errorMessage(ex.getLocalizedMessage()).build();
+        }
+        return generateResponseWithErrors(List.of(errorDto));
+    }
