@@ -1,36 +1,10 @@
-@ExceptionHandler({MerchantException.class, EncryptionDecryptionException.class})
-public ResponseEntity<Object> handleEPayServiceException(RuntimeException ex) {
-    logger.error("Handling exception: {}", ex.getMessage(), ex);
-
-    List<ErrorDto> errorDtoList = switch (ex) {
-        case MerchantException me when me.getErrorMessages() != null && !me.getErrorMessages().isEmpty() ->
-                me.getErrorMessages();
-        case MerchantException me ->
-                List.of(ErrorDto.builder()
-                        .errorCode(me.getErrorCode())
-                        .errorMessage(me.getErrorMessage())
-                        .build());
-        case EncryptionDecryptionException ede ->
-                List.of(ErrorDto.builder()
-                        .errorCode(ede.getErrorCode())
-                        .errorMessage(ede.getErrorMessage())
-                        .build());
-        default ->
-                List.of(ErrorDto.builder()
-                        .errorCode(GENERIC_ERROR_CODE)
-                        .errorMessage(ex.getLocalizedMessage())
-                        .build());
-    };
-
-    return generateResponseWithErrors(errorDtoList);
-}
-
-private ResponseEntity<Object> generateResponseWithErrors(List<ErrorDto> errors) {
-    logger.error("Generating response with errors: {}", errors);
-    return ResponseEntity.ok(
-            MerchantResponse.builder()
-                    .status(RESPONSE_FAILURE)
-                    .errors(errors)
-                    .build()
-    );
-}
+} catch (Exception e) {
+            log.error("Error in API Key Generation: {}", e.getMessage(), e);
+            saveKey(mId, KeyType.API, RESPONSE_FAILURE, ERROR_IN_API_KEY_GENERATED + e.getMessage());
+            if(e instanceof MerchantException){
+                throw e;
+            }
+            else {
+                throw new MerchantException(GENERATION_ERROR_CODE, MessageFormat.format(GENERATION_ERROR_MESSAGE, API_KEY));
+            }
+        }
