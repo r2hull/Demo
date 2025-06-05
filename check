@@ -1,5 +1,4 @@
 @Query("SELECT m FROM MerchantUser m " +
-       "LEFT JOIN MerchantEntityUser meu ON m.id = meu.userId " +
-       "WHERE meu.mId = :mid AND (meu.entityId IS NULL OR EXISTS " +
-       "(SELECT 1 FROM MerchantEntityGroup meg WHERE meg.entityId = meu.entityId AND meg.mId = :mid))")
+       "LEFT JOIN MerchantEntityUser meu ON m.id = meu.userId AND meu.mId = :mid " +
+       "WHERE EXISTS (SELECT 1 FROM MerchantEntityGroup meg WHERE meg.mId = :mid AND (meg.entityId = meu.entityId OR meu.entityId IS NULL))")
 Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
