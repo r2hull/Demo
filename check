@@ -1,32 +1,23 @@
  @ExceptionHandler(value = {MerchantException.class, EncryptionDecryptionException.class})
     public ResponseEntity<Object> handleEPayServiceException(RuntimeException ex) {
         logger.error("Handling MerchantException or EncryptionDecryptionException: {}", ex.getMessage(), ex);
-        List<ErrorDto> errorDtoList = List.of();
+        List<ErrorDto> errorDtoList = new ArrayList<>(List.of());
         ErrorDto errorDto;
         switch (ex) {
-            case MerchantException me ->{
-                if(me.getErrorMessages()!=null){
-                    errorDto = ErrorDto.builder().errorCode(me.getErrorMessages().getFirst().getErrorCode()).errorMessage(me.getErrorMessages().getFirst().getErrorMessage()).build();
-                    errorDtoList.add(errorDto);
-                }else{
+            case MerchantException me -> {
+                if (me.getErrorMessages() != null) {
+                    errorDtoList.addAll(me.getErrorMessages());
+                } else {
                     errorDto = ErrorDto.builder().errorCode(me.getErrorCode()).errorMessage(me.getErrorMessage()).build();
                     errorDtoList.add(errorDto);
                 }
             }
-            case EncryptionDecryptionException me ->{
+            case EncryptionDecryptionException me ->
+                    errorDtoList.add(ErrorDto.builder().errorCode(me.getErrorCode()).errorMessage(me.getErrorMessage()).build());
 
-                errorDto = ErrorDto.builder().errorCode(me.getErrorCode()).errorMessage(me.getErrorMessage()).build();
-                errorDtoList.add(errorDto);
-            }
-            default ->{
-                errorDto = ErrorDto.builder().errorCode(GENERIC_ERROR_CODE).errorMessage(ex.getLocalizedMessage()).build();
-                errorDtoList.add(errorDto);
-            }
+            default ->
+                    errorDtoList.add(ErrorDto.builder().errorCode(GENERIC_ERROR_CODE).errorMessage(ex.getLocalizedMessage()).build());
+
         }
         return generateResponseWithErrors(errorDtoList);
-    }
-
- private ResponseEntity<Object> generateResponseWithErrors(List<ErrorDto> errors) {
-        logger.error("Generating response with errors: {}", errors);
-        return ResponseEntity.ok().body(MerchantResponse.builder().status(RESPONSE_FAILURE).errors(errors).build());
     }
