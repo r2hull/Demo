@@ -1,25 +1,22 @@
- public KMSAPIKeysResponse generateApiKey(String mId) {
-        try {
-            MerchantResponse<KMSAPIKeysResponse> kmsResponse = kmsClient.generateAPIKeys(mId, merchantConfig.getApiKeyExpiryTime());
-            if (kmsResponse.getStatus() == RESPONSE_SUCCESS && CollectionUtils.isNotEmpty(kmsResponse.getData())) {
-                UUID keyId = saveKey(mId, KeyType.API, RESPONSE_SUCCESS, API_KEY_GENERATED);
-                KMSAPIKeysResponse kmsapiKeysResponse = kmsResponse.getData().getFirst();
-                kmsapiKeysResponse.setId(keyId);
-                return kmsapiKeysResponse;
-            } else if (kmsResponse.getStatus() == RESPONSE_FAILURE) {
-                saveKey(mId, KeyType.API, RESPONSE_FAILURE, Arrays.toString(kmsResponse.getErrors().toArray(new ErrorDto[0])));
-                throw new MerchantException(kmsResponse.getErrors());
-            }
-            saveKey(mId, KeyType.API, RESPONSE_FAILURE, ERROR_IN_API_KEY_GENERATED);
-            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE, MessageFormat.format(GENERATION_ERROR_MESSAGE, API_KEY));
-        } catch (Exception e) {
-            log.error("Error in API Key Generation: {}", e.getMessage(), e);
-            saveKey(mId, KeyType.API, RESPONSE_FAILURE, ERROR_IN_API_KEY_GENERATED + e.getMessage());
-            if(e instanceof MerchantException exception){
-                throw new MerchantException(exception.getErrorMessages());
-            }
-            else {
-                throw new MerchantException(GENERATION_ERROR_CODE, MessageFormat.format(GENERATION_ERROR_MESSAGE, API_KEY));
-            }
-        }
+    @Query(value = "SELECT * FROM (SELECT M.*,ROW_NUMBER () OVER (PARTITION BY  m.id ORDER BY m.id ) R FROM merchant_user m, merchant_entity_user  meu, merchant_entity_group meg " +
+            "WHERE m.id = meu.user_id AND ( ( meu.mid = :mid AND meu.entity_id IS NULL ) OR ( meg.entity_id = meu.entity_id AND meg.mid = :mid )))" +
+            "WHERE R=1 order by USER_NAME :sort ", nativeQuery = true)
+    List<MerchantUser> findBymId(@Param("mid") String mId, @Param("sort") String sort);
+
+
+
+public Page<MerchantUserDto> getAllMerchantUsersByMId(String mId,Pageable pageable) {
+        String sort = pageable.getSort().get().findFirst().get().getDirection().name();
+        List<MerchantUserDto> merchantUserDtoStream = merchantUserRepository.findBymId(mId,sort).stream().map(this::convertEntityToDTO).toList();
+        int total = merchantUserDtoStream.size();
+        int start = Math.toIntExact(pageable.getOffset());
+        int end = Math.min(start + pageable.getPageSize(), total);
+        List<MerchantUserDto> pagedList = (start <= end) ? merchantUserDtoStream.subList(start, end) : Collections.emptyList();
+        return new PageImpl<>(pagedList, pageable, total);
     }
+
+
+
+JDBC exception executing SQL [SELECT * FROM (SELECT M.*,ROW_NUMBER () OVER (PARTITION BY  m.id ORDER BY m.id ) R FROM merchant_user m, merchant_entity_user  meu, merchant_entity_group meg WHERE m.id = meu.user_id AND ( ( meu.mid = ? AND meu.entity_id IS NULL ) OR ( meg.entity_id = meu.entity_id AND meg.mid = ? )))WHERE R=1 order by USER_NAME ? ] [ORA-00933: SQL command not properly ended
+
+https://docs.oracle.com/error-help/db/ora-00933/] [n/a]; SQL [n/a]
