@@ -1,21 +1,25 @@
- @Query(value = """
-    SELECT * FROM (
-        SELECT M.*, ROW_NUMBER() OVER (PARTITION BY m.id ORDER BY m.id) AS R 
-        FROM merchant_user m
-        JOIN merchant_entity_user meu ON m.id = meu.user_id
-        LEFT JOIN merchant_entity_group meg ON meg.entity_id = meu.entity_id
-        WHERE ( (meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.mid = :mid) )
-    ) sub
-    WHERE R = 1
-    """,
-            countQuery = """
-    SELECT COUNT(*) FROM (
-        SELECT ROW_NUMBER() OVER (PARTITION BY m.id ORDER BY m.id) AS R 
-        FROM merchant_user m
-        JOIN merchant_entity_user meu ON m.id = meu.user_id
-        LEFT JOIN merchant_entity_group meg ON meg.entity_id = meu.entity_id
-        WHERE ( (meu.mid = :mid AND meu.entity_id IS NULL) OR (meg.mid = :mid) )
-    ) sub
-    """,
-            nativeQuery = true)
-    Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
+ public KMSAPIKeysResponse generateApiKey(String mId) {
+        try {
+            MerchantResponse<KMSAPIKeysResponse> kmsResponse = kmsClient.generateAPIKeys(mId, merchantConfig.getApiKeyExpiryTime());
+            if (kmsResponse.getStatus() == RESPONSE_SUCCESS && CollectionUtils.isNotEmpty(kmsResponse.getData())) {
+                UUID keyId = saveKey(mId, KeyType.API, RESPONSE_SUCCESS, API_KEY_GENERATED);
+                KMSAPIKeysResponse kmsapiKeysResponse = kmsResponse.getData().getFirst();
+                kmsapiKeysResponse.setId(keyId);
+                return kmsapiKeysResponse;
+            } else if (kmsResponse.getStatus() == RESPONSE_FAILURE) {
+                saveKey(mId, KeyType.API, RESPONSE_FAILURE, Arrays.toString(kmsResponse.getErrors().toArray(new ErrorDto[0])));
+                throw new MerchantException(kmsResponse.getErrors());
+            }
+            saveKey(mId, KeyType.API, RESPONSE_FAILURE, ERROR_IN_API_KEY_GENERATED);
+            throw new MerchantException(ErrorConstants.GENERATION_ERROR_CODE, MessageFormat.format(GENERATION_ERROR_MESSAGE, API_KEY));
+        } catch (Exception e) {
+            log.error("Error in API Key Generation: {}", e.getMessage(), e);
+            saveKey(mId, KeyType.API, RESPONSE_FAILURE, ERROR_IN_API_KEY_GENERATED + e.getMessage());
+            if(e instanceof MerchantException exception){
+                throw new MerchantException(exception.getErrorMessages());
+            }
+            else {
+                throw new MerchantException(GENERATION_ERROR_CODE, MessageFormat.format(GENERATION_ERROR_MESSAGE, API_KEY));
+            }
+        }
+    }
