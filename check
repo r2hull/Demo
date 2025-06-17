@@ -1,25 +1,5 @@
-    @Query("select m FROM MerchantUser m, MerchantEntityUser meu, MerchantEntityGroup meg " + "WHERE m.id = meu.userId and meu.mId=meg.mId and ((meu.mId = :mid and meu.entityId is null) or (meg.entityId = meu.entityId and meg.mId = :mid ))")
-    Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
-return merchantUserRepository.findBymId(mId, pageable)
-http://localhost:9093/merchant/v1/admin/users/1000003?page=5&size=11000
-{
-    "status": 1,
-    "data": [],
-    "count": 0,
-    "total": 49
-}
-
-default:
-    @GetMapping("/users/{mid}")
-    @Operation(summary = "Retrieve All Users for a merchant.", description = "This API provides a list of all users for a specific merchant.")
-    public MerchantResponse<MerchantUserResponse> getAllUser(@Parameter(description = "Merchant ID for Retrieving all users for a merchant.", required = true)@PathVariable String mid, @Parameter(description = "Pagination details for the request") @PageableDefault(sort = {"createdAt"}, direction = Sort.Direction.DESC, size = 50, page = 0) Pageable pageable) {
-        log.info("Received request to get user list based on mid: {}", mid);
-        return adminService.getAllMerchantUsers(mid, pageable);
-    }
-    "count": 47,
-    "total": 47
-
-DB
- select m.* FROM MERCHANT_USER m, MERCHANT_ENTITY_USER meu, MERCHANT_ENTITY_GROUP meg
-	WHERE m.ID = meu.USER_ID and meu.mid=meg.mid and ((meu.mid = '1000003' and meu.ENTITY_ID is null) or (meg.ENTITY_ID = meu.ENTITY_ID and meg.mId = '1000003'))
-=49
+@Query("SELECT m FROM MerchantUser m " +
+       "JOIN MerchantEntityUser meu ON m.id = meu.userId " +
+       "JOIN MerchantEntityGroup meg ON meu.mId = meg.mId " +
+       "WHERE meu.mId = :mid AND (meu.entityId IS NULL OR meu.entityId IN (SELECT meg2.entityId FROM MerchantEntityGroup meg2 WHERE meg2.mId = :mid))")
+Page<MerchantUser> findBymId(@Param("mid") String mId, Pageable pageable);
