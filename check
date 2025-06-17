@@ -1,8 +1,6 @@
-Kafka Disconnection During Bulk Refund – Immediate Fix Required
-
 Hi DevOps,
 
-Kafka is getting disconnected during the bulk refund upload for MID: 1000003 (around 09:44 AM).
-Please find the attached logs clearly showing the disconnection and message publish failure.
+Please ignore the previous attachment.
+Find the correct log file attached below showing Kafka disconnection during bulk refund upload for MID: 1000003.
 
-Fix this on priority. This should not keep happening in SIT.
+Fix this on priority.
