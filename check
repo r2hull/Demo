@@ -1,30 +1,20 @@
-@GetMapping("/users/{mid}")
-@Operation(summary = "Retrieve All Users for a merchant.", description = "This API provides a list of all users for a specific merchant.")
-public MerchantResponse<MerchantUserResponse> getAllUser(
-        @Parameter(description = "Merchant ID for Retrieving all users for a merchant.", required = true)
-        @PathVariable String mid,
-
-        @Parameter(description = "Pagination details for the request")
-        @PageableDefault(size = 50, page = 0) Pageable pageable) {
-
-    log.info("Received request to get user list based on mid: {}", mid);
-
-    // validate page size
-    if (pageable.getPageSize() > 100) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page size cannot be greater than 100");
+private Pageable validateAndSanitizePageable(Pageable pageable, int maxSize, String defaultSortField) {
+    // Validate page size
+    if (pageable.getPageSize() > maxSize) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page size cannot be greater than " + maxSize);
     }
 
-    // handle invalid or null sort
+    // Check if sort is invalid or null
     boolean invalidSort = pageable.getSort().stream()
-        .anyMatch(order -> order.getProperty() == null || order.getProperty().equalsIgnoreCase("null"));
+            .anyMatch(order -> order.getProperty() == null || order.getProperty().equalsIgnoreCase("null"));
 
     if (pageable.getSort().isUnsorted() || invalidSort) {
-        pageable = PageRequest.of(
-            pageable.getPageNumber(),
-            pageable.getPageSize(),
-            Sort.by(Sort.Direction.DESC, "createdAt")
+        return PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, defaultSortField)
         );
     }
 
-    return adminService.getAllMerchantUsers(mid, pageable);
+    return pageable;
 }
