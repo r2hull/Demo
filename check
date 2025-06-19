@@ -1,25 +1,27 @@
 private Pageable validateAndSanitizePageable(Pageable pageable, int maxSize, String defaultSortField, Class<?> dtoClass) {
-    // Page size validation
+    // Check size limit
     if (pageable.getPageSize() > maxSize) {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page size cannot be greater than " + maxSize);
     }
 
-    // Get allowed fields from DTO using reflection
+    // Get allowed fields from DTO class
     Set<String> allowedFields = Arrays.stream(dtoClass.getDeclaredFields())
             .map(Field::getName)
             .collect(Collectors.toSet());
 
-    // Sort validation
-    for (Sort.Order order : pageable.getSort()) {
-        String property = order.getProperty();
-        if (property == null || property.equalsIgnoreCase("null") || !allowedFields.contains(property)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid sort parameter: " + property);
-        }
-    }
+    boolean hasInvalidSort = pageable.getSort().stream()
+            .anyMatch(order -> {
+                String property = order.getProperty();
+                return property == null || property.equalsIgnoreCase("null") || !allowedFields.contains(property);
+            });
 
-    // If sort is empty, apply default
-    if (pageable.getSort().isUnsorted()) {
-        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, defaultSortField));
+    // If any invalid sort field, fallback to default
+    if (pageable.getSort().isUnsorted() || hasInvalidSort) {
+        return PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, defaultSortField)
+        );
     }
 
     return pageable;
