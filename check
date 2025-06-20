@@ -1,13 +1,22 @@
-public List<MerchantUser> getFirstUsersByUserNameForMid(String mid) {
-    List<MerchantUser> users = merchantUserRepository.findAllUsersByMid(mid);
+public Page<MerchantUser> getDistinctUsersByMid(String mid, Pageable pageable) {
+    List<MerchantUser> allUsers = merchantUserRepository.findAllUsersByMid(mid);
 
-    return users.stream()
+    // Group by userName and pick earliest by createdAt
+    List<MerchantUser> uniqueUsers = allUsers.stream()
             .collect(Collectors.groupingBy(MerchantUser::getUserName))
-            .values()
-            .stream()
-            .map(group -> group.stream()
-                    .sorted(Comparator.comparing(MerchantUser::getCreatedAt))
-                    .findFirst().orElse(null))
+            .values().stream()
+            .map(list -> list.stream()
+                    .min(Comparator.comparing(MerchantUser::getCreatedAt))
+                    .orElse(null))
             .filter(Objects::nonNull)
+            .sorted(Comparator.comparing(MerchantUser::getCreatedAt)) // optional sort
             .collect(Collectors.toList());
+
+    // Manual pagination
+    int start = (int) pageable.getOffset();
+    int end = Math.min(start + pageable.getPageSize(), uniqueUsers.size());
+
+    List<MerchantUser> pagedList = uniqueUsers.subList(start, end);
+
+    return new PageImpl<>(pagedList, pageable, uniqueUsers.size());
 }
