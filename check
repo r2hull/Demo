@@ -1,28 +1,103 @@
-private Pageable validateAndSanitizePageable(Pageable pageable, int maxSize, String defaultSortField, Class<?> dtoClass) {
-    // Check size limit
-    if (pageable.getPageSize() > maxSize) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page size cannot be greater than " + maxSize);
+select k.* from (
+select  A.* ,row_number() over (partition by a.user_name order by a.created_at) as rn from MERCHANT_USER A,MERCHANT_ENTITY_USER B,MERCHANT_ENTITY_GROUP C where A.ID=B.USER_ID AND B.ENTITY_ID=C.ENTITY_ID
+AND B.MID=C.MID AND C.MID='1234578' ) k where k.rn=1 ;
+
+
+
+@EqualsAndHashCode(callSuper = true)
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "MERCHANT_USER")
+@Audited
+@AuditTable(value = "MERCHANT_USER_AUDIT")
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class MerchantUser extends AuditEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(nullable = false, updatable = false, unique = true)
+    private UUID id;
+    @Version
+    private int version;
+
+    @Column(name = "PARENT_USERID")
+    private UUID parentUserId;
+
+    private String userName;
+    private String firstName;
+    private String email;
+    private String emailMasked;
+    private String mobilePhone;
+    private String mobilePhoneMasked;
+    private String remark;
+    @Column(name = "ROLE_ID")
+    private UUID role;
+    @Enumerated(EnumType.STRING)
+    private UserStatus status;
+    private String password;
+    private Long lastPasswordChange;
+    private Long passwordExpiryTime;
+    private int loginFailAttempt;
+    private Long lastSuccessLogin;
+    private Long lastFailLogin;
+    private boolean isFirstLogin;
+
+    @PrePersist
+    @PreUpdate
+    public void setEntityNameForRevision(){
+        AuditRevisionListener.setEntityName(this.getClass().getSimpleName());
     }
+}
 
-    // Get allowed fields from DTO class
-    Set<String> allowedFields = Arrays.stream(dtoClass.getDeclaredFields())
-            .map(Field::getName)
-            .collect(Collectors.toSet());
 
-    boolean hasInvalidSort = pageable.getSort().stream()
-            .anyMatch(order -> {
-                String property = order.getProperty();
-                return property == null || property.equalsIgnoreCase("null") || !allowedFields.contains(property);
-            });
 
-    // If any invalid sort field, fallback to default
-    if (pageable.getSort().isUnsorted() || hasInvalidSort) {
-        return PageRequest.of(
-                pageable.getPageNumber(),
-                pageable.getPageSize(),
-                Sort.by(Sort.Direction.DESC, defaultSortField)
-        );
-    }
 
-    return pageable;
+@EqualsAndHashCode(callSuper = true)
+@Getter
+@Setter
+@Builder
+@Entity
+@Table(name = "MERCHANT_ENTITY_USER")
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class MerchantEntityUser extends AuditEntity{
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(nullable = false, updatable = false, unique = true)
+    private UUID id;
+    @Version
+    private int version;
+
+    private UUID userId;
+    private String entityId;
+    @Column(name = "MID")
+    private String mId;
+}
+
+
+
+
+@EqualsAndHashCode(callSuper = true)
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Entity
+@Builder
+@Table(name = "merchant_entity_group")
+public class MerchantEntityGroup extends AuditEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+    @Version
+    private int version;
+    @Column(name = "MID")
+    private String mId;
+    private String entityId;
+
 }
