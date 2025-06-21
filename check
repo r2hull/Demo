@@ -1,9 +1,187 @@
-int start = (int) pageable.getOffset();
-int end = Math.min(start + pageable.getPageSize(), uniqueUsers.size());
+2025-06-21 06:28:55.831 INFO | com.sbi.epay.authentication.service.JwtService:150 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=getAllClaimsFromToken | ClassName - JwtService,MethodName - getAllClaimsFromToken, getting all claims from token.
+2025-06-21 06:28:55.832 INFO | com.sbi.epay.authentication.service.JwtService:168 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=getSignKey | ClassName - JwtService,MethodName - getSignKey, getting SigningKey.
+2025-06-21 06:28:55.836 INFO | com.sbi.epay.authentication.service.JwtService:180 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=isTokenExpired | ClassName - JwtService,MethodName - isTokenExpired, getting expiration time from token.
+2025-06-21 06:28:55.836 INFO | com.epay.transaction.externalservice.MerchantServicesClient:40 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=validateMerchantToken | Validating merchant token...
+2025-06-21 06:28:55.837 INFO | com.epay.transaction.client.ApiClient:79 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=get | Calling uri: http://merchant-merchantservice.sit-merchant.svc.cluster.local:9093/api/merchant/v1/validation/token
+2025-06-21 06:28:55.863 INFO | com.sbi.epay.authentication.service.JwtService:129 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=verifyJwtTokenAndGetClaims | Token request received for userNameWithTokenType: shreyas:USER
+2025-06-21 06:28:55.863 INFO | com.epay.transaction.externalservice.MerchantServicesClient:50 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=validateMerchantUser | Validating merchant user with request: UserValidationRequest(requestType=LOGIN, userName=shreyas)
+2025-06-21 06:28:55.864 INFO | com.epay.transaction.client.ApiClient:55 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=post | Calling uri: http://merchant-merchantservice.sit-merchant.svc.cluster.local:9093/api/merchant/v1/validation/user
+2025-06-21 06:28:55.880 INFO | com.sbi.epay.authentication.service.JwtService:131 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=verifyJwtTokenAndGetClaims | Token request received for userNameWithTokenType: shreyas:USER
+2025-06-21 06:28:55.886 INFO | com.epay.transaction.controller.RefundController:113 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=uploadBulkRefund | Upload bulk refund invoked for mId: 1000003
+2025-06-21 06:28:55.887 INFO | com.epay.transaction.service.RefundService:238 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=uploadBulkRefund | uploadBulkRefund invoked for mId: 1000003
+2025-06-21 06:28:55.888 INFO | com.epay.transaction.validator.RefundValidator:439 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=validateActiveMid | Inside getActiveMerchantById for mId: 1000003
+2025-06-21 06:28:55.888 INFO | com.epay.transaction.dao.AdminDao:44 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=getMerchantByMId | Fetching Merchant Information for mId: 1000003
+2025-06-21 06:28:55.888 INFO | com.epay.transaction.externalservice.AdminServicesClient:59 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=getMerchantInfoByMId | Fetching merchant info for mId: 1000003
+2025-06-21 06:28:55.888 INFO | com.epay.transaction.client.ApiClient:55 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=post | Calling uri: http://admin-adminservice.sit-admin.svc.cluster.local:9094/api/admin/v1/merchant/1000003
+2025-06-21 06:28:55.904 INFO | com.epay.transaction.dao.AdminDao:47 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=getMerchantByMId | Successfully retrieved MerchantInfoResponse for mId: 1000003
+2025-06-21 06:28:55.913 INFO | com.epay.transaction.service.RefundService:242 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=uploadBulkRefund | Bulk upload request validated for mId: 1000003
+2025-06-21 06:28:55.920 INFO | com.epay.transaction.externalservice.S3Service:91 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=uploadFile | Uploading MultipartFile to S3: 1750487335913-file
+2025-06-21 06:28:57.296 INFO | com.epay.transaction.externalservice.S3Service:94 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=uploadFile | File uploaded successfully: 1750487335913-file
+2025-06-21 06:28:57.297 INFO | com.epay.transaction.service.RefundService:246 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=uploadBulkRefund | Bulk refund file uploaded at :1750487335913-file for mId: 1000003
+2025-06-21 06:28:57.298 INFO | com.epay.transaction.util.DateTimeUtils:40 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=getCurrentTimeInMills | Fetching current time in milliseconds.
+Hibernate: insert into bulk_refund_booking (bulk_id,bulk_refund_status,created_by,created_date,file_name,file_path,invalid_records,merchant_id,remark,total_records,updated_by,updated_date,valid_records,id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+2025-06-21 06:28:57.364 INFO | com.epay.transaction.service.RefundService:253 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=uploadBulkRefund | Bulk refund request saved for mId: 1750487335913-file
+2025-06-21 06:28:57.427 INFO | com.epay.transaction.etl.producer.BulkRefundProducer:34 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=publish | ProducerConfig values: 
+	acks = -1
+	auto.include.jmx.reporter = true
+	batch.size = 1000
+	bootstrap.servers = [sit-cluster-kafka-listener1-bootstrap.sit-kafka.svc.cluster.local:9092]
+	buffer.memory = 33554432
+	client.dns.lookup = use_all_dns_ips
+	client.id = transaction-producer-ca5f87fd-199b-43ba-8946-8b3eb315313a-1
+	compression.type = none
+	connections.max.idle.ms = 540000
+	delivery.timeout.ms = 120000
+	enable.idempotence = true
+	enable.metrics.push = true
+	interceptor.classes = []
+	key.serializer = class org.apache.kafka.common.serialization.StringSerializer
+	linger.ms = 1
+	max.block.ms = 60000
+	max.in.flight.requests.per.connection = 5
+	max.request.size = 1048576
+	metadata.max.age.ms = 300000
+	metadata.max.idle.ms = 300000
+	metric.reporters = []
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partitioner.adaptive.partitioning.enable = true
+	partitioner.availability.timeout.ms = 0
+	partitioner.class = null
+	partitioner.ignore.keys = false
+	receive.buffer.bytes = 32768
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retries = 3
+	retry.backoff.max.ms = 1000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = null
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = null
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	transaction.timeout.ms = 60000
+	transactional.id = null
+	value.serializer = class org.apache.kafka.common.serialization.StringSerializer
 
-if (start >= uniqueUsers.size()) {
-    return new PageImpl<>(Collections.emptyList(), pageable, uniqueUsers.size());
-}
-
-List<MerchantUser> pagedList = uniqueUsers.subList(start, end);
-return new PageImpl<>(pagedList, pageable, uniqueUsers.size());
+2025-06-21 06:28:57.432 INFO | com.epay.transaction.etl.producer.BulkRefundProducer:34 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=publish | initializing Kafka metrics collector
+2025-06-21 06:28:57.486 INFO | com.epay.transaction.etl.producer.BulkRefundProducer:34 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=publish | [Producer clientId=transaction-producer-ca5f87fd-199b-43ba-8946-8b3eb315313a-1] Instantiated an idempotent producer.
+2025-06-21 06:28:57.572 INFO | com.epay.transaction.etl.producer.BulkRefundProducer:34 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=publish | Kafka version: 3.7.2
+2025-06-21 06:28:57.572 INFO | com.epay.transaction.etl.producer.BulkRefundProducer:34 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=publish | Kafka commitId: 79a8f2b5f44f9d5a
+2025-06-21 06:28:57.572 INFO | com.epay.transaction.etl.producer.BulkRefundProducer:34 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-upload/1000003 | operation=POST | correlation=bb329cfc-0ee2-41bb-bfea-ad113fa7122f | methodName=publish | Kafka startTimeMs: 1750487337572
+2025-06-21 06:29:00.001 INFO | com.epay.transaction.scheduler.TokenExpiryScheduler:30 | principal=  | scenario=TokenExpiryScheduler | operation=checkExpiredToken | correlation=a9dfd2cc-cd9d-41a5-9a7b-4e0e3b196fd6 | methodName=checkExpiredToken | Token Expiry scheduler start 
+2025-06-21 06:29:00.001 INFO | com.epay.transaction.dao.TokenDao:206 | principal=  | scenario=TokenExpiryScheduler | operation=checkExpiredToken | correlation=a9dfd2cc-cd9d-41a5-9a7b-4e0e3b196fd6 | methodName=markTokenExpired | Marking expired tokens as inactive.
+Hibernate: select t1_0.id,t1_0.aes_key,t1_0.created_by,t1_0.created_date,t1_0.expired_at,t1_0.failed_reason,t1_0.generated_token,t1_0.is_token_valid,t1_0.merchant_id,t1_0.order_hash,t1_0.remarks,t1_0.status,t1_0.token_expiry_time,t1_0.token_type,t1_0.updated_by,t1_0.updated_date from token t1_0 where t1_0.status=? and t1_0.token_expiry_time<?
+2025-06-21 06:29:00.032 INFO | com.epay.transaction.dao.TokenDao:208 | principal=  | scenario=TokenExpiryScheduler | operation=checkExpiredToken | correlation=a9dfd2cc-cd9d-41a5-9a7b-4e0e3b196fd6 | methodName=markTokenExpired | Request for Token Expiry
+2025-06-21 06:29:00.032 INFO | com.epay.transaction.dao.TokenDao:213 | principal=  | scenario=TokenExpiryScheduler | operation=checkExpiredToken | correlation=a9dfd2cc-cd9d-41a5-9a7b-4e0e3b196fd6 | methodName=markTokenExpired | Mark Total 0 Token Expired
+2025-06-21 06:29:00.032 INFO | com.epay.transaction.scheduler.TokenExpiryScheduler:32 | principal=  | scenario=TokenExpiryScheduler | operation=checkExpiredToken | correlation=a9dfd2cc-cd9d-41a5-9a7b-4e0e3b196fd6 | methodName=checkExpiredToken | Token Expiry scheduler completed 
+2025-06-21 06:29:01.475 INFO | com.sbi.epay.authentication.service.JwtService:150 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=getAllClaimsFromToken | ClassName - JwtService,MethodName - getAllClaimsFromToken, getting all claims from token.
+2025-06-21 06:29:01.475 INFO | com.sbi.epay.authentication.service.JwtService:168 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=getSignKey | ClassName - JwtService,MethodName - getSignKey, getting SigningKey.
+2025-06-21 06:29:01.479 INFO | com.sbi.epay.authentication.service.JwtService:180 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=isTokenExpired | ClassName - JwtService,MethodName - isTokenExpired, getting expiration time from token.
+2025-06-21 06:29:01.480 INFO | com.epay.transaction.externalservice.MerchantServicesClient:40 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=validateMerchantToken | Validating merchant token...
+2025-06-21 06:29:01.480 INFO | com.epay.transaction.client.ApiClient:79 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=get | Calling uri: http://merchant-merchantservice.sit-merchant.svc.cluster.local:9093/api/merchant/v1/validation/token
+2025-06-21 06:29:01.502 INFO | com.sbi.epay.authentication.service.JwtService:129 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=verifyJwtTokenAndGetClaims | Token request received for userNameWithTokenType: shreyas:USER
+2025-06-21 06:29:01.502 INFO | com.epay.transaction.externalservice.MerchantServicesClient:50 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=validateMerchantUser | Validating merchant user with request: UserValidationRequest(requestType=LOGIN, userName=shreyas)
+2025-06-21 06:29:01.502 INFO | com.epay.transaction.client.ApiClient:55 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=post | Calling uri: http://merchant-merchantservice.sit-merchant.svc.cluster.local:9093/api/merchant/v1/validation/user
+2025-06-21 06:29:01.520 INFO | com.sbi.epay.authentication.service.JwtService:131 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=verifyJwtTokenAndGetClaims | Token request received for userNameWithTokenType: shreyas:USER
+2025-06-21 06:29:01.525 INFO | com.epay.transaction.controller.RefundController:128 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=getBulkRefundBooking | Get bulk refund request received in controller for mId: 1000003
+2025-06-21 06:29:01.525 INFO | com.epay.transaction.service.RefundService:501 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=getBulkRefundBooking | Get bulk refund request received for mId: 1000003
+2025-06-21 06:29:01.526 INFO | com.epay.transaction.validator.RefundValidator:439 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=validateActiveMid | Inside getActiveMerchantById for mId: 1000003
+2025-06-21 06:29:01.526 INFO | com.epay.transaction.dao.AdminDao:44 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=getMerchantByMId | Fetching Merchant Information for mId: 1000003
+2025-06-21 06:29:01.526 INFO | com.epay.transaction.externalservice.AdminServicesClient:59 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=getMerchantInfoByMId | Fetching merchant info for mId: 1000003
+2025-06-21 06:29:01.526 INFO | com.epay.transaction.client.ApiClient:55 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=post | Calling uri: http://admin-adminservice.sit-admin.svc.cluster.local:9094/api/admin/v1/merchant/1000003
+2025-06-21 06:29:01.542 INFO | com.epay.transaction.dao.AdminDao:47 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=getMerchantByMId | Successfully retrieved MerchantInfoResponse for mId: 1000003
+2025-06-21 06:29:01.543 INFO | com.epay.transaction.dao.RefundDao:131 | principal=shreyas  | scenario=/api/transaction/v1/refund/merchant/bulk-details/1000003 | operation=GET | correlation=0b88177d-6925-4182-b36b-06c65f2901db | methodName=getBulkRefundBooking | inside searchBulkRefundBooking for mId: 1000003
+Hibernate: select brb1_0.id,brb1_0.bulk_id,brb1_0.bulk_refund_status,brb1_0.created_by,brb1_0.created_date,brb1_0.file_name,brb1_0.file_path,brb1_0.invalid_records,brb1_0.merchant_id,brb1_0.remark,brb1_0.total_records,brb1_0.updated_by,brb1_0.updated_date,brb1_0.valid_records from bulk_refund_booking brb1_0 where brb1_0.merchant_id=? order by brb1_0.created_date desc fetch first ? rows only
+2025-06-21 06:29:02.234 INFO | org.apache.kafka.clients.NetworkClient:997 | principal=  | scenario= | operation= | correlation= | methodName=handleDisconnections | [Consumer clientId=consumer-transaction-consumers-6, groupId=transaction-consumers] Node -1 disconnected.
+2025-06-21 06:29:02.234 INFO | org.apache.kafka.clients.NetworkClient:997 | principal=  | scenario= | operation= | correlation= | methodName=handleDisconnections | [Consumer clientId=consumer-transaction-consumers-3, groupId=transaction-consumers] Node -1 disconnected.
+2025-06-21 06:29:02.234 INFO | org.apache.kafka.clients.NetworkClient:997 | principal=  | scenario= | operation= | correlation= | methodName=handleDisconnections | [Consumer clientId=consumer-transaction-consumers-2, groupId=transaction-consumers] Node -1 disconnected.
+2025-06-21 06:29:02.234 INFO | org.apache.kafka.clients.NetworkClient:997 | principal=  | scenario= | operation= | correlation= | methodName=handleDisconnections | [AdminClient clientId=adminclient-1] Node -1 disconnected.
+2025-06-21 06:29:02.234 INFO | org.apache.kafka.clients.NetworkClient:997 | principal=  | scenario= | operation= | correlation= | methodName=handleDisconnections | [Consumer clientId=consumer-transaction-consumers-1, groupId=transaction-consumers] Node -1 disconnected.
+2025-06-21 06:29:02.234 INFO | org.apache.kafka.clients.NetworkClient:353 | principal=  | scenario= | operation= | correlation= | methodName=cancelInFlightRequests | [Consumer clientId=consumer-transaction-consumers-6, groupId=transaction-consumers] Cancelled in-flight API_VERSIONS request with correlation id 13525 due to node -1 being disconnected (elapsed time since creation: 9949ms, elapsed time since send: 9949ms, request timeout: 30000ms)
+2025-06-21 06:29:02.234 INFO | org.apache.kafka.clients.NetworkClient:997 | principal=  | scenario= | operation= | correlation= | methodName=handleDisconnections | [Consumer clientId=consumer-transaction-consumers-5, groupId=transaction-consumers] Node -1 disconnected.
+2025-06-21 06:29:02.234 INFO | org.apache.kafka.clients.NetworkClient:353 | principal=  | scenario= | operation= | correlation= | methodName=cancelInFlightRequests | [AdminClient clientId=adminclient-1] Cancelled in-flight API_VERSIONS request with correlation id 7552 due to node -1 being disconnected (elapsed time since creation: 8612ms, elapsed time since send: 8612ms, request timeout: 3600000ms)
+2025-06-21 06:29:02.234 WARN | org.apache.kafka.clients.NetworkClient$DefaultMetadataUpdater:1144 | principal=  | scenario= | operation= | correlation= | methodName=handleServerDisconnect | [Consumer clientId=consumer-transaction-consumers-6, groupId=transaction-consumers] Bootstrap broker sit-cluster-kafka-listener1-bootstrap.sit-kafka.svc.cluster.local:9092 (id: -1 rack: null) disconnected
+2025-06-21 06:29:02.234 INFO | org.apache.kafka.clients.NetworkClient:353 | principal=  | scenario= | operation= | correlation= | methodName=cancelInFlightRequests | [Consumer clientId=consumer-transaction-consumers-3, groupId=transaction-consumers] Cancelled in-flight API_VERSIONS request with correlation id 13550 due to node -1 being disconnected (elapsed time since creation: 8467ms, elapsed time since send: 8467ms, request timeout: 30000ms)
+2025-06-21 06:29:02.235 WARN | org.apache.kafka.clients.NetworkClient$DefaultMetadataUpdater:1144 | principal=  | scenario= | operation= | correlation= | methodName=handleServerDisconnect | [Consumer clientId=consumer-transaction-consumers-3, groupId=transaction-consumers] Bootstrap broker sit-cluster-kafka-listener1-bootstrap.sit-kafka.svc.cluster.local:9092 (id: -1 rack: null) disconnected
+2025-06-21 06:29:02.235 INFO | org.apache.kafka.clients.NetworkClient:353 | principal=  | scenario= | operation= | correlation= | methodName=cancelInFlightRequests | [Consumer clientId=consumer-transaction-consumers-2, groupId=transaction-consumers] Cancelled in-flight API_VERSIONS request with correlation id 13521 due to node -1 being disconnected (elapsed time since creation: 10001ms, elapsed time since send: 10001ms, request timeout: 30000ms)
+2025-06-21 06:29:02.235 WARN | org.apache.kafka.clients.NetworkClient$DefaultMetadataUpdater:1144 | principal=  | scenario= | operation= | correlation= | methodName=handleServerDisconnect | [Consumer clientId=consumer-transaction-consumers-2, groupId=transaction-consumers] Bootstrap broker sit-cluster-kafka-listener1-bootstrap.sit-kafka.svc.cluster.local:9092 (id: -1 rack: null) disconnected
+2025-06-21 06:29:02.235 INFO | org.apache.kafka.clients.NetworkClient:353 | principal=  | scenario= | operation= | correlation= | methodName=cancelInFlightRequests | [Consumer clientId=consumer-transaction-consumers-1, groupId=transaction-consumers] Cancelled in-flight API_VERSIONS request with correlation id 13508 due to node -1 being disconnected (elapsed time since creation: 8662ms, elapsed time since send: 8662ms, request timeout: 30000ms)
+2025-06-21 06:29:02.235 INFO | org.apache.kafka.clients.NetworkClient:353 | principal=  | scenario= | operation= | correlation= | methodName=cancelInFlightRequests | [Consumer clientId=consumer-transaction-consumers-5, groupId=transaction-consumers] Cancelled in-flight API_VERSIONS request with correlation id 13553 due to node -1 being disconnected (elapsed time since creation: 9845ms, elapsed time since send: 9845ms, request timeout: 30000ms)
+2025-06-21 06:29:02.235 WARN | org.apache.kafka.clients.NetworkClient$DefaultMetadataUpdater:1144 | principal=  | scenario= | operation= | correlation= | methodName=handleServerDisconnect | [Consumer clientId=consumer-transaction-consumers-1, groupId=transaction-consumers] Bootstrap broker sit-cluster-kafka-listener1-bootstrap.sit-kafka.svc.cluster.local:9092 (id: -1 rack: null) disconnected
+2025-06-21 06:29:02.235 WARN | org.apache.kafka.clients.NetworkClient$DefaultMetadataUpdater:1144 | principal=  | scenario= | operation= | correlation= | methodName=handleServerDisconnect | [Consumer clientId=consumer-transaction-consumers-5, groupId=transaction-consumers] Bootstrap broker sit-cluster-kafka-listener1-bootstrap.sit-kafka.svc.cluster.local:9092 (id: -1 rack: null) disconnected
+2025-06-21 06:29:03.573 INFO | org.apache.kafka.clients.NetworkClient:997 | principal=  | scenario= | operation= | correlation= | methodName=handleDisconnections | [Consumer clientId=consumer-transaction-consumers-2, groupId=transaction-consumers] Node -1 disconnected.
+2025-06-21 06:29:03.573 INFO | org.apache.kafka.clients.NetworkClient:997 | principal=  | scenario= | operation= | correlation= | methodName=handleDisconnections | [Consumer clientId=consumer-transaction-consumers-5, groupId=transaction-consumers] Node -1 disconnected.
+2025-06-21 06:29:03.573 INFO | org.apache.kafka.clients.NetworkClient:997 | principal=  | scenario= | operation= | correlation= | methodName=handleDisconnections | [AdminClient clientId=adminclient-1] Node -1 disconnected.
+2025-06-21 06:29:03.573 INFO | org.apache.kafka.clients.NetworkClient:997 | principal=  | scenario= | operation= | correlation= | methodName=handleDisconnections | [Consumer clientId=consumer-transaction-consumers-1, groupId=transaction-consumers] Node -1 disconnected.
+2025-06-21 06:29:03.573 INFO | org.apache.kafka.clients.NetworkClient:353 | principal=  | scenario= | operation= | correlation= | methodName=cancelInFlightRequests | [Consumer clientId=consumer-transaction-consumers-5, groupId=transaction-consumers] Cancelled in-flight API_VERSIONS request with correlation id 13555 due to node -1 being disconnected (elapsed time since creation: 383ms, elapsed time since send: 383ms, request timeout: 30000ms)
+2025-06-21 06:29:03.573 INFO | org.apache.kafka.clients.NetworkClient:353 | principal=  | scenario= | operation= | correlation= | methodName=cancelInFlightRequests | [Consumer clientId=consumer-transaction-consumers-2, groupId=transaction-consumers] Cancelled in-flight API_VERSIONS request with correlation id 13523 due to node -1 being disconnected (elapsed time since creation: 303ms, elapsed time since send: 303ms, request timeout: 30000ms)
+2025-06-21 06:29:03.573 INFO | org.apache.kafka.clients.NetworkClient:353 | principal=  | scenario= | operation= | correlation= | methodName=cancelInFlightRequests | [AdminClient clientId=adminclient-1] Cancelled in-flight API_VERSIONS request with correlation id 7553 due to node -1 being disconnected (elapsed time since creation: 336ms, elapsed time since send: 336ms, request timeout: 3600000ms)
+2025-06-21 06:29:03.573 WARN | org.apache.kafka.clients.NetworkClient$DefaultMetadataUpdater:1144 | principal=  | scenario= | operation= | correlation= | methodName=handleServerDisconnect | [Consumer clientId=consumer-transaction-consumers-5, groupId=transaction-consumers] Bootstrap broker sit-cluster-kafka-listener1-bootstrap.sit-kafka.svc.cluster.local:9092 (id: -1 rack: null) disconnected
+2025-06-21 06:29:03.573 INFO | org.apache.kafka.clients.NetworkClient:353 | principal=  | scenario= | operation= | correlation= | methodName=cancelInFlightRequests | [Consumer clientId=consumer-transaction-consumers-1, groupId=transaction-consumers] Cancelled in-flight API_VERSIONS request with correlation id 13510 due to node -1 being disconnected (elapsed time since creation: 421ms, elapsed time since send: 421ms, request timeout: 30000ms)
+2025-06-21 06:29:03.573 WARN | org.apache.kafka.clients.NetworkClient$DefaultMetadataUpdater:1144 | principal=  | scenario= | operation= | correlation= | methodName=handleServerDisconnect | [Consumer clientId=consumer-transaction-consumers-2, groupId=transaction-consumers] Bootstrap broker sit-cluster-kafka-listener1-bootstrap.sit-kafka.svc.cluster.local:9092 (id: -1 rack: null) disconnected
+2025-06-21 06:29:03.573 WARN | org.apache.kafka.clients.NetworkClient$DefaultMetadataUpdater:1144 | principal=  | scenario= | operation= | correlation= | methodName=handleServerDisconnect | [Consumer clientId=consumer-transaction-consumers-1, groupId=transaction-consumers] Bootstrap broker sit-cluster-kafka-listener1-bootstrap.sit-kafka.svc.cluster.local:9092 (id: -1 rack: null) disconnected
+2025-06-21 06:29:03.623 INFO | org.apache.kafka.clients.NetworkClient:997 | principal=  | scenario= | operation= | correlation= | methodName=handleDisconnections | [Consumer clientId=consumer-transaction-consumers-3, groupId=transaction-consumers] Node -1 disconnected.
+2025-06-21 06:29:03.623 INFO | org.apache.kafka.clients.NetworkClient:997 | principal=  | scenario= | operation= | correlation= | methodName=handleDisconnections | [Consumer clientId=consumer-transaction-consumers-4, groupId=transaction-consumers] Node -1 disconnected.
+2025-06-21 06:29:03.623 INFO | org.apache.kafka.clients.NetworkClient:997 | principal=  | scenario= | operation= | correlation= | methodName=handleDisconnections | [Producer clientId=transaction-producer-ca5f87fd-199b-43ba-8946-8b3eb315313a-1] Node -1 disconnected.
+2025-06-21 06:29:03.623 INFO | org.apache.kafka.clients.NetworkClient:997 | principal=  | scenario= | operation= | correlation= | methodName=handleDisconnections | [Consumer clientId=consumer-transaction-consumers-6, groupId=transaction-consumers] Node -1 disconnected.
+2025-06-21 06:29:03.623 INFO | org.apache.kafka.clients.NetworkClient:353 | principal=  | scenario= | operation= | correlation= | methodName=cancelInFlightRequests | [Consumer clientId=consumer-transaction-consumers-3, groupId=transaction-consumers] Cancelled in-flight API_VERSIONS request with correlation id 13552 due to node -1 being disconnected (elapsed time since creation: 383ms, elapsed time since send: 383ms, request timeout: 30000ms)
+2025-06-21 06:29:03.623 INFO | org.apache.kafka.clients.NetworkClient:353 | principal=  | scenario= | operation= | correlation= | methodName=cancelInFlightRequests | [Consumer clientId=consumer-transaction-consumers-6, groupId=transaction-consumers] Cancelled in-flight API_VERSIONS request with correlation id 13527 due to node -1 being disconnected (elapsed time since creation: 368ms, elapsed time since send: 368ms, request timeout: 30000ms)
+2025-06-21 06:29:03.623 INFO | org.apache.kafka.clients.NetworkClient:353 | principal=  | scenario= | operation= | correlation= | methodName=cancelInFlightRequests | [Consumer clientId=consumer-transaction-consumers-4, groupId=transaction-consumers] Cancelled in-flight API_VERSIONS request with correlation id 13517 due to node -1 being disconnected (elapsed time since creation: 10001ms, elapsed time since send: 10001ms, request timeout: 30000ms)
+2025-06-21 06:29:03.623 INFO | org.apache.kafka.clients.NetworkClient:353 | principal=  | scenario= | operation= | correlation= | methodName=cancelInFlightRequests | [Producer clientId=transaction-producer-ca5f87fd-199b-43ba-8946-8b3eb315313a-1] Cancelled in-flight API_VERSIONS request with correlation id 0 due to node -1 being disconnected (elapsed time since creation: 6040ms, elapsed time since send: 6040ms, request timeout: 30000ms)
+2025-06-21 06:29:03.623 WARN | org.apache.kafka.clients.NetworkClient$DefaultMetadataUpdater:1144 | principal=  | scenario= | operation= | correlation= | methodName=handleServerDisconnect | [Consumer clientId=consumer-transaction-consumers-3, groupId=transaction-consumers] Bootstrap broker sit-cluster-kafka-listener1-bootstrap.sit-kafka.svc.cluster.local:9092 (id: -1 rack: null) disconnected
+2025-06-21 06:29:03.623 WARN | org.apache.kafka.clients.NetworkClient$DefaultMetadataUpdater:1144 | principal=  | scenario= | operation= | correlation= | methodName=handleServerDisconnect | [Consumer clientId=consumer-transaction-consumers-6, groupId=transaction-consumers] Bootstrap broker sit-cluster-kafka-listener1-bootstrap.sit-kafka.svc.cluster.local:9092 (id: -1 rack: null) disconnected
+2025-06-21 06:29:03.623 WARN | org.apache.kafka.clients.NetworkClient$DefaultMetadataUpdater:1144 | principal=  | scenario= | operation= | correlation= | methodName=handleServerDisconnect | [Consumer clientId=consumer-transaction-consumers-4, groupId=transaction-consumers] Bootstrap broker sit-cluster-kafka-listener1-bootstrap.sit-kafka.svc.cluster.local:9092 (id: -1 rack: null) disconnected
+2025-06-21 06:29:03.623 WARN | org.apache.kafka.clients.NetworkClient$DefaultMetadataUpdater:1144 | principal=  | scenario= | operation= | correlation= | methodName=handleServerDisconnect | [Producer clientId=transaction-producer-ca5f87fd-199b-43ba-8946-8b3eb315313a-1] Bootstrap broker sit-cluster-kafka-listener1-bootstrap.sit-kafka.svc.cluster.local:9092 (id: -1 rack: null) disconnected
+2025-06-21 06:29:05.000 INFO | com.epay.transaction.scheduler.TokenExpiryScheduler:30 | principal=  | scenario=TokenExpiryScheduler | operation=checkExpiredToken | correlation=eeae0ee8-549e-42f8-9dc7-2415549abb85 | methodName=checkExpiredToken | Token Expiry scheduler start 
+2025-06-21 06:29:05.000 INFO | com.epay.transaction.dao.TokenDao:206 | principal=  | scenario=TokenExpiryScheduler | operation=checkExpiredToken | correlation=eeae0ee8-549e-42f8-9dc7-2415549abb85 | methodName=markTokenExpired | Marking expired tokens as inactive.
+Hibernate: select 
