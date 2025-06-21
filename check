@@ -1,37 +1,50 @@
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.time.YearMonth;
 import java.util.Locale;
 
-public class DateValidation {
-    public static void main(String[] args) {
-        String from = "Feb-2025";
-        String to = "May-2025";
+public class DateValidator {
 
+    public static void validateFromAndToDate(String from, String to) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM-yyyy", Locale.ENGLISH);
 
-        YearMonth fromYM = YearMonth.parse(from, formatter);
-        YearMonth toYM = YearMonth.parse(to, formatter);
+        YearMonth fromYM;
+        YearMonth toYM;
+        try {
+            fromYM = YearMonth.parse(from, formatter);
+            toYM = YearMonth.parse(to, formatter);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("❌ Date format must be in 'MMM-yyyy' like 'May-2025'");
+        }
 
         LocalDate fromDate = fromYM.atDay(1);
-        LocalDate toDate = toYM.atEndOfMonth(); // always set to last day of the month
+        LocalDate toDate = toYM.atEndOfMonth();
 
-        // ✅ 1. Check if difference is more than 3 months
+        // ✅ 1. Check month difference between from and to
         long monthsBetween = ChronoUnit.MONTHS.between(fromYM, toYM);
         if (monthsBetween > 3) {
-            System.out.println("❌ Date range cannot exceed 3 months");
-            return;
+            throw new IllegalArgumentException("❌ Date range cannot exceed 3 months");
         }
 
-        // ✅ 2. Check if toDate is last date of its month
-        LocalDate expectedToDate = YearMonth.from(toDate).atEndOfMonth();
-        if (!toDate.equals(expectedToDate)) {
-            System.out.println("❌ To date must be the last date of the month");
-            return;
+        // ✅ 2. toDate must be last date of the month
+        if (!toDate.equals(toYM.atEndOfMonth())) {
+            throw new IllegalArgumentException("❌ To date must be the last date of the month");
         }
 
-        System.out.println("✅ Dates are valid");
-        // Proceed with DB query
+        // ✅ 3. fromDate must not be more than 1 year old from today
+        LocalDate oneYearAgo = LocalDate.now().minusYears(1);
+        if (fromDate.isBefore(oneYearAgo)) {
+            throw new IllegalArgumentException("❌ From date cannot be more than 1 year older than today");
+        }
+
+        System.out.println("✅ All validations passed: " + fromDate + " to " + toDate);
+    }
+
+    public static void main(String[] args) {
+        // Try changing these inputs to test all validations
+        validateFromAndToDate("May-2024", "Aug-2024"); // ✅
+        // validateFromAndToDate("Feb-2023", "May-2023"); // ❌ fromDate > 1 year old
+        // validateFromAndToDate("Jan-2024", "Jun-2024"); // ❌ range > 3 months
     }
 }
