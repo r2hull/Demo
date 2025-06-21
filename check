@@ -1,1 +1,37 @@
-difference between from date and to date cannot exceed 3 month, and to date should be last date of the month.
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.time.YearMonth;
+import java.util.Locale;
+
+public class DateValidation {
+    public static void main(String[] args) {
+        String from = "Feb-2025";
+        String to = "May-2025";
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM-yyyy", Locale.ENGLISH);
+
+        YearMonth fromYM = YearMonth.parse(from, formatter);
+        YearMonth toYM = YearMonth.parse(to, formatter);
+
+        LocalDate fromDate = fromYM.atDay(1);
+        LocalDate toDate = toYM.atEndOfMonth(); // always set to last day of the month
+
+        // ✅ 1. Check if difference is more than 3 months
+        long monthsBetween = ChronoUnit.MONTHS.between(fromYM, toYM);
+        if (monthsBetween > 3) {
+            System.out.println("❌ Date range cannot exceed 3 months");
+            return;
+        }
+
+        // ✅ 2. Check if toDate is last date of its month
+        LocalDate expectedToDate = YearMonth.from(toDate).atEndOfMonth();
+        if (!toDate.equals(expectedToDate)) {
+            System.out.println("❌ To date must be the last date of the month");
+            return;
+        }
+
+        System.out.println("✅ Dates are valid");
+        // Proceed with DB query
+    }
+}
