@@ -1,50 +1,14 @@
-import java.time.LocalDate;
-import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
-import java.util.Locale;
+Validate search refund request; merchant identifier is a mandatory field.
 
-public class DateValidator {
+Validating fromDate toDate field value, date can not be more than current date.
 
-    public static void validateFromAndToDate(String from, String to) {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM-yyyy", Locale.ENGLISH);
+If both from and to date is passed then check from date is less than equals to toDate.
 
-        YearMonth fromYM;
-        YearMonth toYM;
-        try {
-            fromYM = YearMonth.parse(from, formatter);
-            toYM = YearMonth.parse(to, formatter);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("❌ Date format must be in 'MMM-yyyy' like 'May-2025'");
-        }
+Validate for leading trailing single space,
 
-        LocalDate fromDate = fromYM.atDay(1);
-        LocalDate toDate = toYM.atEndOfMonth();
+Validate field field Length and format:atrnNumber,arrnNumber,sbiOrderRefNumber
 
-        // ✅ 1. Check month difference between from and to
-        long monthsBetween = ChronoUnit.MONTHS.between(fromYM, toYM);
-        if (monthsBetween > 3) {
-            throw new IllegalArgumentException("❌ Date range cannot exceed 3 months");
-        }
+,refundStatus,refundType
 
-        // ✅ 2. toDate must be last date of the month
-        if (!toDate.equals(toYM.atEndOfMonth())) {
-            throw new IllegalArgumentException("❌ To date must be the last date of the month");
-        }
 
-        // ✅ 3. fromDate must not be more than 1 year old from today
-        LocalDate oneYearAgo = LocalDate.now().minusYears(1);
-        if (fromDate.isBefore(oneYearAgo)) {
-            throw new IllegalArgumentException("❌ From date cannot be more than 1 year older than today");
-        }
-
-        System.out.println("✅ All validations passed: " + fromDate + " to " + toDate);
-    }
-
-    public static void main(String[] args) {
-        // Try changing these inputs to test all validations
-        validateFromAndToDate("May-2024", "Aug-2024"); // ✅
-        // validateFromAndToDate("Feb-2023", "May-2023"); // ❌ fromDate > 1 year old
-        // validateFromAndToDate("Jan-2024", "Jun-2024"); // ❌ range > 3 months
-    }
-}
+Check valid enums:RefundStatus and RefundType
