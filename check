@@ -1,11 +1,5 @@
-The Search Refund Request module performs the following validations to ensure the request is accurate and secure before further processing:
+String fileName = file.getOriginalFilename();
 
-Mandatory Field Check: merchantIdentifier is a required field and must not be null or empty.
-
-Date Validation: fromDate and toDate, if provided, must not exceed the current system date. Additionally, if both dates are present, fromDate must be less than or equal to toDate.
-
-Whitespace Validation: All input fields will be checked to ensure there are no leading or trailing single spaces.
-
-Field Format and Length Validation: Fields such as atrnNumber, arrnNumber, and sbiOrderRefNumber will be validated against defined length and format constraints.
-
-Enum Validation: refundStatus and refundType values will be validated against a predefined list of supported enum values to prevent invalid status/type entries.
+if (fileName == null || !fileName.matches("^[A-Za-z0-9]+(\\.[A-Za-z0-9]+)$")) {
+    throw new IllegalArgumentException("Invalid file name. Special characters and spaces are not allowed.");
+}
