@@ -1,5 +1,1 @@
-mId (Request Param):
-Mandatory, no leading/trailing space, fixed length (7), numeric (^\d{7}$), must be an active merchant.
-
-file (Multipart Body):
-Required, max filename length 100, alphanumeric name (^[a-zA-Z0-9]+$), format must be .csv, max size 2027152 bytes.
+String fileNameWithoutExtension = originalFilename.substring(0, originalFilename.lastIndexOf('.'));
