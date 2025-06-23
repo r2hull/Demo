@@ -1,14 +1,11 @@
-Validate search refund request; merchant identifier is a mandatory field.
+The Search Refund Request module performs the following validations to ensure the request is accurate and secure before further processing:
 
-Validating fromDate toDate field value, date can not be more than current date.
+Mandatory Field Check: merchantIdentifier is a required field and must not be null or empty.
 
-If both from and to date is passed then check from date is less than equals to toDate.
+Date Validation: fromDate and toDate, if provided, must not exceed the current system date. Additionally, if both dates are present, fromDate must be less than or equal to toDate.
 
-Validate for leading trailing single space,
+Whitespace Validation: All input fields will be checked to ensure there are no leading or trailing single spaces.
 
-Validate field field Length and format:atrnNumber,arrnNumber,sbiOrderRefNumber
+Field Format and Length Validation: Fields such as atrnNumber, arrnNumber, and sbiOrderRefNumber will be validated against defined length and format constraints.
 
-,refundStatus,refundType
-
-
-Check valid enums:RefundStatus and RefundType
+Enum Validation: refundStatus and refundType values will be validated against a predefined list of supported enum values to prevent invalid status/type entries.
