@@ -1,11 +1,111 @@
+public void processBulkRefund(String bulkId) {
 
+        logger.info("ProcessBulkRefund received for bulkId: {}", bulkId);
 
+        //Step-1: Get bulk refund booking
+        BulkRefundBooking bulkRefundBooking = refundDao.findByBulkId(bulkId);
+        logger.info("Got bulkRefundBooking: {} for bulkId: {}", bulkRefundBooking , bulkId);
 
-The request body uses form-data where the key is file and the value is the actual CSV file. Since it involves a binary file upload, we cannot represent the full request body as plain text here
+        //Step-2: Update processing status
+        updateProcessingStatus(bulkRefundBooking);
 
+        //Step-3: Read CSV file from s3 service
+        List<String[]> refundData = readCsvFile(bulkRefundBooking.getFilePath());
+        logger.info("Got csvFile size : {} for bulkId: {}", refundData.size() , bulkId);
 
-Multiple types of validation or processing errors may occur. The above is a representative example for an invalid or missing mId. Similar error responses will be returned for other fields as well, using appropriate errorCode and message values.
+        //Step-4: Validate Headers
+        String headerError = refundValidator.validateBulkRefundHeader(refundData, bulkRefundBooking.getMerchantId());
+        logger.info("headerError : {} for bulkId: {}", headerError , bulkId);
 
+        //Step-5: If headers are valid then read and process refund from csv file row by row
+        //With Kafka
+        if (StringUtils.isEmpty(headerError)) {
+            logger.info("Valid headers, headerError : {} for bulkId: {}", headerError , bulkId);
+            processingRefundBooking(bulkId, refundData, bulkRefundBooking);
 
+        } else {
+            logger.info("Invalid headers, headerError : {} for bulkId: {}", headerError , bulkId);
+            //Step-6: Mark this csv file as failed
+            buildBulkRefundBookingWithError(bulkRefundBooking, headerError);
+            //Step-7: Update bulk refund status for current bulk id
+            refundDao.saveBulkRefundBooking(bulkRefundBooking);
+        }
+    }
 
-All error responses follow a consistent structure containing status, errorCode, message, and timestamp.
+    /**
+     * Process CSV file row by row and save the details
+     *
+     * @param bulkRefundBooking BulkRefundBooking
+     * @param refundData List<String[]>
+     * @param bulkId String
+     *
+     */
+    private void processingRefundBooking(String bulkId, List<String[]> refundData, BulkRefundBooking bulkRefundBooking) {
+        logger.info("processingRefundBooking received for bulkId: {}", bulkId);
+        int totalRecords = refundData.size() - 1;
+        //Update BulkRefundBooking status (processing is async, so mark as IN_QUEUE)
+        bulkRefundBooking.setTotalRecords(totalRecords);
+        bulkRefundBooking.setBulkRefundStatus(BulkRefundStatus.IN_QUEUE.name());
+        logger.info("BulkRefundBooking updated to IN_QUEUE for bulkId: {}", bulkId);
+        refundDao.saveBulkRefundBooking(bulkRefundBooking);
+        int validRecords = 0;
+        // Process each row, store in DB, and send to Kafka via Producer
+        for (int row = 1; row <= totalRecords; row++) {
+            // Build BulkRefundBookingDetails from CSV row
+
+            BulkRefundBookingDetails bulkRefundBookingDetails = buildBulkRefundBookingDetails(bulkId, row, refundData.get(row));
+            // Save to database
+            bulkRefundBookingDetails = refundDao.saveBulkRefundBookingDetailsForRow(bulkRefundBookingDetails);
+
+            // Send the ID to Kafka using Producer
+            if (StringUtils.equals(bulkRefundBookingDetails.getRefundStatus(), RefundStatus.REFUND_IN_PROCESS.name())) {
+                refundBookingDetailsProducer.publish("BOOKING_DETAILS", bulkRefundBookingDetails.getId().toString(), bulkRefundBookingDetails.getId());
+                validRecords++;
+                logger.info("Row {} with id {} queued for async processing for bulkId: {}", row, bulkRefundBookingDetails.getId(), bulkId);
+            } else {
+                logger.info("Row {} invalid for bulkId: {}", row, bulkId);
+            }
+        }
+        // If no valid records, mark as PROCESSED
+        if (validRecords == 0) {
+            bulkRefundBooking.setValidRecords(0);
+            bulkRefundBooking.setInvalidRecords(totalRecords);
+            bulkRefundBooking.setBulkRefundStatus(BulkRefundStatus.PROCESSED.name());
+            bulkRefundBooking.setRemark("Invalid rows");
+            refundDao.saveBulkRefundBooking(bulkRefundBooking);
+            logger.info("No valid rows for bulkId: {}. Status: PROCESSED.", bulkId);
+        }
+
+    }
+
+    /**
+     * Method called by Consumer to process each row
+     *
+     * @param bookingDetailsId UUID
+     */
+    public void processBulkRefundRow(UUID bookingDetailsId) {
+        logger.info("Processing BulkRefundBookingDetails id: {}", bookingDetailsId);
+
+        // Step-1: Fetch the BulkRefundBookingDetails
+        BulkRefundBookingDetails details = refundDao.findBulkRefundBookingDetailsById(bookingDetailsId);
+        // Step-2: Process the refund
+        TransactionResponse<RefundResponse> bulkRefundResponse = bookBulkRefund(details);
+
+        // Step-3: Update details based on response
+        if (bulkRefundResponse.getStatus() == TransactionConstant.RESPONSE_SUCCESS) {
+            logger.info("Refund booked successfully for row {} and bulkId: {}", details.getRowNumber(), details.getBulkId());
+            details.setRefundStatus(BulkRefundRowStatus.SUCCESS.name());
+            details.setRemark("Refund Booked Successfully");
+        } else {
+            logger.info("Refund booking failed for row {} and bulkId: {}", details.getRowNumber(), details.getBulkId());
+            details.setRefundStatus(BulkRefundRowStatus.FAILED.name());
+            details.setRemark(bulkRefundResponse.getErrors().getFirst().getErrorMessage());
+        }
+
+        // Step-4: Save updated details
+        refundDao.saveBulkRefundBookingDetails(details);
+
+        // Step-5: Update BulkRefundBooking status
+        // Check if all rows are processed, then update BulkRefundBooking
+        checkAndUpdateBulkRefundBooking(details.getBulkId());
+    }
