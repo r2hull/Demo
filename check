@@ -1,1 +1,11 @@
+
+
+
 The request body uses form-data where the key is file and the value is the actual CSV file. Since it involves a binary file upload, we cannot represent the full request body as plain text here
+
+
+Multiple types of validation or processing errors may occur. The above is a representative example for an invalid or missing mId. Similar error responses will be returned for other fields as well, using appropriate errorCode and message values.
+
+
+
+All error responses follow a consistent structure containing status, errorCode, message, and timestamp.
