@@ -1,1 +1,1 @@
-String fileNameWithoutExtension = originalFilename.substring(0, originalFilename.lastIndexOf('.'));
+The request body uses form-data where the key is file and the value is the actual CSV file. Since it involves a binary file upload, we cannot represent the full request body as plain text here
