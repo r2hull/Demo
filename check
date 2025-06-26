@@ -1,19 +1,27 @@
-public static final String JDBC_TRANSACTION_SUMMARY = """
-    SELECT SUM(SUCCESS_COUNT) as totalSuccessCount, SUM(FAIL_COUNT) as totalFailureCount,
-    ROUND(SUM(SUCCESS_COUNT)/(SUM(SUCCESS_COUNT)+SUM(FAIL_COUNT)) * 100, 2) as successPercentage,
-    ROUND(SUM(FAIL_COUNT)/(SUM(SUCCESS_COUNT)+SUM(FAIL_COUNT)) * 100, 2) as failPercentage
-    FROM VIEW_TRANSACTION_DAILY_REPORT
-    WHERE MID = :mId
-    AND TRANSACTION_DATE BETWEEN 
-        TO_DATE(:startDate, 'Mon-YYYY', 'NLS_DATE_LANGUAGE=ENGLISH') AND 
-        LAST_DAY(TO_DATE(:endDate, 'Mon-YYYY', 'NLS_DATE_LANGUAGE=ENGLISH'))
-""";
+private void validateMonthsBetweenDate(TransactionSummaryRequest transactionSummaryRequest) {
+        YearMonth fromYM = YearMonth.parse(transactionSummaryRequest.getFromDate(), FORMATTER_MMM_YYYY);
+        YearMonth toYM = YearMonth.parse(transactionSummaryRequest.getToDate(), FORMATTER_MMM_YYYY);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
+        String startDate = fromYM.atDay(1).format(formatter);               // 01-May-2025
+        String endDate = toYM.atEndOfMonth().format(formatter);             // 31-May-2025 or 30-Jun-2025
+
+        LocalDate fromDate = fromYM.atDay(1);
+        LocalDate oneYearAgo = LocalDate.now().minusYears(ONE);
+        if (fromDate.isBefore(oneYearAgo)) {
+            addError(FROM_DATE, INVALID_ERROR_CODE, MessageFormat.format(FROM_DATE_YEAR_DIFF_ERROR,ONE));
+            throwIfErrors();
+        }
+        if (toYM.isBefore(fromYM)) {
+            addError(TO_DATE, INVALID_ERROR_CODE, MessageFormat.format(INVALID_ERROR_MESSAGE, TO_DATE,"must be greater than or equal to from date"));
+            throwIfErrors();
+        }
 
 
-// Java side
-DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
-String startDate = fromYM.atDay(1).format(formatter);               // 01-May-2025
-String endDate = toYM.atEndOfMonth().format(formatter);             // 31-May-2025 or 30-Jun-2025
-
-params.addValue("startDate", startDate);
-params.addValue("endDate", endDate);
+        // Check if difference is more than 3 months
+        long monthsBetween = ChronoUnit.MONTHS.between(fromYM, toYM);
+        if (monthsBetween > MONTH_DEFF_LENGTH) {
+            addError("Date", INVALID_ERROR_CODE, MONTH_DIFF_ERROR);
+        }
+        transactionSummaryRequest.setFromDate(startDate);
+        transactionSummaryRequest.setToDate(endDate);
+    }
