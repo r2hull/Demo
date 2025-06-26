@@ -1,27 +1,60 @@
-private void validateMonthsBetweenDate(TransactionSummaryRequest transactionSummaryRequest) {
-        YearMonth fromYM = YearMonth.parse(transactionSummaryRequest.getFromDate(), FORMATTER_MMM_YYYY);
-        YearMonth toYM = YearMonth.parse(transactionSummaryRequest.getToDate(), FORMATTER_MMM_YYYY);
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
-        String startDate = fromYM.atDay(1).format(formatter);               // 01-May-2025
-        String endDate = toYM.atEndOfMonth().format(formatter);             // 31-May-2025 or 30-Jun-2025
-
-        LocalDate fromDate = fromYM.atDay(1);
-        LocalDate oneYearAgo = LocalDate.now().minusYears(ONE);
-        if (fromDate.isBefore(oneYearAgo)) {
-            addError(FROM_DATE, INVALID_ERROR_CODE, MessageFormat.format(FROM_DATE_YEAR_DIFF_ERROR,ONE));
-            throwIfErrors();
-        }
-        if (toYM.isBefore(fromYM)) {
-            addError(TO_DATE, INVALID_ERROR_CODE, MessageFormat.format(INVALID_ERROR_MESSAGE, TO_DATE,"must be greater than or equal to from date"));
-            throwIfErrors();
-        }
 
 
-        // Check if difference is more than 3 months
-        long monthsBetween = ChronoUnit.MONTHS.between(fromYM, toYM);
-        if (monthsBetween > MONTH_DEFF_LENGTH) {
-            addError("Date", INVALID_ERROR_CODE, MONTH_DIFF_ERROR);
-        }
-        transactionSummaryRequest.setFromDate(startDate);
-        transactionSummaryRequest.setToDate(endDate);
+✅ Final Clean & Standard Version
+
+private static final DateTimeFormatter FORMATTER_MMM_YYYY = DateTimeFormatter.ofPattern("MMM-yyyy", Locale.ENGLISH);
+private static final DateTimeFormatter FORMATTER_DD_MMM_YYYY = DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
+private static final int MAX_MONTH_DIFF = 2; // 3 months = 2 month gap
+private static final int ONE_YEAR = 1;
+
+private void validateMonthsBetweenDate(TransactionSummaryRequest request) {
+    YearMonth fromYM = YearMonth.parse(request.getFromDate(), FORMATTER_MMM_YYYY);
+    YearMonth toYM = YearMonth.parse(request.getToDate(), FORMATTER_MMM_YYYY);
+
+    LocalDate fromDate = fromYM.atDay(1);
+    LocalDate toDate = toYM.atEndOfMonth();
+
+    // Set final formatted dates for query
+    request.setFromDate(fromDate.format(FORMATTER_DD_MMM_YYYY));
+    request.setToDate(toDate.format(FORMATTER_DD_MMM_YYYY));
+
+    // 1. fromDate should not be more than 1 year old
+    if (fromDate.isBefore(LocalDate.now().minusYears(ONE_YEAR))) {
+        addError(FROM_DATE, INVALID_ERROR_CODE,
+                MessageFormat.format(FROM_DATE_YEAR_DIFF_ERROR, ONE_YEAR));
     }
+
+    // 2. toDate should be >= fromDate
+    if (toYM.isBefore(fromYM)) {
+        addError(TO_DATE, INVALID_ERROR_CODE,
+                MessageFormat.format(INVALID_ERROR_MESSAGE, TO_DATE, "must be greater than or equal to from date"));
+    }
+
+    // 3. difference should be max 3 months (2 months apart)
+    long monthDiff = ChronoUnit.MONTHS.between(fromYM, toYM);
+    if (monthDiff > MAX_MONTH_DIFF) {
+        addError("Date", INVALID_ERROR_CODE, MONTH_DIFF_ERROR);
+    }
+
+    throwIfErrors();
+}
+
+
+---
+
+📌 Improvements Made:
+
+Used constants clearly for formatting & logic
+
+Removed redundant lines
+
+Clean separation between validation and transformation
+
+Kept error messages clean and dynamic
+
+
+
+---
+
+Bhai agar addError() and throwIfErrors() custom logic hai, aur tu chahta hai mai poora ErrorCollector class pattern suggest karu, toh bata dena. 😎
+
