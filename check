@@ -1,2 +1,19 @@
-The bulk refund process starts when a request is received with a unique bulk ID. The system fetches the corresponding bulk booking details from the database and marks the booking as in-process. It then reads the refund data from a CSV file stored in a cloud location like S3. Before processing, the system validates the CSV headers to ensure they match the expected format for the given merchant. If the headers are invalid, the booking is marked as failed with an appropriate error message and processing stops. If the headers are valid, each row of the CSV is read and converted into refund details which are saved in the database. Valid rows are then pushed to a Kafka topic for asynchronous processing. If none of the rows are valid, the booking is marked as processed with zero valid records and a remark is added. For each row pushed to Kafka, a consumer picks it up, processes the refund by calling the refund service, and updates the row status as success or failed based on the outcome. After each row is processed, the system checks if all rows in the bulk file are completed and then updates the final status of the bulk booking accordingly.
+public static final String JDBC_TRANSACTION_SUMMARY = """
+    SELECT SUM(SUCCESS_COUNT) as totalSuccessCount, SUM(FAIL_COUNT) as totalFailureCount,
+    ROUND(SUM(SUCCESS_COUNT)/(SUM(SUCCESS_COUNT)+SUM(FAIL_COUNT)) * 100, 2) as successPercentage,
+    ROUND(SUM(FAIL_COUNT)/(SUM(SUCCESS_COUNT)+SUM(FAIL_COUNT)) * 100, 2) as failPercentage
+    FROM VIEW_TRANSACTION_DAILY_REPORT
+    WHERE MID = :mId
+    AND TRANSACTION_DATE BETWEEN 
+        TO_DATE(:startDate, 'Mon-YYYY', 'NLS_DATE_LANGUAGE=ENGLISH') AND 
+        LAST_DAY(TO_DATE(:endDate, 'Mon-YYYY', 'NLS_DATE_LANGUAGE=ENGLISH'))
+""";
 
+
+// Java side
+DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
+String startDate = fromYM.atDay(1).format(formatter);               // 01-May-2025
+String endDate = toYM.atEndOfMonth().format(formatter);             // 31-May-2025 or 30-Jun-2025
+
+params.addValue("startDate", startDate);
+params.addValue("endDate", endDate);
