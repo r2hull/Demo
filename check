@@ -1,12 +1,120 @@
-@GetMapping("/notices/{mid}")
-public List<Helpsupport> getImportantNoticesByMid(@PathVariable String mid) {
-    List<Helpsupport> allNotices = helpsupportRepository.findByType("IMPORTANT_NOTICE");
+Zarur! Yahan ek structured story hai GitLab ke liye jo "Purging Schedule" feature ko describe karti hai. Isme Description, API details, aur Data Flow tino parts include hain.
 
-    return allNotices.stream()
-        .sorted(Comparator.comparingInt(h -> {
-            if (mid.equals(h.getMid())) return 1;
-            if (h.getMid() != null && !mid.equals(h.getMid())) return 2;
-            return 3; // MID is null
-        }))
-        .collect(Collectors.toList());
-}
+
+---
+
+🔥 GitLab Story: Purging Schedule Implementation
+
+📌 Title: Implement Purging Scheduler for Expired Data
+
+
+---
+
+📖 Description:
+
+We are implementing a scheduled purging mechanism to remove expired or irrelevant data from the system to optimize storage and performance. This will be handled in a multi-layered architecture involving a scheduler, service layer, DAO, and database queries.
+
+This purging will run on a defined time interval (e.g., daily at midnight) and delete/archive data older than a specific threshold (e.g., 30 days).
+
+
+---
+
+🔧 API Details (If any external/internal APIs involved):
+
+Method	Endpoint	Description
+
+POST	/admin/purge/trigger	(Optional Admin API) Triggers the purge manually
+GET	/admin/purge/status	(Optional) Returns last run timestamp and purge stats
+
+
+> Note: These APIs are optional and primarily for monitoring/debugging. The main execution is done via the internal scheduler.
+
+
+
+
+---
+
+🔁 Data Flow:
+
+1. Scheduler (e.g., Quartz/Spring Scheduler):
+
+Configured to run based on CRON expression.
+
+Calls PurgeService.startPurge() method on schedule.
+
+
+
+2. Service Layer:
+
+Business logic to decide what needs to be purged.
+
+Calculates date threshold (e.g., current date - 30 days).
+
+Calls corresponding DAO methods to fetch and delete data.
+
+
+
+3. DAO Layer:
+
+Contains queries to:
+
+Identify purgeable records.
+
+Delete or archive them.
+
+
+Uses batch queries for performance.
+
+
+
+4. SQL/Queries:
+
+Sample:
+
+DELETE FROM session_logs WHERE created_at < :thresholdDate;
+
+Proper indexing ensured for performance.
+
+Logs maintained for number of rows affected and errors (if any).
+
+
+
+
+
+---
+
+✅ Outcome:
+
+Reduces database size and improves performance.
+
+Keeps data within retention policy.
+
+Logs available for each purge cycle for audit/debug.
+
+
+
+---
+
+📝 Note for Dev Team:
+
+Unit + Integration tests needed.
+
+Consider feature flag for enabling/disabling purge.
+
+Logging must include:
+
+Start time
+
+End time
+
+Number of records purged
+
+Errors (if any)
+
+
+
+
+---
+
+Agar aap chahte ho ke yeh English-Hindi mix mein ho ya sirf Hindi mein likha jaye to main woh bhi kar sakta hoon. Let me know if you'd like a diagram or actual class structure as well.
+
