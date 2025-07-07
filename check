@@ -1,60 +1,38 @@
-
-
-✅ Final Clean & Standard Version
-
-private static final DateTimeFormatter FORMATTER_MMM_YYYY = DateTimeFormatter.ofPattern("MMM-yyyy", Locale.ENGLISH);
-private static final DateTimeFormatter FORMATTER_DD_MMM_YYYY = DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
-private static final int MAX_MONTH_DIFF = 2; // 3 months = 2 month gap
-private static final int ONE_YEAR = 1;
-
-private void validateMonthsBetweenDate(TransactionSummaryRequest request) {
-    YearMonth fromYM = YearMonth.parse(request.getFromDate(), FORMATTER_MMM_YYYY);
-    YearMonth toYM = YearMonth.parse(request.getToDate(), FORMATTER_MMM_YYYY);
-
-    LocalDate fromDate = fromYM.atDay(1);
-    LocalDate toDate = toYM.atEndOfMonth();
-
-    // Set final formatted dates for query
-    request.setFromDate(fromDate.format(FORMATTER_DD_MMM_YYYY));
-    request.setToDate(toDate.format(FORMATTER_DD_MMM_YYYY));
-
-    // 1. fromDate should not be more than 1 year old
-    if (fromDate.isBefore(LocalDate.now().minusYears(ONE_YEAR))) {
-        addError(FROM_DATE, INVALID_ERROR_CODE,
-                MessageFormat.format(FROM_DATE_YEAR_DIFF_ERROR, ONE_YEAR));
-    }
-
-    // 2. toDate should be >= fromDate
-    if (toYM.isBefore(fromYM)) {
-        addError(TO_DATE, INVALID_ERROR_CODE,
-                MessageFormat.format(INVALID_ERROR_MESSAGE, TO_DATE, "must be greater than or equal to from date"));
-    }
-
-    // 3. difference should be max 3 months (2 months apart)
-    long monthDiff = ChronoUnit.MONTHS.between(fromYM, toYM);
-    if (monthDiff > MAX_MONTH_DIFF) {
-        addError("Date", INVALID_ERROR_CODE, MONTH_DIFF_ERROR);
-    }
-
-    throwIfErrors();
-}
-
-
----
-
-📌 Improvements Made:
-
-Used constants clearly for formatting & logic
-
-Removed redundant lines
-
-Clean separation between validation and transformation
-
-Kept error messages clean and dynamic
+CA26957350CD4183A50E316AD57DF384	1000009		PHONE_NUMBER	123-1456128	Active	Neeraj1	1748349531027	Neeraj1	1748349531027
+96ED23689AD6411F8D332C0AFC137F3C	1000009		EMAIL	a@w.ey	Active	Neeraj1	1748349531027	Neeraj1	1749463954389
+2E0075E9A87A9DB7E0637C86B10ADCA3			PHONE_NUMBER	+91-22-20876156	Active	SBI ePay	1739444887003		
+2E0075E9A87B9DB7E0637C86B10ADCA3			EMAIL	support.sbiepay@sbi.co.in	Active	SBI ePay	1739444887008		
+795FAE1847A745CCAA1BAF005BFD2390	1000007		EMAIL	abc@mm.com	Active	Test123	1748250868827	subhra7	1750069069355
+2F33847CB3D1496CE0637C86B10AFEA0			IMPORTANT_NOTICE	New Feature : Check the health status of all payment channels in one place.	Active	SBI ePay	1740763677899		
+2F33847CB3D2496CE0637C86B10AFEA0	1000003		IMPORTANT_NOTICE	New Feature : Real-time transaction tracking now available in Dashboard.	Active	SBI ePay	1740763677907		
+2F33847CB3D3496CE0637C86B10AFEA0	1000007		IMPORTANT_NOTICE	Feature Enhancement: Faster settlement reports with detailed insights.	Active	SBI ePay	1740763677910		
+2F33847CB3D4496CE0637C86B10AFEA0	1000003		IMPORTANT_NOTICE	Notice: RBI mandates additional authentication for high-value transactions.	Active	SBI ePay	1740763677914		
+2F33847CB3D5496CE0637C86B10AFEA0			IMPORTANT_NOTICE	Notice: NPCI announces new limits 5000 Rs. for UPI transactions.	Active	SBI ePay	1740763677917		
+821806988D3645A9B0158C5644CCEDDA	MID6		EMAIL	test@gmail.com	Active	Kedar	1742981735095	Kedar	1742981735095
+C5F33F30ED4C4875843CBF85448AD8E9	1000007		PHONE_NUMBER	123-1456128	Active	Test123	1748253051919	Neeraj1	1749463029757
+67411FBF16FC4A57A70F0E5F38C7EE47	1000003		PHONE_NUMBER	123-1456328	Active	Neeraj1	1749130424880	anonymousUser	1749724480916
+3C4E6E13534645EA9A6D46F94B6121FF	1000003		EMAIL	support.sbiepay@sbi.co.in	Active	Neeraj1	1749130424881	anonymousUser	1749724481002
+5E49FACD90B5474299019D422FAEE864	1000005		EMAIL	test@gmail.com	Active	anonymousUser	1749821619911	anonymousUser	1749821619911
 
 
 
----
 
-Bhai agar addError() and throwIfErrors() custom logic hai, aur tu chahta hai mai poora ErrorCollector class pattern suggest karu, toh bata dena. 😎
+  CREATE TABLE "RAHUL_Y"."HELP_SUPPORT_TEAM" 
+   (	"ID" RAW(16), 
+	"MID" VARCHAR2(50 CHAR), 
+	"AGGREGATOR_ID" VARCHAR2(50 CHAR), 
+	"TYPE" VARCHAR2(20 CHAR), 
+	"VALUE" VARCHAR2(1000 CHAR), 
+	"STATUS" VARCHAR2(20 CHAR), 
+	"CREATED_BY" VARCHAR2(50 CHAR), 
+	"CREATED_AT" NUMBER, 
+	"UPDATED_BY" VARCHAR2(50 CHAR), 
+	"UPDATED_AT" NUMBER
+   ) SEGMENT CREATION IMMEDIATE 
+  PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 
+ NOCOMPRESS LOGGING
+  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+  TABLESPACE "DEV_TEST_USERS" ;
 
