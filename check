@@ -1,12 +1,43 @@
- @Test
-    void testGetNotices(){
-        String mId = "1000003";
-        List<HelpSupportDto> helpSupportDtos = List.of(HelpSupportDto.builder().mId("1000003").status(true).value("test").aggregatorId("1").type("IMPORTANT_NOTICE").build());
-        HelpSupport helpSupport = HelpSupport.builder().mId(mId).type(IMPORTANT_NOTICE).build();
-        List<HelpSupport> helpSupportList = List.of(helpSupport);
-        when(helpSupportRepository.findByMidTypeStatus(mId, IMPORTANT_NOTICE, STATUS_ACTIVE)).thenReturn(helpSupportList);
-        when(helpSupportRepository.findBymIdIsNullAndStatusAndType(STATUS_ACTIVE, IMPORTANT_NOTICE)).thenReturn(helpSupportList);
-        when(helpSupportMapper.mapEntityListToDtoList(helpSupportList)).thenReturn(helpSupportDtos);
-        List<HelpSupportDto> helpSupportDaoNotices = helpSupportDao.getNotices(mId);
-        assertEquals(helpSupportDaoNotices.getFirst().getType(), IMPORTANT_NOTICE);
-    }
+@Test
+void testGetNotices() {
+    // Arrange
+    String mId = "1000003";
+
+    HelpSupport helpSupport = HelpSupport.builder()
+        .mId(mId)
+        .type(IMPORTANT_NOTICE)
+        .status(true)
+        .value("test")
+        .aggregatorId("1")
+        .build();
+
+    List<HelpSupport> helpSupportList = List.of(helpSupport);
+
+    HelpSupportDto helpSupportDto = HelpSupportDto.builder()
+        .mId(mId)
+        .type("IMPORTANT_NOTICE")
+        .status(true)
+        .value("test")
+        .aggregatorId("1")
+        .build();
+
+    List<HelpSupportDto> helpSupportDtos = List.of(helpSupportDto);
+
+    when(helpSupportRepository.findByMidTypeStatus(mId, IMPORTANT_NOTICE, STATUS_ACTIVE)).thenReturn(helpSupportList);
+    when(helpSupportRepository.findBymIdIsNullAndStatusAndType(STATUS_ACTIVE, IMPORTANT_NOTICE)).thenReturn(helpSupportList);
+    when(helpSupportMapper.mapEntityListToDtoList(helpSupportList)).thenReturn(helpSupportDtos);
+
+    // Act
+    List<HelpSupportDto> result = helpSupportDao.getNotices(mId);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(1, result.size());
+    assertEquals("IMPORTANT_NOTICE", result.getFirst().getType());
+    assertEquals(mId, result.getFirst().getMId());
+
+    // Verify interactions
+    verify(helpSupportRepository).findByMidTypeStatus(mId, IMPORTANT_NOTICE, STATUS_ACTIVE);
+    verify(helpSupportRepository).findBymIdIsNullAndStatusAndType(STATUS_ACTIVE, IMPORTANT_NOTICE);
+    verify(helpSupportMapper).mapEntityListToDtoList(helpSupportList);
+}
