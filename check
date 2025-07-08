@@ -1,23 +1,12 @@
-@Test
-void testGetNotices() {
-    String mId = "1000003";
-    List<HelpSupportDto> helpSupportDtos = List.of(
-        HelpSupportDto.builder().mId("1000003").type("IMPORTANT_NOTICE").build()
-    );
-
-    HelpSupport helpSupport = HelpSupport.builder().mId(mId).type(IMPORTANT_NOTICE).build();
-    List<HelpSupport> helpSupportList = List.of(helpSupport);
-
-    doNothing().when(mIdValidator).validateMid(mId);
-    doNothing().when(mIdValidator).validateActiveMId(mId);
-    when(helpSupportRepository.findByMidTypeStatus(mId, IMPORTANT_NOTICE, STATUS_ACTIVE))
-        .thenReturn(helpSupportList);
-    when(helpSupportMapper.mapEntityListToDtoList(helpSupportList))
-        .thenReturn(helpSupportDtos);
-
-    MerchantResponse<HelpSupportResponse> serviceNotices = helpSupportService.getNotices(mId);
-
-    assertEquals(1, serviceNotices.getStatus());
-    assertNotNull(serviceNotices.getData());
-    assertEquals("1000003", serviceNotices.getData().getHelpSupport().getFirst().getMId());
-}
+ @Test
+    void testGetNotices(){
+        String mId = "1000003";
+        List<HelpSupportDto> helpSupportDtos = List.of(HelpSupportDto.builder().mId("1000003").status(true).value("test").aggregatorId("1").type("IMPORTANT_NOTICE").build());
+        HelpSupport helpSupport = HelpSupport.builder().mId(mId).type(IMPORTANT_NOTICE).build();
+        List<HelpSupport> helpSupportList = List.of(helpSupport);
+        when(helpSupportRepository.findByMidTypeStatus(mId, IMPORTANT_NOTICE, STATUS_ACTIVE)).thenReturn(helpSupportList);
+        when(helpSupportRepository.findBymIdIsNullAndStatusAndType(STATUS_ACTIVE, IMPORTANT_NOTICE)).thenReturn(helpSupportList);
+        when(helpSupportMapper.mapEntityListToDtoList(helpSupportList)).thenReturn(helpSupportDtos);
+        List<HelpSupportDto> helpSupportDaoNotices = helpSupportDao.getNotices(mId);
+        assertEquals(helpSupportDaoNotices.getFirst().getType(), IMPORTANT_NOTICE);
+    }
