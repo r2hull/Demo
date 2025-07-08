@@ -1,43 +1,16 @@
-@Test
-void testGetNotices() {
-    // Arrange
-    String mId = "1000003";
+SLF4J(I): Actual provider is of type [org.slf4j.simple.SimpleServiceProvider@642f9a77]
+[Test worker] INFO com.epay.merchant.dao.HelpSupportDao - Fetched mId [1000003] notices: [HelpSupport(id=94281f12-b872-4c4d-8144-3852b841611d, mId=1000003, aggregatorId=null, type=IMPORTANT_NOTICE, value=null, status=null)]
+[Test worker] INFO com.epay.merchant.dao.HelpSupportDao - addDefaultHelpSupport for specific types: [IMPORTANT_NOTICE]
 
-    HelpSupport helpSupport = HelpSupport.builder()
-        .mId(mId)
-        .type(IMPORTANT_NOTICE)
-        .status(true)
-        .value("test")
-        .aggregatorId("1")
-        .build();
+java.lang.UnsupportedOperationException
+	at java.base/java.util.ImmutableCollections.uoe(ImmutableCollections.java:142)
+	at java.base/java.util.ImmutableCollections$AbstractImmutableCollection.addAll(ImmutableCollections.java:148)
+	at com.epay.merchant.dao.HelpSupportDao.lambda$addDefaultHelpSupport$0(HelpSupportDao.java:114)
+	at java.base/java.lang.Iterable.forEach(Iterable.java:75)
+	at com.epay.merchant.dao.HelpSupportDao.addDefaultHelpSupport(HelpSupportDao.java:114)
+	at com.epay.merchant.dao.HelpSupportDao.getNotices(HelpSupportDao.java:65)
+	at com.epay.merchant.dao.HelpSupportDaoTest.testGetNotices(HelpSupportDaoTest.java:148)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
 
-    List<HelpSupport> helpSupportList = List.of(helpSupport);
-
-    HelpSupportDto helpSupportDto = HelpSupportDto.builder()
-        .mId(mId)
-        .type("IMPORTANT_NOTICE")
-        .status(true)
-        .value("test")
-        .aggregatorId("1")
-        .build();
-
-    List<HelpSupportDto> helpSupportDtos = List.of(helpSupportDto);
-
-    when(helpSupportRepository.findByMidTypeStatus(mId, IMPORTANT_NOTICE, STATUS_ACTIVE)).thenReturn(helpSupportList);
-    when(helpSupportRepository.findBymIdIsNullAndStatusAndType(STATUS_ACTIVE, IMPORTANT_NOTICE)).thenReturn(helpSupportList);
-    when(helpSupportMapper.mapEntityListToDtoList(helpSupportList)).thenReturn(helpSupportDtos);
-
-    // Act
-    List<HelpSupportDto> result = helpSupportDao.getNotices(mId);
-
-    // Assert
-    assertNotNull(result);
-    assertEquals(1, result.size());
-    assertEquals("IMPORTANT_NOTICE", result.getFirst().getType());
-    assertEquals(mId, result.getFirst().getMId());
-
-    // Verify interactions
-    verify(helpSupportRepository).findByMidTypeStatus(mId, IMPORTANT_NOTICE, STATUS_ACTIVE);
-    verify(helpSupportRepository).findBymIdIsNullAndStatusAndType(STATUS_ACTIVE, IMPORTANT_NOTICE);
-    verify(helpSupportMapper).mapEntityListToDtoList(helpSupportList);
-}
