@@ -1,15 +1,14 @@
-  private void addDefaultHelpSupport(final List<HelpSupport> helpSupports, List<HelpSupportType> types) {
-        List<HelpSupportType> presentTypesMid = helpSupports.stream().map(HelpSupport::getType).toList();
-        if(CollectionUtils.isNotEmpty(types)) {//Add specific type of generic help and support
-            log.info("addDefaultHelpSupport for specific types: {}", types);
-            types.forEach(typeToBeAdded -> helpSupports.addAll(helpSupportRepository.findBymIdIsNullAndStatusAndType(STATUS_ACTIVE, typeToBeAdded)));
-        } else {
-            log.info("addDefaultHelpSupport for all types");
-            Stream.of(HelpSupportType.values())
-                .filter(hpt -> presentTypesMid.stream().noneMatch(eptPresent -> eptPresent.equals(hpt)))
-                .forEach(typeToBeAdded -> {
-                    List<HelpSupport> helpSupport = helpSupportRepository.findBymIdIsNullAndStatusAndType(STATUS_ACTIVE, typeToBeAdded);
-                    helpSupports.addAll(helpSupport);
-                });
-        }
+  @Test
+    void testGetNotices(){
+        String mId = "1000003";
+        List<HelpSupportDto> helpSupportDtos = List.of(HelpSupportDto.builder().mId("1000003").type("IMPORTANT_NOTICE").build());
+        HelpSupport helpSupport = HelpSupport.builder().mId(mId).type(IMPORTANT_NOTICE).build();
+        List<HelpSupport> helpSupportList = List.of(helpSupport);
+        doNothing().when(mIdValidator).validateMid(mId);
+        doNothing().when(mIdValidator).validateActiveMId(mId);
+        when(helpSupportRepository.findByMidTypeStatus(mId, IMPORTANT_NOTICE, STATUS_ACTIVE)).thenReturn(helpSupportList);
+        when(helpSupportMapper.mapEntityListToDtoList(helpSupportList)).thenReturn(helpSupportDtos);
+        when(helpSupportDao.getNotices(mId)).thenReturn(helpSupportDtos);
+        MerchantResponse<HelpSupportResponse> serviceNotices = helpSupportService.getNotices(mId);
+        assertEquals(serviceNotices.getStatus(), 1);
     }
