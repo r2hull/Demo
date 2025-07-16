@@ -9,12 +9,15 @@ public interface MerchantAccountFileWisePayoutRepo extends JpaRepository<Merchan
 }
 
 
-@Repository
-public interface MerchantAccountFileWisePayoutRepo extends JpaRepository<MerchantAccountFileWisePayoutEntity, String> {
+@Component
+public class PurgeScheduler {
 
-    @Modifying
-    @Transactional
-    @Query(value = "DELETE FROM MERCHANT_ACCOUNT_FILE_WISE_PAYOUT " +
-                   "WHERE CREATED_DATE <= :cutoffTimestamp", nativeQuery = true)
-    void deleteOlderThan(@Param("cutoffTimestamp") long cutoffTimestamp);
+    @Autowired
+    private MerchantAccountFileWisePayoutRepo payoutRepo;
+
+    @Scheduled(cron = "0 0 2 * * ?") // Run daily at 2 AM
+    public void purgeOldData() {
+        long oneWeekAgo = System.currentTimeMillis() - (7L * 24 * 60 * 60 * 1000); // 7 days in ms
+        payoutRepo.deleteOlderThan(oneWeekAgo);
+    }
 }
