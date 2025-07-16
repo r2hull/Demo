@@ -1,38 +1,22 @@
-@Component
-public class PurgeScheduler {
+--CREATE table
 
-    @Autowired
-    private XyzRepository xyzRepository;
+CREATE TABLE MERCHANT_ACCOUNT_FILE_WISE_PAYOUT(
+    MAFP_ID             RAW(16) DEFAULT SYS_GUID() PRIMARY KEY,
+    RFS_ID              RAW(16),
+    MERCHANT_ID         VARCHAR2(10),
+    MERCHANT_PAYOUT     NUMBER(20, 2),
+    BANK_ID             VARCHAR2(20),
+    BANK_IFSC_CODE      VARCHAR2(20),
+    BANK_ACC_NUMBER     VARCHAR2(50),
+    REMARK	            VARCHAR2(500),
+    PAYOUT_STATUS       VARCHAR2(20) DEFAULT 'PENDING' CHECK (PAYOUT_STATUS IN ('PENDING','IN_PROCESS','SUCCESS','FAIL')) ENABLE,
+    TXN_COUNT           NUMBER(20),
+    MAP_ID              RAW(16),
+    CREATED_DATE      NUMBER NOT NULL ENABLE,
+    CREATED_BY        VARCHAR2(100 BYTE) NOT NULL ENABLE,
+    UPDATED_DATE      NUMBER,
+    UPDATED_BY        VARCHAR2(100 BYTE)
+);
 
-    @Scheduled(cron = "0 0 2 * * ?") // Every day at 2 AM
-    public void purgeOldData() {
-        LocalDateTime oneWeekAgo = LocalDateTime.now().minusWeeks(1);
-        xyzRepository.deleteOlderThan(oneWeekAgo);
-    }
-}
-
-
-@Repository
-public interface XyzRepository extends JpaRepository<XyzEntity, Long> {
-
-    @Modifying
-    @Transactional
-    @Query("DELETE FROM XyzEntity x WHERE x.createdAt <= :cutoffDate")
-    void deleteOlderThan(@Param("cutoffDate") LocalDateTime cutoffDate);
-}
-
-
-@Component
-public class PurgeScheduler {
-
-    @Autowired
-    private XyzRepository xyzRepository;
-
-    // Every 30 seconds
-    @Scheduled(fixedRate = 30000)
-    public void purgeOldData() {
-        long cutoffTimestamp = System.currentTimeMillis() - (24 * 60 * 60 * 1000); // 1 day in millis
-        xyzRepository.deleteOlderThan(cutoffTimestamp);
-        System.out.println("Purging done at: " + LocalDateTime.now());
-    }
-}
+CREATE INDEX MAFP_RFS_ID_IDX ON MERCHANT_ACCOUNT_FILE_WISE_PAYOUT (RFS_ID) ;
+CREATE INDEX MAFP_MERCHANT_ID_IDX ON MERCHANT_ACCOUNT_FILE_WISE_PAYOUT (MERCHANT_ID) ;
