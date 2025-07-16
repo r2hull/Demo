@@ -1,22 +1,20 @@
---CREATE table
+@Repository
+public interface MerchantAccountFileWisePayoutRepo extends JpaRepository<MerchantAccountFileWisePayoutEntity, String> {
 
-CREATE TABLE MERCHANT_ACCOUNT_FILE_WISE_PAYOUT(
-    MAFP_ID             RAW(16) DEFAULT SYS_GUID() PRIMARY KEY,
-    RFS_ID              RAW(16),
-    MERCHANT_ID         VARCHAR2(10),
-    MERCHANT_PAYOUT     NUMBER(20, 2),
-    BANK_ID             VARCHAR2(20),
-    BANK_IFSC_CODE      VARCHAR2(20),
-    BANK_ACC_NUMBER     VARCHAR2(50),
-    REMARK	            VARCHAR2(500),
-    PAYOUT_STATUS       VARCHAR2(20) DEFAULT 'PENDING' CHECK (PAYOUT_STATUS IN ('PENDING','IN_PROCESS','SUCCESS','FAIL')) ENABLE,
-    TXN_COUNT           NUMBER(20),
-    MAP_ID              RAW(16),
-    CREATED_DATE      NUMBER NOT NULL ENABLE,
-    CREATED_BY        VARCHAR2(100 BYTE) NOT NULL ENABLE,
-    UPDATED_DATE      NUMBER,
-    UPDATED_BY        VARCHAR2(100 BYTE)
-);
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM MERCHANT_ACCOUNT_FILE_WISE_PAYOUT " +
+                   "WHERE CREATED_DATE <= :cutoffTimestamp", nativeQuery = true)
+    void deleteOlderThan(@Param("cutoffTimestamp") long cutoffTimestamp);
+}
 
-CREATE INDEX MAFP_RFS_ID_IDX ON MERCHANT_ACCOUNT_FILE_WISE_PAYOUT (RFS_ID) ;
-CREATE INDEX MAFP_MERCHANT_ID_IDX ON MERCHANT_ACCOUNT_FILE_WISE_PAYOUT (MERCHANT_ID) ;
+
+@Repository
+public interface MerchantAccountFileWisePayoutRepo extends JpaRepository<MerchantAccountFileWisePayoutEntity, String> {
+
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM MERCHANT_ACCOUNT_FILE_WISE_PAYOUT " +
+                   "WHERE CREATED_DATE <= :cutoffTimestamp", nativeQuery = true)
+    void deleteOlderThan(@Param("cutoffTimestamp") long cutoffTimestamp);
+}
