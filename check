@@ -1,18 +1,35 @@
-@Component
-public class PurgeScheduler {
-
-    @Value("${payout.purge.retention-days}")
-    private int retentionDays;
-
-    @Autowired
-    private MerchantAccountFileWisePayoutRepo payoutRepo;
-
-    @Scheduled(cron = "0 0 2 * * ?") // Runs daily at 2 AM
-    public void purgeOldData() {
-        long cutoffTimestamp = System.currentTimeMillis() - (retentionDays * 24L * 60 * 60 * 1000);
-        payoutRepo.deleteOlderThan(cutoffTimestamp);
-    }
-}
-
-
-payout.purge.retention-days=7
+INSERT INTO MERCHANT_ACCOUNT_FILE_WISE_PAYOUT (
+    MAFP_ID,
+    RFS_ID,
+    MERCHANT_ID,
+    MERCHANT_PAYOUT,
+    BANK_ID,
+    BANK_IFSC_CODE,
+    BANK_ACC_NUMBER,
+    REMARK,
+    PAYOUT_STATUS,
+    TXN_COUNT,
+    MAP_ID,
+    CREATED_DATE,
+    CREATED_BY,
+    UPDATED_DATE,
+    UPDATED_BY
+) VALUES (
+    SYS_GUID(),                     -- MAFP_ID
+    SYS_GUID(),                     -- RFS_ID
+    'MER123456',                    -- MERCHANT_ID
+    1000.00,                        -- MERCHANT_PAYOUT
+    'BANK001',                      -- BANK_ID
+    'IFSC0001',                     -- BANK_IFSC_CODE
+    '1234567890123456',            -- BANK_ACC_NUMBER
+    'Test Purge Record',           -- REMARK
+    'PENDING',                      -- PAYOUT_STATUS
+    5,                              -- TXN_COUNT
+    SYS_GUID(),                     -- MAP_ID
+    CAST((ROUND((
+        (SYSDATE - 1) - TO_DATE('1970-01-01','YYYY-MM-DD')
+    ) * 86400000)) AS NUMBER),     -- CREATED_DATE (1 day ago in millis)
+    'test_user',                    -- CREATED_BY
+    NULL,                           -- UPDATED_DATE
+    NULL                            -- UPDATED_BY
+);
