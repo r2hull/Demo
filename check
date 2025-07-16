@@ -1,16 +1,22 @@
-SLF4J(I): Actual provider is of type [org.slf4j.simple.SimpleServiceProvider@642f9a77]
-[Test worker] INFO com.epay.merchant.dao.HelpSupportDao - Fetched mId [1000003] notices: [HelpSupport(id=94281f12-b872-4c4d-8144-3852b841611d, mId=1000003, aggregatorId=null, type=IMPORTANT_NOTICE, value=null, status=null)]
-[Test worker] INFO com.epay.merchant.dao.HelpSupportDao - addDefaultHelpSupport for specific types: [IMPORTANT_NOTICE]
+@Component
+public class PurgeScheduler {
 
-java.lang.UnsupportedOperationException
-	at java.base/java.util.ImmutableCollections.uoe(ImmutableCollections.java:142)
-	at java.base/java.util.ImmutableCollections$AbstractImmutableCollection.addAll(ImmutableCollections.java:148)
-	at com.epay.merchant.dao.HelpSupportDao.lambda$addDefaultHelpSupport$0(HelpSupportDao.java:114)
-	at java.base/java.lang.Iterable.forEach(Iterable.java:75)
-	at com.epay.merchant.dao.HelpSupportDao.addDefaultHelpSupport(HelpSupportDao.java:114)
-	at com.epay.merchant.dao.HelpSupportDao.getNotices(HelpSupportDao.java:65)
-	at com.epay.merchant.dao.HelpSupportDaoTest.testGetNotices(HelpSupportDaoTest.java:148)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+    @Autowired
+    private XyzRepository xyzRepository;
 
+    @Scheduled(cron = "0 0 2 * * ?") // Every day at 2 AM
+    public void purgeOldData() {
+        LocalDateTime oneWeekAgo = LocalDateTime.now().minusWeeks(1);
+        xyzRepository.deleteOlderThan(oneWeekAgo);
+    }
+}
+
+
+@Repository
+public interface XyzRepository extends JpaRepository<XyzEntity, Long> {
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM XyzEntity x WHERE x.createdAt <= :cutoffDate")
+    void deleteOlderThan(@Param("cutoffDate") LocalDateTime cutoffDate);
+}
