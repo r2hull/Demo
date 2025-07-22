@@ -1,27 +1,38 @@
-@Component
-@RequiredArgsConstructor
-public class TransactionDataSyncDao {
+public class JdbcQuery {
+    public static final String ARCHIVE_AND_PURGE_RECON_FILE_DTLS = """
+        BEGIN
+            INSERT INTO RECON_FILE_DTLS_HISTORY (
+                RFD_ID, RFS_ID, ROW_NUMBER, RECORD_TYPE, ATRN_NUM,
+                PAYMENT_AMOUNT, PAYMENT_DATE, BANK_REF_NUMBER, PAYMENT_STATUS,
+                RECON_STATUS, SETTLEMENT_STATUS, REMARK
+            )
+            SELECT
+                RFD_ID, RFS_ID, ROW_NUMBER, RECORD_TYPE, ATRN_NUM,
+                PAYMENT_AMOUNT, PAYMENT_DATE, BANK_REF_NUMBER, PAYMENT_STATUS,
+                RECON_STATUS, SETTLEMENT_STATUS, REMARK
+            FROM RECON_FILE_DTLS
+            WHERE RECON_STATUS = 'PENDING';
 
-    private final TransactionDataSyncRepository transactionDataSyncRepository;
-
-    public void saveMerchantOrder (){
-        transactionDataSyncRepository.saveMerchantOrder();
-    }
-
+            DELETE FROM RECON_FILE_DTLS
+            WHERE RECON_STATUS = 'PENDING';
+        END;
+    """;
 }
 
-@Repository
-@RequiredArgsConstructor
-public class TransactionDataSyncRepository {
-    private final NamedParameterJdbcTemplate jdbcTemplate;
-    private final LoggerUtility log = LoggerFactoryUtility.getLogger(this.getClass());
 
-    public void saveMerchantOrder() {
-        try {
-            int insertCount = jdbcTemplate.update(JdbcQuery.INSERT_MERCHANT_ORDERS, new HashMap<>());
-            log.info("Inserted {} records into MERCHANT_ORDERS", insertCount);
-        } catch (Exception ex) {
-            log.error("Error during bulk insert to MERCHANT_ORDERS", ex);
-        }
+
+
+public void archiveAndPurgeReconData() {
+    try {
+        int dummy = jdbcTemplate.update(JdbcQuery.ARCHIVE_AND_PURGE_RECON_FILE_DTLS, new HashMap<>());
+        log.info("✅ Archive & purge query executed.");
+    } catch (Exception ex) {
+        log.error("❌ Error during archive and purge operation", ex);
     }
+}
+
+
+
+public void archiveReconData() {
+    transactionDataSyncRepository.archiveAndPurgeReconData();
 }
