@@ -1,27 +1,44 @@
-Yahan ek professional aur simple mail draft diya gaya hai jo aap apne IT/Admin team ko bhej sakte ho:
+    public static final String INSERT_MERCHANT_ORDERS = """
+                INSERT INTO MERCHANT_ORDERS (
+                    SBI_ORDER_REF_NUMBER,
+                    ATRN_NUM,
+                    MULTI_ACCOUNTS
+                )  SELECT
+                    SBI_ORDER_REF_NUMBER,
+                    ATRN_NUM,
+                    MULTI_ACCOUNTS FROM ORDER_RECON_VIEW;
+            """;
 
 
----
-
-Subject: Request for Admin Access – C Drive Full
-
-Dear [IT/Admin Team],
-
-I hope you are doing well.
-
-I am writing to inform you that my system's C drive is completely full, which is affecting my work performance. In order to free up space, I need to delete some unnecessary user profiles. However, I currently do not have the required admin access to perform this action.
-
-Kindly grant me temporary admin access or assist in removing unused user profiles from the system.
-
-Thank you for your support.
-
-Best regards,
-[Your Full Name]
-[Your Department/Team Name]
-[Your Contact Info, if needed]
+CREATE TABLE RECON_FILE_DTLS(
+    RFD_ID                RAW(16) DEFAULT SYS_GUID() PRIMARY KEY,
+    RFS_ID                RAW(16),
+    MERCHANT_ID           VARCHAR2(10),
+    ROW_NUMBER            NUMBER,
+    RECORD_TYPE           VARCHAR2(100),
+    ATRN_NUM              VARCHAR2(30),
+    PAYMENT_AMOUNT        NUMBER(20, 2),
+    PAYMENT_DATE          DATE,
+    BANK_REF_NUMBER       VARCHAR2(30),
+    PAYMENT_STATUS        VARCHAR2(20),
+    RECON_STATUS          VARCHAR2(10) DEFAULT 'PENDING' CHECK (RECON_STATUS IN ('PENDING','MATCHED','UNMATCHED','DUPLICATE','SUCCESS','FAIL')) ENABLE,
+    SETTLEMENT_STATUS     VARCHAR2(10) DEFAULT 'PENDING' CHECK (SETTLEMENT_STATUS IN ('TO_BE_SETTLED','SETTLED','PENDING','IN_PROCESS','SUCCESS','FAIL')) ENABLE,
+    PAYOUT_STATUS         VARCHAR2(10) DEFAULT 'PENDING' CHECK (PAYOUT_STATUS IN ('PENDING','IN_PROCESS','SUCCESS','FAIL')) ENABLE,
+    REMARK	              VARCHAR(500)
+    );
 
 
----
-
-Agar aap chahein toh main isse Hindi-English mix mein bhi likh sakta hoon ya aur simplify kar sakta hoon.
-
+CREATE TABLE RECON_FILE_DTLS_HISTORY(
+    RFD_ID                RAW(16) DEFAULT SYS_GUID() PRIMARY KEY,
+    RFS_ID                RAW(16),
+    ROW_NUMBER            NUMBER,
+    RECORD_TYPE           VARCHAR2(100),
+    ATRN_NUM              VARCHAR2(30),
+    PAYMENT_AMOUNT        NUMBER(20, 2),
+    PAYMENT_DATE          DATE,
+    BANK_REF_NUMBER       VARCHAR2(30),
+    PAYMENT_STATUS        VARCHAR2(20),
+    RECON_STATUS          VARCHAR2(10) DEFAULT 'PENDING' CHECK (RECON_STATUS IN ('PENDING','MATCHED','UNMATCHED','DUPLICATE','SUCCESS','FAIL')) ENABLE,
+    SETTLEMENT_STATUS     VARCHAR2(10) DEFAULT 'PENDING' CHECK (SETTLEMENT_STATUS IN ('TO_BE_SETTLED','SETTLED','PENDING','IN_PROCESS','SUCCESS','FAIL')) ENABLE,
+    REMARK	              VARCHAR(500)
+    );
