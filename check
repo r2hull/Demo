@@ -1,38 +1,21 @@
-public class JdbcQuery {
-    public static final String ARCHIVE_AND_PURGE_RECON_FILE_DTLS = """
-        BEGIN
-            INSERT INTO RECON_FILE_DTLS_HISTORY (
-                RFD_ID, RFS_ID, ROW_NUMBER, RECORD_TYPE, ATRN_NUM,
-                PAYMENT_AMOUNT, PAYMENT_DATE, BANK_REF_NUMBER, PAYMENT_STATUS,
-                RECON_STATUS, SETTLEMENT_STATUS, REMARK
-            )
-            SELECT
-                RFD_ID, RFS_ID, ROW_NUMBER, RECORD_TYPE, ATRN_NUM,
-                PAYMENT_AMOUNT, PAYMENT_DATE, BANK_REF_NUMBER, PAYMENT_STATUS,
-                RECON_STATUS, SETTLEMENT_STATUS, REMARK
-            FROM RECON_FILE_DTLS
-            WHERE RECON_STATUS = 'PENDING';
+@Modifying
+@Transactional
+@Query(value = """
+    BEGIN
+        INSERT INTO RECON_FILE_DTLS_HISTORY (
+            RFD_ID, RFS_ID, ROW_NUMBER, RECORD_TYPE, ATRN_NUM,
+            PAYMENT_AMOUNT, PAYMENT_DATE, BANK_REF_NUMBER, PAYMENT_STATUS,
+            RECON_STATUS, SETTLEMENT_STATUS, REMARK
+        )
+        SELECT
+            RFD_ID, RFS_ID, ROW_NUMBER, RECORD_TYPE, ATRN_NUM,
+            PAYMENT_AMOUNT, PAYMENT_DATE, BANK_REF_NUMBER, PAYMENT_STATUS,
+            RECON_STATUS, SETTLEMENT_STATUS, REMARK
+        FROM RECON_FILE_DTLS
+        WHERE RECON_STATUS = 'PENDING';
 
-            DELETE FROM RECON_FILE_DTLS
-            WHERE RECON_STATUS = 'PENDING';
-        END;
-    """;
-}
-
-
-
-
-public void archiveAndPurgeReconData() {
-    try {
-        int dummy = jdbcTemplate.update(JdbcQuery.ARCHIVE_AND_PURGE_RECON_FILE_DTLS, new HashMap<>());
-        log.info("✅ Archive & purge query executed.");
-    } catch (Exception ex) {
-        log.error("❌ Error during archive and purge operation", ex);
-    }
-}
-
-
-
-public void archiveReconData() {
-    transactionDataSyncRepository.archiveAndPurgeReconData();
-}
+        DELETE FROM RECON_FILE_DTLS
+        WHERE RECON_STATUS = 'PENDING';
+    END;
+    """, nativeQuery = true)
+void archiveAndDelete();
