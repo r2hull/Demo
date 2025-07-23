@@ -1,7 +1,9 @@
-@Modifying
-@Transactional
-@Query(value = """
-    BEGIN
+@Repository
+public interface ReconFileRepository extends JpaRepository<ReconFileEntity, String> {
+
+    @Modifying
+    @Transactional
+    @Query(value = """
         INSERT INTO RECON_FILE_DTLS_HISTORY (
             RFD_ID, RFS_ID, ROW_NUMBER, RECORD_TYPE, ATRN_NUM,
             PAYMENT_AMOUNT, PAYMENT_DATE, BANK_REF_NUMBER, PAYMENT_STATUS,
@@ -12,10 +14,29 @@
             PAYMENT_AMOUNT, PAYMENT_DATE, BANK_REF_NUMBER, PAYMENT_STATUS,
             RECON_STATUS, SETTLEMENT_STATUS, REMARK
         FROM RECON_FILE_DTLS
-        WHERE RECON_STATUS = 'PENDING';
+        WHERE RECON_STATUS = 'PENDING'
+        """, nativeQuery = true)
+    int insertPendingRecordsIntoHistory();
 
-        DELETE FROM RECON_FILE_DTLS
-        WHERE RECON_STATUS = 'PENDING';
-    END;
-    """, nativeQuery = true)
-void archiveAndDelete();
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM RECON_FILE_DTLS WHERE RECON_STATUS = 'PENDING'", nativeQuery = true)
+    int deletePendingRecordsFromMain();
+}
+
+
+@Service
+@RequiredArgsConstructor
+public class ReconService {
+
+    private final ReconFileRepository reconFileRepository;
+
+    @Transactional
+    public void archivePendingReconData() {
+        int inserted = reconFileRepository.insertPendingRecordsIntoHistory();
+        int deleted = reconFileRepository.deletePendingRecordsFromMain();
+
+        System.out.println("✅ Inserted into history: " + inserted);
+        System.out.println("🗑️ Deleted from main: " + deleted);
+    }
+}
