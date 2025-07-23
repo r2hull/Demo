@@ -1,34 +1,9 @@
-public class JdbcQuery {
+@Repository
+public interface ReconFileRepository extends JpaRepository<ReconFileEntity, String> {
 
-    public static final String INSERT_MERCHANT_PAYOUT_HISTORY = """
-        INSERT INTO MERCHANT_TXN_MULTI_ACC_PAYOUT_HISTORY (
-            MTMAP_ID, RFS_ID, ATRN_NUM, RFD_ID, MERCHANT_ID,
-            MERCHANT_ACC_PAYOUT, BANK_ID, BANK_IFSC_CODE, BANK_ACC_NUMBER,
-            REMARK, PAYOUT_ID, CREATED_DATE, CREATED_BY, UPDATED_DATE, UPDATED_BY
-        )
-        SELECT
-            m.MTMAP_ID, m.RFS_ID, m.ATRN_NUM, m.RFD_ID, m.MERCHANT_ID,
-            m.MERCHANT_ACC_PAYOUT, m.BANK_ID, m.BANK_IFSC_CODE, m.BANK_ACC_NUMBER,
-            m.REMARK, m.PAYOUT_ID, m.CREATED_DATE, m.CREATED_BY, m.UPDATED_DATE, m.UPDATED_BY
-        FROM MERCHANT_TXN_MULTI_ACC_PAYOUT m
-        JOIN RECON_FILE_SUMMARY r ON m.RFS_ID = r.RFS_ID
-        WHERE r.PAYOUT_STATUS = 'SUCCESS'
-        """;
-
-    public static final String DELETE_MERCHANT_PAYOUT_MAIN = """
-        DELETE FROM MERCHANT_TXN_MULTI_ACC_PAYOUT
-        WHERE RFS_ID IN (
-            SELECT RFS_ID FROM RECON_FILE_SUMMARY WHERE PAYOUT_STATUS = 'SUCCESS'
-        )
-        """;
-}
-
-
-
-
-public class JdbcQuery {
-
-    public static final String INSERT_RECON_FILE_HISTORY = """
+    @Modifying
+    @Transactional
+    @Query(value = """
         INSERT INTO RECON_FILE_DTLS_HISTORY (
             RFD_ID, RFS_ID, MERCHANT_ID, ROW_NUMBER, RECORD_TYPE, ATRN_NUM,
             PAYMENT_AMOUNT, PAYMENT_DATE, BANK_REF_NUMBER, PAYMENT_STATUS,
@@ -42,10 +17,14 @@ public class JdbcQuery {
             CREATED_DATE, CREATED_BY, UPDATED_DATE, UPDATED_BY
         FROM RECON_FILE_DTLS
         WHERE RECON_STATUS IN ('MATCHED', 'UNMATCHED', 'DUPLICATE')
-        """;
+        """, nativeQuery = true)
+    int insertReconDetailsToHistory();
 
-    public static final String DELETE_RECON_FILE_MAIN = """
+    @Modifying
+    @Transactional
+    @Query(value = """
         DELETE FROM RECON_FILE_DTLS
         WHERE RECON_STATUS IN ('MATCHED', 'UNMATCHED', 'DUPLICATE')
-        """;
+        """, nativeQuery = true)
+    int deleteReconDetailsFromMain();
 }
