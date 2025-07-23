@@ -1,50 +1,56 @@
-@Modifying
-@Transactional
-@Query(value = """
-    INSERT INTO MERCHANT_TXN_MULTI_ACC_PAYOUT_HISTORY (
-        MTMAP_ID, RFS_ID, MTP_ID, MERCHANT_ID,
-        MERCHANT_ACC_PAYOUT, BANK_ID, BANK_IFSC_CODE,
-        BANK_ACC_NUMBER, REMARK
-    )
-    SELECT
-        m.MTMAP_ID, m.RFS_ID, m.MTP_ID, m.MERCHANT_ID,
-        m.MERCHANT_ACC_PAYOUT, m.BANK_ID, m.BANK_IFSC_CODE,
-        m.BANK_ACC_NUMBER, m.REMARK
-    FROM MERCHANT_TXN_MULTI_ACC_PAYOUT m
-    JOIN RECON_FILE_SUMMARY r ON m.RFS_ID = r.RFS_ID
-    WHERE r.PAYOUT_STATUS = 'SUCCESS'
-    """, nativeQuery = true)
-int insertSuccessPayoutsIntoHistory();
+INSERT INTO RECON_FILE_DTLS (
+    RFD_ID, RFS_ID, MERCHANT_ID, ROW_NUMBER, RECORD_TYPE, ATRN_NUM,
+    PAYMENT_AMOUNT, PAYMENT_DATE, BANK_REF_NUMBER, PAYMENT_STATUS,
+    RECON_STATUS, SETTLEMENT_STATUS, PAYOUT_STATUS, REMARK,
+    CREATED_DATE, CREATED_BY, UPDATED_DATE, UPDATED_BY
+) VALUES (
+    SYS_GUID(), SYS_GUID(), 'M12345', 1, 'TXN', 'ATRN1001',
+    2500.75, SYSDATE, 'BNK12345', 'SUCCESS',
+    'MATCHED', 'SETTLED', 'SUCCESS', 'Test record 1',
+    1752612345678, 'SYSTEM', NULL, NULL
+);
+
+INSERT INTO RECON_FILE_DTLS (
+    RFD_ID, RFS_ID, MERCHANT_ID, ROW_NUMBER, RECORD_TYPE, ATRN_NUM,
+    PAYMENT_AMOUNT, PAYMENT_DATE, BANK_REF_NUMBER, PAYMENT_STATUS,
+    RECON_STATUS, SETTLEMENT_STATUS, PAYOUT_STATUS, REMARK,
+    CREATED_DATE, CREATED_BY, UPDATED_DATE, UPDATED_BY
+) VALUES (
+    SYS_GUID(), SYS_GUID(), 'M67890', 2, 'TXN', 'ATRN1002',
+    1000.00, SYSDATE - 1, 'BNK67890', 'FAIL',
+    'UNMATCHED', 'PENDING', 'PENDING', 'Test record 2',
+    1752612349999, 'SYSTEM', NULL, NULL
+);
+
+
+INSERT INTO MERCHANT_TXN_MULTI_ACC_PAYOUT (
+    MTMAP_ID, RFS_ID, ATRN_NUM, RFD_ID, MERCHANT_ID,
+    MERCHANT_ACC_PAYOUT, BANK_ID, BANK_IFSC_CODE, BANK_ACC_NUMBER,
+    REMARK, PAYOUT_ID, CREATED_DATE, CREATED_BY, UPDATED_DATE, UPDATED_BY
+) VALUES (
+    SYS_GUID(), SYS_GUID(), 'ATRN1001', SYS_GUID(), 'M12345',
+    2500.75, 'SBI01', 'SBIN0001234', '123456789012',
+    'Payout test 1', SYS_GUID(), 1752612345678, 'SYSTEM', NULL, NULL
+);
+
+INSERT INTO MERCHANT_TXN_MULTI_ACC_PAYOUT (
+    MTMAP_ID, RFS_ID, ATRN_NUM, RFD_ID, MERCHANT_ID,
+    MERCHANT_ACC_PAYOUT, BANK_ID, BANK_IFSC_CODE, BANK_ACC_NUMBER,
+    REMARK, PAYOUT_ID, CREATED_DATE, CREATED_BY, UPDATED_DATE, UPDATED_BY
+) VALUES (
+    SYS_GUID(), SYS_GUID(), 'ATRN1002', SYS_GUID(), 'M67890',
+    1800.00, 'ICICI01', 'ICIC0005678', '987654321098',
+    'Payout test 2', SYS_GUID(), 1752612355555, 'SYSTEM', NULL, NULL
+);
 
 
 
 
-@Modifying
-@Transactional
-@Query(value = """
-    DELETE FROM MERCHANT_TXN_MULTI_ACC_PAYOUT
-    WHERE RFS_ID IN (
-        SELECT r.RFS_ID
-        FROM RECON_FILE_SUMMARY r
-        WHERE r.PAYOUT_STATUS = 'SUCCESS'
-    )
-    """, nativeQuery = true)
-int deleteSuccessPayoutsFromMain();
-
-
-
-@Service
-@RequiredArgsConstructor
-public class MerchantPayoutService {
-
-    private final MerchantTxnPayoutRepository payoutRepository;
-
-    @Transactional
-    public void archiveAndPurgeSuccessPayouts() {
-        int inserted = payoutRepository.insertSuccessPayoutsIntoHistory();
-        int deleted = payoutRepository.deleteSuccessPayoutsFromMain();
-
-        System.out.println("✅ Inserted to history: " + inserted);
-        System.out.println("🗑️ Deleted from main: " + deleted);
-    }
-}
+INSERT INTO RECON_FILE_SUMMARY (
+    RFS_ID, BANK_CODE, FILE_NAME, FILE_RECEIVED_TIME,
+    PAYOUT_STATUS
+) VALUES (
+    'AABBCCDDEEFF00112233445566778899', -- RAW(16) format expected
+    'SBI', 'file1.csv', 1752612345678,
+    'SUCCESS'
+);
