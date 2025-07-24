@@ -1,9 +1,1 @@
-SELECT
-  s.sid, s.serial#, s.username, s.status, s.osuser, s.machine, s.program,
-  l.object_id, o.object_name
-FROM
-  v$session s
-JOIN
-  v$locked_object l ON s.sid = l.session_id
-JOIN
-  all_objects o ON o.object_id = l.object_id;
+dgdg
