@@ -1,14 +1,9 @@
-
-Error starting at line : 1 in command -
-BEGIN
-  FOR t IN (SELECT table_name FROM user_tables) LOOP
-    EXECUTE IMMEDIATE 'DROP TABLE "' || t.table_name || '" CASCADE CONSTRAINTS';
-  END LOOP;
-END;
-Error report -
-ORA-00054: resource busy and acquire with NOWAIT specified or timeout expired
-ORA-06512: at line 3
-ORA-06512: at line 3
-00054. 00000 -  "resource busy and acquire with NOWAIT specified or timeout expired"
-*Cause:    Interested resource is busy.
-*Action:   Retry if necessary or increase timeout.
+SELECT
+  s.sid, s.serial#, s.username, s.status, s.osuser, s.machine, s.program,
+  l.object_id, o.object_name
+FROM
+  v$session s
+JOIN
+  v$locked_object l ON s.sid = l.session_id
+JOIN
+  all_objects o ON o.object_id = l.object_id;
