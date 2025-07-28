@@ -1,13 +1,6 @@
 --changeset YourName:4
--- Step 1: Drop existing unique constraint on ACCOUNT_UNIQUE_IDENTIFIER
-ALTER TABLE MERCHANT_BANK_ACCOUNT DROP CONSTRAINT <existing_constraint_name>;
+DROP INDEX IDX_MERCHANT_BANK_ACCOUNT_MID_UNIQUE_IDENTIFIER;
 
 --changeset YourName:5
--- Step 2: Add composite unique constraint on MID and ACCOUNT_UNIQUE_IDENTIFIER
 ALTER TABLE MERCHANT_BANK_ACCOUNT 
 ADD CONSTRAINT UQ_MID_IDENTIFIER UNIQUE (MID, ACCOUNT_UNIQUE_IDENTIFIER);
-
-
-SELECT constraint_name 
-FROM user_constraints 
-WHERE table_name = 'MERCHANT_BANK_ACCOUNT' AND constraint_type = 'U';
