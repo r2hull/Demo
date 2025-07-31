@@ -1,10 +1,7 @@
---changeset YourName:4
--- Drop system-generated unique constraint (only for dev)
-ALTER TABLE MERCHANT_BANK_ACCOUNT 
-DROP CONSTRAINT SYS_C00232222;
+ @GetMapping("/bank/{ifscCode}")
+    public MerchantResponse<BankDetailsResponse> getBankDetailsByIfscCode(@PathVariable String ifscCode) {
+        log.info("Received request to get bank details for IFSC Code: {}", ifscCode);
+        return adminService.getBankDetailsByIfscCode(ifscCode);
+    }
 
---changeset YourName:5
--- Add composite unique constraint on (MID, ACCOUNT_UNIQUE_IDENTIFIER)
-ALTER TABLE MERCHANT_BANK_ACCOUNT 
-ADD CONSTRAINT MERCHANTBANKACC_MID_ACCT_UNIQUE_ID_UK 
-UNIQUE (MID, ACCOUNT_UNIQUE_IDENTIFIER);
+ABDHDH;han
