@@ -1,11 +1,30 @@
-Drop all table from db
+-- Drop all views
 BEGIN
-  FOR t IN (SELECT table_name FROM user_tables) LOOP
-    EXECUTE IMMEDIATE 'DROP TABLE "' || t.table_name || '" CASCADE CONSTRAINTS';
+  FOR v IN (SELECT view_name FROM user_views) LOOP
+    BEGIN
+      EXECUTE IMMEDIATE 'DROP VIEW "' || v.view_name || '"';
+    EXCEPTION
+      WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Failed to drop view: ' || v.view_name || ' - ' || SQLERRM);
+    END;
   END LOOP;
 END;
+/
 
-copy all table from dev
+-- Drop all tables
+BEGIN
+  FOR t IN (SELECT table_name FROM user_tables) LOOP
+    BEGIN
+      EXECUTE IMMEDIATE 'DROP TABLE "' || t.table_name || '" CASCADE CONSTRAINTS';
+    EXCEPTION
+      WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Failed to drop table: ' || t.table_name || ' - ' || SQLERRM);
+    END;
+  END LOOP;
+END;
+/
+
+-- Copy all tables from PAYAGGTRANSCTION
 BEGIN
   FOR t IN (SELECT table_name FROM all_tables WHERE owner = 'PAYAGGTRANSCTION') LOOP
     BEGIN
@@ -16,3 +35,26 @@ BEGIN
     END;
   END LOOP;
 END;
+/
+
+-- Copy all views from PAYAGGTRANSCTION
+DECLARE
+  v_text CLOB;
+BEGIN
+  FOR v IN (
+    SELECT view_name FROM all_views WHERE owner = 'PAYAGGTRANSCTION'
+  ) LOOP
+    BEGIN
+      -- Get the full view text from DBA/ALL_VIEWS
+      SELECT TEXT INTO v_text
+      FROM all_views
+      WHERE owner = 'PAYAGGTRANSCTION' AND view_name = v.view_name;
+
+      EXECUTE IMMEDIATE 'CREATE OR REPLACE VIEW ' || v.view_name || ' AS ' || v_text;
+    EXCEPTION
+      WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Failed to create view: ' || v.view_name || ' - ' || SQLERRM);
+    END;
+  END LOOP;
+END;
+/
