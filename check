@@ -1,7 +1,18 @@
- @GetMapping("/bank/{ifscCode}")
-    public MerchantResponse<BankDetailsResponse> getBankDetailsByIfscCode(@PathVariable String ifscCode) {
-        log.info("Received request to get bank details for IFSC Code: {}", ifscCode);
-        return adminService.getBankDetailsByIfscCode(ifscCode);
-    }
+Drop all table from db
+BEGIN
+  FOR t IN (SELECT table_name FROM user_tables) LOOP
+    EXECUTE IMMEDIATE 'DROP TABLE "' || t.table_name || '" CASCADE CONSTRAINTS';
+  END LOOP;
+END;
 
-ABDHDH;han
+copy all table from dev
+BEGIN
+  FOR t IN (SELECT table_name FROM all_tables WHERE owner = 'PAYAGGTRANSCTION') LOOP
+    BEGIN
+      EXECUTE IMMEDIATE 'CREATE TABLE ' || t.table_name || ' AS SELECT * FROM PAYAGGTRANSCTION.' || t.table_name;
+    EXCEPTION
+      WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Failed to copy table: ' || t.table_name || ' - ' || SQLERRM);
+    END;
+  END LOOP;
+END;
