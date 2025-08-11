@@ -1,4 +1,43 @@
-The error during order search happened because the database has invalid values for some status fields — TransactionStatus, PaymentStatus, and RefundStatus.
+--liquibase formatted sql
+--changeset Operation :102
 
-The code is working fine. The issue is with the wrong data in the database,
-The application behaves correctly by rejecting invalid enum values during deserialization.
+-- add audit fields in all tables
+CREATE TABLE RECON_FILE_DTLS(
+    RFD_ID               RAW(16) DEFAULT SYS_GUID() PRIMARY KEY,
+    RF_ID                RAW(16),
+    MERCHANT_ID          VARCHAR2(10), --handle in code with mid and use @column
+    ROW_NUMBER           NUMBER,
+    ATRN_NUM             VARCHAR2(50),
+    TXN_AMOUNT           NUMBER(20, 2),
+    BANK_REF_NUMBER      VARCHAR2(255),
+    RECON_STATUS         VARCHAR2(10) DEFAULT 'PENDING' CHECK (RECON_STATUS IN ('PENDING','MATCHED','UNMATCHED','DUPLICATE','SUCCESS','FAIL')) ENABLE,
+    SETTLEMENT_STATUS    VARCHAR2(10) DEFAULT 'PENDING' CHECK (SETTLEMENT_STATUS IN ('TO_BE_SETTLED','SETTLED','PENDING','IN_PROCESS','SUCCESS','FAIL')) ENABLE,
+    PAYOUT_STATUS        VARCHAR2(20) DEFAULT 'PENDING' CHECK (PAYOUT_STATUS IN ('PENDING','IN_PROCESS','SUCCESS','FAIL','READY_FOR_PAYOUT')) ENABLE,
+    REMARK	             VARCHAR(500),
+    CREATED_DATE         NUMBER NOT NULL,
+    UPDATED_DATE         NUMBER
+    );
+
+CREATE INDEX RFD_RF_ID_IDX ON RECON_FILE_DTLS (RF_ID) ;
+CREATE INDEX RFD_ATRN_IDX ON RECON_FILE_DTLS (ATRN_NUM) ;
+CREATE INDEX RFD_ID_IDX ON RECON_FILE_DTLS(HEXTORAW(RFD_ID));
+
+--liquibase formatted sql
+--changeset Operation :102
+
+-- add audit fields in all tables
+CREATE TABLE RECON_FILE_DTLS_HISTORY(
+    RFD_ID               RAW(16) DEFAULT SYS_GUID() PRIMARY KEY,
+    RF_ID                RAW(16),
+    MERCHANT_ID          VARCHAR2(10), --handle in code with mid and use @column
+    ROW_NUMBER           NUMBER,
+    ATRN_NUM             VARCHAR2(50),
+    TXN_AMOUNT           NUMBER(20, 2),
+    BANK_REF_NUMBER      VARCHAR2(255),
+    RECON_STATUS         VARCHAR2(10) DEFAULT 'PENDING' CHECK (RECON_STATUS IN ('PENDING','MATCHED','UNMATCHED','DUPLICATE','SUCCESS','FAIL')) ENABLE,
+    SETTLEMENT_STATUS    VARCHAR2(10) DEFAULT 'PENDING' CHECK (SETTLEMENT_STATUS IN ('TO_BE_SETTLED','SETTLED','PENDING','IN_PROCESS','SUCCESS','FAIL')) ENABLE,
+    PAYOUT_STATUS        VARCHAR2(20) DEFAULT 'PENDING' CHECK (PAYOUT_STATUS IN ('PENDING','IN_PROCESS','SUCCESS','FAIL','READY_FOR_PAYOUT')) ENABLE,
+    REMARK	             VARCHAR(500),
+    CREATED_DATE         NUMBER NOT NULL,
+    UPDATED_DATE         NUMBER
+    );
