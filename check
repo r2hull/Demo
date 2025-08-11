@@ -1,25 +1,26 @@
+@Repository
+public interface ReconFileDtlsRepository extends JpaRepository<ReconFileDtls, UUID> {
 
     @Modifying
     @Query(value = """
         INSERT INTO RECON_FILE_DTLS_HISTORY (
-            RFD_ID, RFS_ID, MERCHANT_ID, ROW_NUMBER, RECORD_TYPE, ATRN_NUM,
-            PAYMENT_AMOUNT, PAYMENT_DATE, BANK_REF_NUMBER, PAYMENT_STATUS,
-            RECON_STATUS, SETTLEMENT_STATUS, REMARK,
-            CREATED_DATE, CREATED_BY, UPDATED_DATE, UPDATED_BY
+            RFD_ID, RF_ID, MERCHANT_ID, ROW_NUMBER, ATRN_NUM, TXN_AMOUNT,
+            BANK_REF_NUMBER, RECON_STATUS, SETTLEMENT_STATUS, PAYOUT_STATUS,
+            REMARK, CREATED_DATE, UPDATED_DATE
         )
         SELECT
-            RFD_ID, RFS_ID, MERCHANT_ID, ROW_NUMBER, RECORD_TYPE, ATRN_NUM,
-            PAYMENT_AMOUNT, PAYMENT_DATE, BANK_REF_NUMBER, PAYMENT_STATUS,
-            RECON_STATUS, SETTLEMENT_STATUS, REMARK,
-            CREATED_DATE, CREATED_BY, UPDATED_DATE, UPDATED_BY
+            RFD_ID, RF_ID, MERCHANT_ID, ROW_NUMBER, ATRN_NUM, TXN_AMOUNT,
+            BANK_REF_NUMBER, RECON_STATUS, SETTLEMENT_STATUS, PAYOUT_STATUS,
+            REMARK, CREATED_DATE, UPDATED_DATE
         FROM RECON_FILE_DTLS
-        WHERE RECON_STATUS IN ('MATCHED', 'UNMATCHED', 'DUPLICATE')
+        WHERE RECON_STATUS IN ('MATCHED', 'PENDING')
         """, nativeQuery = true)
-    int insertReconDataDetailsIntoHistory();
+    int insertMatchedPendingIntoHistory();
 
     @Modifying
     @Query(value = """
         DELETE FROM RECON_FILE_DTLS
-        WHERE RECON_STATUS IN ('MATCHED', 'UNMATCHED', 'DUPLICATE')
+        WHERE RECON_STATUS IN ('MATCHED', 'PENDING')
         """, nativeQuery = true)
-    int deleteReconDataDetails();
+    int deleteMatchedPendingFromMain();
+}
