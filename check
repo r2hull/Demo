@@ -1,41 +1,25 @@
-BEGIN
-    -- 1️⃣ History table me insert karo (MATCHED & PENDING)
-    INSERT INTO RECON_FILE_DTLS_HISTORY (
-        RFD_ID,
-        RF_ID,
-        MERCHANT_ID,
-        ROW_NUMBER,
-        ATRN_NUM,
-        TXN_AMOUNT,
-        BANK_REF_NUMBER,
-        RECON_STATUS,
-        SETTLEMENT_STATUS,
-        PAYOUT_STATUS,
-        REMARK,
-        CREATED_DATE,
-        UPDATED_DATE
-    )
-    SELECT
-        RFD_ID,
-        RF_ID,
-        MERCHANT_ID,
-        ROW_NUMBER,
-        ATRN_NUM,
-        TXN_AMOUNT,
-        BANK_REF_NUMBER,
-        RECON_STATUS,
-        SETTLEMENT_STATUS,
-        PAYOUT_STATUS,
-        REMARK,
-        CREATED_DATE,
-        UPDATED_DATE
-    FROM RECON_FILE_DTLS
-    WHERE RECON_STATUS IN ('MATCHED', 'PENDING');
 
-    -- 2️⃣ Main table se delete karo (MATCHED & PENDING)
-    DELETE FROM RECON_FILE_DTLS
-    WHERE RECON_STATUS IN ('MATCHED', 'PENDING');
+    @Modifying
+    @Query(value = """
+        INSERT INTO RECON_FILE_DTLS_HISTORY (
+            RFD_ID, RFS_ID, MERCHANT_ID, ROW_NUMBER, RECORD_TYPE, ATRN_NUM,
+            PAYMENT_AMOUNT, PAYMENT_DATE, BANK_REF_NUMBER, PAYMENT_STATUS,
+            RECON_STATUS, SETTLEMENT_STATUS, REMARK,
+            CREATED_DATE, CREATED_BY, UPDATED_DATE, UPDATED_BY
+        )
+        SELECT
+            RFD_ID, RFS_ID, MERCHANT_ID, ROW_NUMBER, RECORD_TYPE, ATRN_NUM,
+            PAYMENT_AMOUNT, PAYMENT_DATE, BANK_REF_NUMBER, PAYMENT_STATUS,
+            RECON_STATUS, SETTLEMENT_STATUS, REMARK,
+            CREATED_DATE, CREATED_BY, UPDATED_DATE, UPDATED_BY
+        FROM RECON_FILE_DTLS
+        WHERE RECON_STATUS IN ('MATCHED', 'UNMATCHED', 'DUPLICATE')
+        """, nativeQuery = true)
+    int insertReconDataDetailsIntoHistory();
 
-    COMMIT;
-END;
-/
+    @Modifying
+    @Query(value = """
+        DELETE FROM RECON_FILE_DTLS
+        WHERE RECON_STATUS IN ('MATCHED', 'UNMATCHED', 'DUPLICATE')
+        """, nativeQuery = true)
+    int deleteReconDataDetails();
