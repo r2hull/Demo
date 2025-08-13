@@ -1,5 +1,7 @@
- @Modifying
-    @Query(value = """
+private final NamedParameterJdbcTemplate jdbcTemplate;
+
+public int insertReconDataDetailsIntoHistory(long thresholdDate) {
+    String INSERT_RECON_HISTORY = """
         INSERT INTO RECON_FILE_DTLS_HISTORY (
             RFD_ID, RF_ID, MERCHANT_ID, ROW_NUMBER, ATRN_NUM, TXN_AMOUNT,
             BANK_REF_NUMBER, RECON_STATUS, SETTLEMENT_STATUS, PAYOUT_STATUS,
@@ -11,14 +13,28 @@
             REMARK, CREATED_DATE, UPDATED_DATE
         FROM RECON_FILE_DTLS
         WHERE RECON_STATUS IN ('MATCHED', 'PENDING')
-        AND UPDATED_DATE < (:thresholdDate)
-        """, nativeQuery = true)
-    int insertReconDataDetailsIntoHistory(@Param("thresholdDate") long thresholdDate);
+        AND UPDATED_DATE < :thresholdDate
+    """;
 
-    @Modifying
-    @Query(value = """
+    MapSqlParameterSource params = new MapSqlParameterSource();
+    params.addValue("thresholdDate", thresholdDate);
+
+    int inserted = jdbcTemplate.update(INSERT_RECON_HISTORY, params);
+    log.info("Inserted {} records into RECON_FILE_DTLS_HISTORY", inserted);
+    return inserted;
+}
+
+public int deleteReconDataDetails(long thresholdDate) {
+    String DELETE_RECON_DETAILS = """
         DELETE FROM RECON_FILE_DTLS
         WHERE RECON_STATUS IN ('MATCHED', 'PENDING')
-        AND UPDATED_DATE < (:thresholdDate)
-        """, nativeQuery = true)
-    int deleteReconDataDetails(@Param("thresholdDate") long thresholdDate);
+        AND UPDATED_DATE < :thresholdDate
+    """;
+
+    MapSqlParameterSource params = new MapSqlParameterSource();
+    params.addValue("thresholdDate", thresholdDate);
+
+    int deleted = jdbcTemplate.update(DELETE_RECON_DETAILS, params);
+    log.info("Deleted {} records from RECON_FILE_DTLS", deleted);
+    return deleted;
+}
