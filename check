@@ -1,34 +1,24 @@
-    @Transactional
-    public void syncTransactionData(String schedulerName) {
-        log.info("Fetching data from DataSyncScheduler Table");
-        DataSyncSchedulerDto dataSyncSchedulerDto = dataSyncSchedulerDao.findBySchedulerName(schedulerName);
-        long lastRun = dataSyncSchedulerDto.getSchedulerLastRun();
-        long currRun = DateTimeUtils.getCurrentTime();
-        log.info("Syncing Transaction Data between {} and {}", lastRun, currRun);
-        dataSyncSchedulerDao.saveTransactionDataSync(lastRun, currRun);
-        log.info("Transaction Data Syncing Completed");
-        dataSyncSchedulerDto.setSchedulerLastRun(currRun);
-        dataSyncSchedulerDao.save(dataSyncSchedulerDto);
-        log.info("Update {} data for DataSyncScheduler ", schedulerName);
-    }
-private final NamedParameterJdbcTemplate jdbcTemplate;
+ @Modifying
+    @Query(value = """
+        INSERT INTO RECON_FILE_DTLS_HISTORY (
+            RFD_ID, RF_ID, MERCHANT_ID, ROW_NUMBER, ATRN_NUM, TXN_AMOUNT,
+            BANK_REF_NUMBER, RECON_STATUS, SETTLEMENT_STATUS, PAYOUT_STATUS,
+            REMARK, CREATED_DATE, UPDATED_DATE
+        )
+        SELECT
+            RFD_ID, RF_ID, MERCHANT_ID, ROW_NUMBER, ATRN_NUM, TXN_AMOUNT,
+            BANK_REF_NUMBER, RECON_STATUS, SETTLEMENT_STATUS, PAYOUT_STATUS,
+            REMARK, CREATED_DATE, UPDATED_DATE
+        FROM RECON_FILE_DTLS
+        WHERE RECON_STATUS IN ('MATCHED', 'PENDING')
+        AND UPDATED_DATE < (:thresholdDate)
+        """, nativeQuery = true)
+    int insertReconDataDetailsIntoHistory(@Param("thresholdDate") long thresholdDate);
 
-    public void saveTransactionDataSync(long lastRun, long currRun) {
-        try {
-            MapSqlParameterSource param = new MapSqlParameterSource();
-            param.addValue("LAST_RUN", lastRun);
-            param.addValue("CURR_RUN", currRun);
-            int insertCount = jdbcTemplate.update(JdbcQuery.INSERT_MERCHANT_TXN, param);
-            log.info("Inserted {} records into MERCHANT_TXN", insertCount);
-        } catch (Exception ex) {
-            log.error("Error during Transaction Data Sync for MERCHANT_TXN : {}", ex);
-            throw ex;
-        }
-    }
-
-    public static final String INSERT_MERCHANT_TXN = """
-                INSERT INTO MERCHANT_TXN (ATRN_NUM, MERCHANT_ID, TXN_AMOUNT, MULTI_ACCOUNT)
-                 SELECT ATRN_NUM, MERCHANT_ID, TXN_AMOUNT, MULTI_ACCOUNT
-                  FROM MERCHANT_TXN_VIEW
-                   WHERE CREATED_DATE > :LAST_RUN AND CREATED_DATE <= :CURR_RUN
-            """;
+    @Modifying
+    @Query(value = """
+        DELETE FROM RECON_FILE_DTLS
+        WHERE RECON_STATUS IN ('MATCHED', 'PENDING')
+        AND UPDATED_DATE < (:thresholdDate)
+        """, nativeQuery = true)
+    int deleteReconDataDetails(@Param("thresholdDate") long thresholdDate);
