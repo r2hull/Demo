@@ -1,1 +1,1 @@
-https://sbiquiz.statebanktimes.in/datagovernancevd
+Issue is happening because data is fetched from GemFire cache first, and not from DB. Since cache is not refreshed, stale data is returned. Need to fix cache invalidation/refresh after DB updates.
