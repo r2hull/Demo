@@ -1,1 +1,30 @@
-Issue is happening because data is fetched from GemFire cache first, and not from DB. Since cache is not refreshed, stale data is returned. Need to fix cache invalidation/refresh after DB updates.
+ private BulkRefundBookingDetails buildBulkRefundBookingDetails(String bulkId, int rowNumber, String[] rowData) {
+        // Validate row data: check for null and insufficient fields
+        if (ObjectUtils.isEmpty(rowData) || rowData.length < CSV_MIN_VALUES_COUNT || rowData.length!=BULK_REFUND_HEADERS.split(",").length) {
+            logger.warn("Invalid row for bulkId: {}, row: {}", bulkId, rowNumber);
+            return createInvalidRow(bulkId, rowNumber,MessageFormat.format(INVALID_REFUND_ROW, CSV_MIN_VALUES_COUNT));
+        }
+
+        return BulkRefundBookingDetails.builder()
+                .bulkId(bulkId)
+                .rowNumber(rowNumber)
+                .refundStatus(RefundStatus.REFUND_IN_PROCESS.name()) // Initial status
+                .refundType(rowData[0]) // Refund Type
+                .merchantOrderId(rowData[1]) // Merchant Ordeid
+                .atrnNum(rowData[2]) // atrn
+                .refundAmount(rowData[3]) // Refund Amount
+                .refundCurrency(rowData[4]) // Refund Currency
+                .comments(rowData[5]) // Commentss
+                .remark(RefundStatus.REFUND_IN_PROCESS.name())
+                .createdDate(DateTimeUtils.getCurrentTimeInMills())
+                .build();
+    }
+    // Helper method for invalid rows
+    private BulkRefundBookingDetails createInvalidRow(String bulkId, int rowNumber, String remark) {
+        return BulkRefundBookingDetails.builder()
+                .bulkId(bulkId)
+                .rowNumber(rowNumber)
+                .refundStatus(BulkRefundRowStatus.FAILED.name())
+                .remark(remark)
+                .build();
+    }
