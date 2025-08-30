@@ -1,32 +1,59 @@
- private BulkRefundBookingDetails buildBulkRefundBookingDetails(String bulkId, int rowNumber, String[] rowData) {
-        // Validate row data: check for null and insufficient fields
-        if (ObjectUtils.isEmpty(rowData) || rowData.length < CSV_MIN_VALUES_COUNT || rowData.length!=BULK_REFUND_HEADERS.split(",").length) {
-            logger.warn("Invalid row for bulkId: {}, row: {}", bulkId, rowNumber);
-            return createInvalidRow(bulkId, rowNumber,MessageFormat.format(INVALID_REFUND_ROW, CSV_MIN_VALUES_COUNT));
+// Main builder method
+private BulkRefundBookingDetails buildBulkRefundBookingDetails(String bulkId, int rowNumber, String[] rowData) {
+    String[] headers = BULK_REFUND_HEADERS.split(",");
+    int expectedCount = headers.length;
+
+    if (ObjectUtils.isEmpty(rowData)) {
+        return createInvalidRow(bulkId, rowNumber, "Empty row provided");
+    }
+
+    // Convert row into map: header -> value
+    Map<String, String> rowMap = buildRowMap(headers, rowData);
+
+    BulkRefundBookingDetails.BulkRefundBookingDetailsBuilder builder = BulkRefundBookingDetails.builder()
+            .bulkId(bulkId)
+            .rowNumber(rowNumber)
+            .createdDate(DateTimeUtils.getCurrentTimeInMills());
+
+    // Map standard fields dynamically
+    mapStandardFields(builder, rowMap);
+
+    // Handle mismatch in column count
+    if (rowData.length != expectedCount) {
+        String remark = "Invalid row: expected " + expectedCount + " values but got " + rowData.length;
+        builder.refundStatus(BulkRefundRowStatus.FAILED.name()).remark(remark);
+
+        if (rowData.length > expectedCount) {
+            String extra = String.join(",", Arrays.copyOfRange(rowData, expectedCount, rowData.length));
+            String comments = builder.build().getComments();
+            comments = (comments == null ? "" : comments + " | ") + "Extra Values: " + extra;
+            builder.comments(comments);
         }
-
-        return BulkRefundBookingDetails.builder()
-                .bulkId(bulkId)
-                .rowNumber(rowNumber)
-                .refundStatus(RefundStatus.REFUND_IN_PROCESS.name()) // Initial status
-                .refundType(rowData[0]) // Refund Type
-                .merchantOrderId(rowData[1]) // Merchant Ordeid
-                .atrnNum(rowData[2]) // atrn
-                .refundAmount(rowData[3]) // Refund Amount
-                .refundCurrency(rowData[4]) // Refund Currency
-                .comments(rowData[5]) // Commentss
-                .remark(RefundStatus.REFUND_IN_PROCESS.name())
-                .createdDate(DateTimeUtils.getCurrentTimeInMills())
-                .build();
-    }
-    // Helper method for invalid rows
-    private BulkRefundBookingDetails createInvalidRow(String bulkId, int rowNumber, String remark) {
-        return BulkRefundBookingDetails.builder()
-                .bulkId(bulkId)
-                .rowNumber(rowNumber)
-                .refundStatus(BulkRefundRowStatus.FAILED.name())
-                .remark(remark)
-                .build();
+    } else {
+        builder.refundStatus(RefundStatus.REFUND_IN_PROCESS.name())
+               .remark(RefundStatus.REFUND_IN_PROCESS.name());
     }
 
-public static final String BULK_REFUND_HEADERS = "Refund Type,Merchant Order ID,ATRN,Refund Amount,Refund Currency,Comments";
+    return builder.build();
+}
+
+// --- Helper Methods ---
+
+// Builds header -> value map (safe for missing values)
+private Map<String, String> buildRowMap(String[] headers, String[] rowData) {
+    Map<String, String> map = new HashMap<>();
+    for (int i = 0; i < headers.length; i++) {
+        map.put(headers[i].trim(), (rowData.length > i ? rowData[i] : null));
+    }
+    return map;
+}
+
+// Maps standard fields from rowMap into builder
+private void mapStandardFields(BulkRefundBookingDetails.BulkRefundBookingDetailsBuilder builder, Map<String, String> rowMap) {
+    builder.refundType(rowMap.get("Refund Type"))
+           .merchantOrderId(rowMap.get("Merchant Order ID"))
+           .atrnNum(rowMap.get("ATRN"))
+           .refundAmount(rowMap.get("Refund Amount"))
+           .refundCurrency(rowMap.get("Refund Currency"))
+           .comments(rowMap.get("Comments"));
+}
