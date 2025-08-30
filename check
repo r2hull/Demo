@@ -28,3 +28,5 @@
                 .remark(remark)
                 .build();
     }
+
+public static final String BULK_REFUND_HEADERS = "Refund Type,Merchant Order ID,ATRN,Refund Amount,Refund Currency,Comments";
