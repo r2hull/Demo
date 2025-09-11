@@ -1,2 +1,17 @@
-when(mockEPayPrincipal.getMId()).thenReturn("1234");
-mockedEPayIdentityUtil.when(EPayIdentityUtil::getUserPrincipal).thenReturn(mockEPayPrincipal);
+@BeforeEach
+void init() {
+    // clean security context before each test
+    SecurityContextHolder.clearContext();
+}
+
+@AfterEach
+void tearDown() {
+    // clean security context after each test
+    SecurityContextHolder.clearContext();
+}
+
+@AfterEach
+void resetMocks() {
+    SecurityContextHolder.clearContext();
+    Mockito.framework().clearInlineMocks(); // clears inline + static mocks
+}
