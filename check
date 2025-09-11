@@ -1,31 +1,19 @@
 
-    @Test
-    void getCustomerByCustomerId_Success() {
-        // Arrange
-        try (MockedStatic<EPayIdentityUtil> mockedEPayIdentityUtil = Mockito.mockStatic(EPayIdentityUtil.class)) {
-            SecurityContextHolder.getContext().setAuthentication(mock(Authentication.class));
-            when(SecurityContextHolder.getContext().getAuthentication().getPrincipal()).thenReturn(mockEPayPrincipal);
-            mockedEPayIdentityUtil.when(() -> EPayIdentityUtil.getUserPrincipal().getMId()).thenReturn("1234");
+    public TransactionResponse<String> getCustomerByCustomerId(String customerId) {
 
-            try (MockedStatic<EncryptionService> mockedEncryptionService = Mockito.mockStatic(EncryptionService.class)) {
-                mockedEncryptionService.when(() -> EncryptionService.encryptValueByStringKey(any(String.class), any(String.class), any(EncryptionDecryptionAlgo.class), any(GCMIvLength.class), any(GCMTagLength.class))).thenReturn("mockedEncryptedString");
+        //Step 1 : validate customer id
+        customerValidator.validateCustomerId(customerId);
+        logger.info("Customer id validated");
 
-                when(customerDao.getCustomerByCustomerId("1234", "test-customer-id")).thenReturn(testCustomerDto);
-                when(customerDao.getMerchantMek()).thenReturn(testMek);
+        //Step 2 : Get the Customer by CustomerId
+        CustomerDto customerDto = customerDao.getCustomerByCustomerId(EPayIdentityUtil.getUserPrincipal().getMId(), customerId);
 
-                // Act
-                TransactionResponse<String> result = customerService.getCustomerByCustomerId(testCustomerId);
+        //Step 3 : Get the MEK Key
+        logger.info("Fetch Customer MEK request start");
+        String mek = customerDao.getMerchantMek();
+        logger.info("Fetch Customer MEK request end");
 
-                // Assert
-                assertNotNull(result);
-                assertEquals(TransactionConstant.RESPONSE_SUCCESS, result.getStatus());
-                assertNotNull(result.getData());
-                assertEquals(1, result.getData().size());
-                assertNotNull(result.getData().get(0));
-
-                verify(customerValidator, times(1)).validateCustomerId(testCustomerId);
-                verify(customerDao, times(1)).getCustomerByCustomerId("1234", "test-customer-id");
-                verify(customerDao, times(1)).getMerchantMek();
-            }
-        }
+        //Step 4 : Encrypt customerId and CustomerResponse
+        logger.info("Fetch Customer By CustomerId end");
+        return TransactionResponse.<String>builder().status(RESPONSE_SUCCESS).data(List.of(encryptValue(mek, TransactionUtil.toJson(customerDto)))).build();
     }
