@@ -1,17 +1,16 @@
+when(customerDao.getCustomerByCustomerId(anyString(), anyString()))
+    .thenAnswer(invocation -> {
+        System.out.println("dao stub hit args=" + Arrays.toString(invocation.getArguments()));
+        return testCustomerDto;
+    });
+
 @BeforeEach
-void init() {
-    // clean security context before each test
+void setUpContext() {
     SecurityContextHolder.clearContext();
 }
 
 @AfterEach
-void tearDown() {
-    // clean security context after each test
+void cleanUpContext() {
     SecurityContextHolder.clearContext();
-}
-
-@AfterEach
-void resetMocks() {
-    SecurityContextHolder.clearContext();
-    Mockito.framework().clearInlineMocks(); // clears inline + static mocks
+    Mockito.framework().clearInlineMocks(); // static mocks bhi reset ho jayenge
 }
