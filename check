@@ -1,19 +1,2 @@
-
-    public TransactionResponse<String> getCustomerByCustomerId(String customerId) {
-
-        //Step 1 : validate customer id
-        customerValidator.validateCustomerId(customerId);
-        logger.info("Customer id validated");
-
-        //Step 2 : Get the Customer by CustomerId
-        CustomerDto customerDto = customerDao.getCustomerByCustomerId(EPayIdentityUtil.getUserPrincipal().getMId(), customerId);
-
-        //Step 3 : Get the MEK Key
-        logger.info("Fetch Customer MEK request start");
-        String mek = customerDao.getMerchantMek();
-        logger.info("Fetch Customer MEK request end");
-
-        //Step 4 : Encrypt customerId and CustomerResponse
-        logger.info("Fetch Customer By CustomerId end");
-        return TransactionResponse.<String>builder().status(RESPONSE_SUCCESS).data(List.of(encryptValue(mek, TransactionUtil.toJson(customerDto)))).build();
-    }
+when(mockEPayPrincipal.getMId()).thenReturn("1234");
+mockedEPayIdentityUtil.when(EPayIdentityUtil::getUserPrincipal).thenReturn(mockEPayPrincipal);
