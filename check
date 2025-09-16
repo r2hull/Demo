@@ -1,16 +1,41 @@
-when(customerDao.getCustomerByCustomerId(anyString(), anyString()))
-    .thenAnswer(invocation -> {
-        System.out.println("dao stub hit args=" + Arrays.toString(invocation.getArguments()));
-        return testCustomerDto;
-    });
 
-@BeforeEach
-void setUpContext() {
-    SecurityContextHolder.clearContext();
+  CREATE TABLE "PAYAGGMERCHANT"."ALERT_MANAGEMENT" 
+   (	"ID" RAW(16) DEFAULT SYS_GUID() NOT NULL ENABLE, 
+	"ALERT_ID" RAW(16) NOT NULL ENABLE, 
+	"MID" VARCHAR2(50 CHAR) NOT NULL ENABLE, 
+	"IS_VIEWED" NUMBER(1,0), 
+	"CREATED_BY" VARCHAR2(100 BYTE), 
+	"CREATED_AT" NUMBER, 
+	"UPDATED_BY" VARCHAR2(100 BYTE), 
+	"UPDATED_AT" NUMBER, 
+	"ALERT_DESCRIPTION" VARCHAR2(500 BYTE), 
+	"ALERT_IDENTIFIER" NUMBER(20,0), 
+	"PARTITION_DATE" DATE GENERATED ALWAYS AS (TO_DATE(' 1970-01-01 00:00:00', 'syyyy-mm-dd hh24:mi:ss')+"CREATED_AT"/1000/86400) VIRTUAL , 
+	 PRIMARY KEY ("ID")
+
+@EqualsAndHashCode(callSuper = true)
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "ALERT_MANAGEMENT")
+public class AlertManagement extends AuditEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+    private UUID alertId;
+    @Column(name = "MID")
+    private String mId;
+    private String alertDescription;
+    private boolean isViewed;
+    private long alertIdentifier;
 }
 
-@AfterEach
-void cleanUpContext() {
-    SecurityContextHolder.clearContext();
-    Mockito.framework().clearInlineMocks(); // static mocks bhi reset ho jayenge
-}
+
+i need to add validation 
+1) mid- if mid is correct or not for given mid
+throw error(identifier is not found 
+
+2)if mid and identifier is correct then check isView is 0 or not
+(if it is already 1 then again throw error i.e alert identifier is invalid reason alert identifier is already updated
