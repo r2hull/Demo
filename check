@@ -1,1 +1,15 @@
-bdkjbcjkdjk
+Springboot upgrade and dependecy vulnerability fixes
+Application	Developer	Status	MR
+kms-service	Bhoopendra	MR Raised	#128
+admin-service	Lohith	Testing Inprogress	#221
+transaction-service	Lohith/Ranjan	Testing Inprogress	#973
+report-service	Bhoopendra/Rahul P	Testing Inprogress	#280
+merchant-service	Chitransh/Subhra	Testing Inprogress	#516
+Utilities	
+Bhoopendra/Akshaya
+	Pending	
+Simulator	
+Rahul Y
+	
+No Progress
+	
