@@ -1,5 +1,2 @@
-SELECT mop.atrn_num, mop.sbi_order_ref_number, mo.sbi_order_ref_number, mop.merchant_id
-FROM merchant_order_payments mop
-LEFT JOIN merchant_orders mo ON mop.sbi_order_ref_number = mo.sbi_order_ref_number
-WHERE mo.sbi_order_ref_number = 'YOUR_SBI_ORDER_REF_NUMBER'
-  AND mop.merchant_id = 'YOUR_MERCHANT_ID';
+
+select * FROM merchant_orders mo where mo.sbi_order_ref_number = '5FD128D501C343AF8F46'  and mo.merchant_id = '1000003';
