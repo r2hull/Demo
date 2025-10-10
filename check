@@ -1,13 +1,5 @@
-@Builder
-public class MerchantOrderPaymentSearchRequest {
-    private Long fromDate;
-    private Long toDate;
-    private String orderRefNumber;
-    private String atrn;
-    private String bankRefNumber;
-    private String transactionStatus;
-    private String orderStatus;
-    private String refundStatus;
-    private String paymentStatus;
-    private String sbiOrderRefNumber;
-}
+SELECT mop.* 
+FROM MERCHANT_ORDER_PAYMENTS mop
+INNER JOIN MERCHANT_ORDERS mo ON mop.sbiOrderRefNumber = mo.sbiOrderRefNumber
+WHERE mop.mId = 'M123' 
+AND mo.sbiOrderRefNumber = 'ABC12345678901234567';
