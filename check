@@ -1,13 +1,12 @@
-@Builder
-public class MerchantOrderPaymentSearchRequest {
-    private Long fromDate;
-    private Long toDate;
-    private String orderRefNumber;
-    private String atrn;
-    private String bankRefNumber;
-    private String transactionStatus;
-    private String orderStatus;
-    private String refundStatus;
-    private String paymentStatus;
-    private String sbiOrderRefNumber;
-}
+Hibernate: select mop1_0.atrn_num,mop1_0.available_refund_amount,mop1_0.bank_reference_number,mop1_0.cancellation_status,mop1_0.channel_bank,mop1_0.chargeback_amount,mop1_0.chargeback_status,mop1_0.cin,mop1_0.created_by,mop1_0.created_date,mop1_0.currency_code,mop1_0.debit_amt,mop1_0.fail_reason,mop1_0.gtw_issue_mecode,mop1_0.gst_in,mop1_0.merchant_id,mop1_0.old_bank_reference_number,mop1_0.sbi_order_ref_number,mop1_0.order_amount,mop1_0.order_ref_number,mop1_0.pay_mode,mop1_0.pay_proc_id,mop1_0.payment_status,mop1_0.payment_success_date,mop1_0.pay_proc_type,mop1_0.gtw_map_id,mop1_0.push_response,mop1_0.push_status,mop1_0.refund_status,mop1_0.rf_id,mop1_0.settlement_status,mop1_0.settlement_time,mop1_0.transaction_status,mop1_0.updated_by,mop1_0.updated_date from merchant_order_payments mop1_0 join merchant_orders o1_0 on o1_0.sbi_order_ref_number=mop1_0.sbi_order_ref_number where 1=1 and mop1_0.merchant_id=? and mop1_0.sbi_order_ref_number=? offset ? rows fetch first ? rows only
+
+
+
+
+select mop1_0.atrn_num,mop1_0.available_refund_amount,mop1_0.bank_reference_number,mop1_0.cancellation_status,mop1_0.channel_bank,
+mop1_0.chargeback_amount,mop1_0.chargeback_status,mop1_0.cin,o1_0.created_by,o1_0.created_date,o1_0.currency_code,mop1_0.debit_amt
+,mop1_0.fail_reason,mop1_0.gtw_issue_mecode,mop1_0.gst_in,o1_0.merchant_id,mop1_0.old_bank_reference_number,o1_0.sbi_order_ref_number,
+o1_0.order_amount,o1_0.order_ref_number,mop1_0.pay_mode,mop1_0.pay_proc_id,mop1_0.payment_status,mop1_0.payment_success_date,mop1_0.pay_proc_type,
+mop1_0.gtw_map_id,mop1_0.push_response,mop1_0.push_status,mop1_0.refund_status,mop1_0.rf_id,mop1_0.settlement_status,mop1_0.settlement_time,mop1_0.transaction_status,
+o1_0.updated_by,o1_0.updated_date from merchant_order_payments mop1_0 right join merchant_orders o1_0 on o1_0.sbi_order_ref_number=mop1_0.sbi_order_ref_number where 1=1 and o1_0.merchant_id='1000003' 
+and o1_0.sbi_order_ref_number='5FD128D501C343AF8F46';
