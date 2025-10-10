@@ -1,2 +1,69 @@
+public class TransactionSpecification {
 
-select * FROM merchant_orders mo where mo.sbi_order_ref_number = '5FD128D501C343AF8F46'  and mo.merchant_id = '1000003';
+    public static Specification<MerchantOrderPayment> searchTransaction(String mId, MerchantOrderPaymentSearchRequest request) {
+
+        return (root, query, criteriaBuilder) -> {
+
+            Predicate predicate = criteriaBuilder.conjunction();
+
+            // Merchant ID filter
+            predicate = criteriaBuilder.and(predicate, criteriaBuilder.equal(root.get("mId"), mId));
+
+            // LEFT JOIN with Order table
+            Join<MerchantOrderPayment, Order> orderJoin = root.join("order", JoinType.LEFT);
+
+            // ATRN filter
+            if (StringUtils.hasText(request.getAtrn())) {
+                predicate = criteriaBuilder.and(predicate, criteriaBuilder.equal(root.get("atrnNumber"), request.getAtrn()));
+            }
+
+            // Order Ref Number filter
+            if (StringUtils.hasText(request.getOrderRefNumber())) {
+                predicate = criteriaBuilder.and(predicate, criteriaBuilder.equal(root.get("orderRefNumber"), request.getOrderRefNumber()));
+            }
+
+            // Order Status filter from Order table
+            if (request.getOrderStatus() != null) {
+                predicate = criteriaBuilder.and(predicate, criteriaBuilder.equal(orderJoin.get("status"), request.getOrderStatus()));
+            }
+
+            // Bank Reference Number filter
+            if (StringUtils.hasText(request.getBankRefNumber())) {
+                predicate = criteriaBuilder.and(predicate, criteriaBuilder.equal(root.get("bankReferenceNumber"), request.getBankRefNumber()));
+            }
+
+            // Refund Status filter
+            if (request.getRefundStatus() != null) {
+                predicate = criteriaBuilder.and(predicate, criteriaBuilder.equal(root.get("refundStatus"), request.getRefundStatus()));
+            }
+
+            // Transaction Status filter
+            if (request.getTransactionStatus() != null) {
+                predicate = criteriaBuilder.and(predicate, criteriaBuilder.equal(root.get("transactionStatus"), request.getTransactionStatus()));
+            }
+
+            // Payment Status filter
+            if (request.getPaymentStatus() != null) {
+                predicate = criteriaBuilder.and(predicate, criteriaBuilder.equal(root.get("paymentStatus"), request.getPaymentStatus()));
+            }
+
+            // From Date filter
+            if (request.getFromDate() != null) {
+                predicate = criteriaBuilder.and(predicate, criteriaBuilder.greaterThanOrEqualTo(root.get("createdDate"), request.getFromDate()));
+            }
+
+            // To Date filter
+            if (request.getToDate() != null) {
+                predicate = criteriaBuilder.and(predicate, criteriaBuilder.lessThanOrEqualTo(root.get("createdDate"), request.getToDate()));
+            }
+
+            // SBI Order Ref Number filter from Order table
+            if (StringUtils.hasText(request.getSbiOrderRefNumber())) {
+                predicate = criteriaBuilder.and(predicate, criteriaBuilder.equal(orderJoin.get("sbiOrderRefNumber"), request.getSbiOrderRefNumber()));
+            }
+
+            return predicate;
+        };
+    }
+
+}
