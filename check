@@ -1,136 +1,102 @@
+
+@UtilityClass
 public class TransactionSpecification {
 
-    public static Specification<MerchantOrderPayment> searchTransaction(
-            String mId, MerchantOrderPaymentSearchRequest request) {
+    public static Specification<MerchantOrderPayment> searchTransaction(String mId, MerchantOrderPaymentSearchRequest merchantOrderPaymentSearchRequest) {
 
-        return (root, query, cb) -> {
+        return (root, query, criteriaBuilder) -> {
 
-            // LEFT JOIN order
-            Join<MerchantOrderPayment, Order> orderJoin = root.join("order", JoinType.LEFT);
+            Predicate predicate = criteriaBuilder.conjunction();
+            predicate = criteriaBuilder.and(predicate, getMidPredicate(root, criteriaBuilder, mId));
 
-            // multiselect columns for DTO
-            query.multiselect(
-                root.get("atrnNumber"),
-                root.get("availableRefundAmount"),
-                root.get("bankReferenceNumber"),
-                root.get("cancellationStatus"),
-                root.get("channelBank"),
-                root.get("chargebackAmount"),
-                root.get("chargebackStatus"),
-                root.get("cin"),
-                orderJoin.get("createdBy"),
-                orderJoin.get("createdDate"),
-                orderJoin.get("currencyCode"),
-                root.get("debitAmount"),
-                root.get("failReason"),
-                root.get("gtwIssueMECode"),
-                root.get("gstIn"),
-                orderJoin.get("merchantId"),
-                root.get("oldBankReferenceNumber"),
-                orderJoin.get("sbiOrderRefNumber"),
-                orderJoin.get("orderAmount"),
-                orderJoin.get("orderRefNumber"),
-                root.get("payMode"),
-                root.get("payProcId"),
-                root.get("paymentStatus"),
-                root.get("paymentSuccessDate"),
-                root.get("paymodeType"),
-                root.get("pgBankCode"),
-                root.get("pushResponse"),
-                root.get("pushStatus"),
-                root.get("refundStatus"),
-                root.get("rfId"),
-                root.get("settlementStatus")
-            );
+            Join<MerchantOrderPayment, Order> orderJoin = root.join("order", JoinType.INNER);
 
-            Predicate predicate = cb.conjunction();
+            if (StringUtils.hasText(merchantOrderPaymentSearchRequest.getAtrn())) {
+                predicate = criteriaBuilder.and(predicate, getAtrnPredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getAtrn()));
+            }
 
-            // filter by merchant id (mandatory)
-            predicate = cb.and(predicate, cb.equal(root.get("mId"), mId));
+            if (StringUtils.hasText(merchantOrderPaymentSearchRequest.getOrderRefNumber())) {
+                predicate = criteriaBuilder.and(predicate, getOrderRefNumberPredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getOrderRefNumber()));
+            }
 
-            // dynamic filters
-            if (StringUtils.hasText(request.getSbiOrderRefNumber())) {
-                predicate = cb.and(predicate, cb.equal(orderJoin.get("sbiOrderRefNumber"), request.getSbiOrderRefNumber()));
+            if (ObjectUtils.isNotEmpty(merchantOrderPaymentSearchRequest.getOrderStatus())) {
+                predicate = criteriaBuilder.and(predicate, getOrderStatusPredicate(orderJoin, criteriaBuilder, merchantOrderPaymentSearchRequest.getOrderStatus()));
             }
-            if (StringUtils.hasText(request.getAtrn())) {
-                predicate = cb.and(predicate, cb.equal(root.get("atrnNumber"), request.getAtrn()));
+
+            if (StringUtils.hasText(merchantOrderPaymentSearchRequest.getBankRefNumber())) {
+                predicate = criteriaBuilder.and(predicate, getBankRefNumberPredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getBankRefNumber()));
             }
-            if (StringUtils.hasText(request.getOrderRefNumber())) {
-                predicate = cb.and(predicate, cb.equal(root.get("orderRefNumber"), request.getOrderRefNumber()));
+
+            if (ObjectUtils.isNotEmpty(merchantOrderPaymentSearchRequest.getRefundStatus())) {
+                predicate = criteriaBuilder.and(predicate, getRefundStatusPredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getRefundStatus()));
             }
-            if (StringUtils.hasText(request.getBankRefNumber())) {
-                predicate = cb.and(predicate, cb.equal(root.get("bankReferenceNumber"), request.getBankRefNumber()));
+
+            if (ObjectUtils.isNotEmpty(merchantOrderPaymentSearchRequest.getTransactionStatus())) {
+                predicate = criteriaBuilder.and(predicate, getTransactionStatusPredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getTransactionStatus()));
             }
-            if (StringUtils.hasText(request.getTransactionStatus())) {
-                predicate = cb.and(predicate, cb.equal(root.get("transactionStatus"), request.getTransactionStatus()));
+
+            if (ObjectUtils.isNotEmpty(merchantOrderPaymentSearchRequest.getPaymentStatus())) {
+                predicate = criteriaBuilder.and(predicate, getPaymentStatusPredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getPaymentStatus()));
             }
-            if (StringUtils.hasText(request.getPaymentStatus())) {
-                predicate = cb.and(predicate, cb.equal(root.get("paymentStatus"), request.getPaymentStatus()));
+
+            if (ObjectUtils.isNotEmpty(merchantOrderPaymentSearchRequest.getFromDate())) {
+                predicate = criteriaBuilder.and(predicate, getFromDatePredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getFromDate()));
             }
-            if (StringUtils.hasText(request.getOrderStatus())) {
-                predicate = cb.and(predicate, cb.equal(orderJoin.get("status"), request.getOrderStatus()));
+
+            if (ObjectUtils.isNotEmpty(merchantOrderPaymentSearchRequest.getToDate())) {
+                predicate = criteriaBuilder.and(predicate, getToDatePredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getToDate()));
             }
-            if (StringUtils.hasText(request.getRefundStatus())) {
-                predicate = cb.and(predicate, cb.equal(root.get("refundStatus"), request.getRefundStatus()));
-            }
-            if (request.getFromDate() != null) {
-                predicate = cb.and(predicate, cb.greaterThanOrEqualTo(root.get("createdDate"), request.getFromDate()));
-            }
-            if (request.getToDate() != null) {
-                predicate = cb.and(predicate, cb.lessThanOrEqualTo(root.get("createdDate"), request.getToDate()));
+
+            if (ObjectUtils.isNotEmpty(merchantOrderPaymentSearchRequest.getSbiOrderRefNumber())) {
+                predicate = criteriaBuilder.and(predicate, getSbiOrderRefNumberPredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getSbiOrderRefNumber()));
             }
 
             return predicate;
         };
     }
+
+    private static Predicate getMidPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String mId) {
+        return criteriaBuilder.equal(root.get("mId"), mId);
+    }
+
+    private static Predicate getAtrnPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String atrnNumber) {
+        return criteriaBuilder.equal(root.get("atrnNumber"), atrnNumber);
+    }
+
+    private static Predicate getOrderRefNumberPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String orderRefNumber) {
+        return criteriaBuilder.equal(root.get("orderRefNumber"), orderRefNumber);
+    }
+
+    private static Predicate getBankRefNumberPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String bankRefNumber) {
+        return criteriaBuilder.equal(root.get("bankReferenceNumber"), bankRefNumber);
+    }
+
+    private static Predicate getPaymentStatusPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String status) {
+        return criteriaBuilder.equal(root.get("paymentStatus"), status);
+    }
+
+    private static Predicate getOrderStatusPredicate(Join<MerchantOrderPayment, Order> orderJoin, CriteriaBuilder criteriaBuilder, String status) {
+        return criteriaBuilder.equal(orderJoin.get("status"), status);
+    }
+
+    private static Predicate getTransactionStatusPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String status) {
+        return criteriaBuilder.equal(root.get("transactionStatus"), status);
+    }
+
+    private static Predicate getRefundStatusPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String status) {
+        return criteriaBuilder.equal(root.get("refundStatus"), status);
+    }
+
+    private static Predicate getFromDatePredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, Long fromDate) {
+        return criteriaBuilder.greaterThanOrEqualTo(root.get("createdDate"), fromDate);
+    }
+
+    private static Predicate getToDatePredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, Long toDate) {
+        return criteriaBuilder.lessThanOrEqualTo(root.get("createdDate"), toDate);
+    }
+
+    private static Predicate getSbiOrderRefNumberPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String sbiOrderRefNumber) {
+        return criteriaBuilder.equal(root.get("sbiOrderRefNumber"), sbiOrderRefNumber);
+    }
+
 }
-
-
-
-
-@Getter
-@Setter
-@AllArgsConstructor
-@NoArgsConstructor
-public class MerchantOrderPaymentDTO {
-    private String atrnNumber;
-    private BigDecimal availableRefundAmount;
-    private String bankReferenceNumber;
-    private String cancellationStatus;
-    private String channelBank;
-    private BigDecimal chargebackAmount;
-    private String chargebackStatus;
-    private String cin;
-    private String orderCreatedBy;
-    private Long orderCreatedDate;
-    private String orderCurrencyCode;
-    private BigDecimal debitAmount;
-    private String failReason;
-    private String gtwIssueMECode;
-    private String gstIn;
-    private String orderMerchantId;
-    private String oldBankReferenceNumber;
-    private String sbiOrderRefNumber;
-    private BigDecimal orderAmount;
-    private String orderRefNumber;
-    private String payMode;
-    private String payProcId;
-    private String paymentStatus;
-    private Long paymentSuccessDate;
-    private String paymodeType;
-    private String pgBankCode;
-    private String pushResponse;
-    private String pushStatus;
-    private String refundStatus;
-    private UUID rfId;
-    private String settlementStatus;
-}
-
-
-
-
-
-
-
-List<MerchantOrderPaymentDTO> results = entityManager.createQuery(specification).getResultList();
-
