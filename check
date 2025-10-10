@@ -1,3 +1,4 @@
-private static Predicate getOrderStatusPredicate(Join<MerchantOrderPayment, Order> orderJoin, CriteriaBuilder criteriaBuilder, Enum<?> status) {
-    return criteriaBuilder.equal(orderJoin.get("status"), status);
-}
+SELECT mop.atrn_num, mop.sbi_order_ref_number, mo.sbi_order_ref_number
+FROM merchant_order_payments mop
+JOIN merchant_orders mo ON mop.sbi_order_ref_number = mo.sbi_order_ref_number
+WHERE mop.merchant_id = 'MERCHANT123';
