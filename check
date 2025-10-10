@@ -1,4 +1,3 @@
-SELECT mop.atrn_num, mop.sbi_order_ref_number, mo.sbi_order_ref_number
-FROM merchant_order_payments mop
-JOIN merchant_orders mo ON mop.sbi_order_ref_number = mo.sbi_order_ref_number
-WHERE mop.merchant_id = 'MERCHANT123';
+private static Predicate getSbiOrderRefNumberPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String sbiOrderRefNumber) {  
+    return criteriaBuilder.equal(root.get("sbiOrderRefNumber"), sbiOrderRefNumber);  
+}
