@@ -1,50 +1,13 @@
-
-@EqualsAndHashCode(callSuper = true)
-@Getter
-@Setter
-@SuperBuilder
-@NoArgsConstructor
-@AllArgsConstructor
-@Entity
-@Table(name = "MERCHANT_ORDERS")
-public class Order extends AuditEntity {
-
-    @Id
-    @Column(nullable = false, updatable = false, unique = true)
-    private String sbiOrderRefNumber;
-    @Column(name = "MERCHANT_ID")
-    private String mId;
-    private String customerId;
-    private String currencyCode;
-    private BigDecimal orderAmount;
+@Builder
+public class MerchantOrderPaymentSearchRequest {
+    private Long fromDate;
+    private Long toDate;
     private String orderRefNumber;
-
-    @Enumerated(EnumType.STRING)
-    private OrderStatus status;
-
-    @Column(columnDefinition = "CLOB")
-    private String otherDetails;
-    private Long expiry;
-
-    @Column(columnDefinition = "CLOB")
-    private String multiAccounts;
-    private String paymentMode;
-    private String orderHash;
-    private String returnUrl;
-    private Integer orderRetryCount;
-
-    @Column(columnDefinition = "CLOB")
-    private String thirdPartyDetails;
-
-    @OneToMany(mappedBy = "sbiOrderRefNumber", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<MerchantOrderPayment> merchantOrderPayments;
-
-    /**
-     * custom generator, do not remove it
-     */
-    @PrePersist
-    protected void createSbiOrderRefNumber() {
-        this.sbiOrderRefNumber = UUID.randomUUID().toString().toUpperCase().replace("-", "").substring(0, 20);
-    }
-
+    private String atrn;
+    private String bankRefNumber;
+    private String transactionStatus;
+    private String orderStatus;
+    private String refundStatus;
+    private String paymentStatus;
+    private String sbiOrderRefNumber;
 }
