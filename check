@@ -1,15 +1,176 @@
-Springboot upgrade and dependecy vulnerability fixes
-Application	Developer	Status	MR
-kms-service	Bhoopendra	MR Raised	#128
-admin-service	Lohith	Testing Inprogress	#221
-transaction-service	Lohith/Ranjan	Testing Inprogress	#973
-report-service	Bhoopendra/Rahul P	Testing Inprogress	#280
-merchant-service	Chitransh/Subhra	Testing Inprogress	#516
-Utilities	
-Bhoopendra/Akshaya
-	Pending	
-Simulator	
-Rahul Y
-	
-No Progress
-	
+
+@UtilityClass
+public class TransactionSpecification {
+
+    public static Specification<MerchantOrderPayment> searchTransaction(String mId, MerchantOrderPaymentSearchRequest merchantOrderPaymentSearchRequest) {
+
+        return (root, query, criteriaBuilder) -> {
+
+            Predicate predicate = criteriaBuilder.conjunction();
+            predicate = criteriaBuilder.and(predicate, getMidPredicate(root, criteriaBuilder, mId));
+
+            Join<MerchantOrderPayment, Order> orderJoin = root.join("order", JoinType.INNER);
+
+            if (StringUtils.hasText(merchantOrderPaymentSearchRequest.getAtrn())) {
+                predicate = criteriaBuilder.and(predicate, getAtrnPredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getAtrn()));
+            }
+
+            if (StringUtils.hasText(merchantOrderPaymentSearchRequest.getOrderRefNumber())) {
+                predicate = criteriaBuilder.and(predicate, getOrderRefNumberPredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getOrderRefNumber()));
+            }
+
+            if (ObjectUtils.isNotEmpty(merchantOrderPaymentSearchRequest.getOrderStatus())) {
+                predicate = criteriaBuilder.and(predicate, getOrderStatusPredicate(orderJoin, criteriaBuilder, merchantOrderPaymentSearchRequest.getOrderStatus()));
+            }
+
+            if (StringUtils.hasText(merchantOrderPaymentSearchRequest.getBankRefNumber())) {
+                predicate = criteriaBuilder.and(predicate, getBankRefNumberPredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getBankRefNumber()));
+            }
+
+            if (ObjectUtils.isNotEmpty(merchantOrderPaymentSearchRequest.getRefundStatus())) {
+                predicate = criteriaBuilder.and(predicate, getRefundStatusPredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getRefundStatus()));
+            }
+
+            if (ObjectUtils.isNotEmpty(merchantOrderPaymentSearchRequest.getTransactionStatus())) {
+                predicate = criteriaBuilder.and(predicate, getTransactionStatusPredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getTransactionStatus()));
+            }
+
+            if (ObjectUtils.isNotEmpty(merchantOrderPaymentSearchRequest.getPaymentStatus())) {
+                predicate = criteriaBuilder.and(predicate, getPaymentStatusPredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getPaymentStatus()));
+            }
+
+            if (ObjectUtils.isNotEmpty(merchantOrderPaymentSearchRequest.getFromDate())) {
+                predicate = criteriaBuilder.and(predicate, getFromDatePredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getFromDate()));
+            }
+
+            if (ObjectUtils.isNotEmpty(merchantOrderPaymentSearchRequest.getToDate())) {
+                predicate = criteriaBuilder.and(predicate, getToDatePredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getToDate()));
+            }
+
+            if (ObjectUtils.isNotEmpty(merchantOrderPaymentSearchRequest.getSbiOrderRefNumber())) {
+                predicate = criteriaBuilder.and(predicate, getSbiOrderRefNumberPredicate(root, criteriaBuilder, merchantOrderPaymentSearchRequest.getSbiOrderRefNumber()));
+            }
+
+            return predicate;
+        };
+    }
+
+    private static Predicate getMidPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String mId) {
+        return criteriaBuilder.equal(root.get("mId"), mId);
+    }
+
+    private static Predicate getAtrnPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String atrnNumber) {
+        return criteriaBuilder.equal(root.get("atrnNumber"), atrnNumber);
+    }
+
+    private static Predicate getOrderRefNumberPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String orderRefNumber) {
+        return criteriaBuilder.equal(root.get("orderRefNumber"), orderRefNumber);
+    }
+
+    private static Predicate getBankRefNumberPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String bankRefNumber) {
+        return criteriaBuilder.equal(root.get("bankReferenceNumber"), bankRefNumber);
+    }
+
+    private static Predicate getPaymentStatusPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String status) {
+        return criteriaBuilder.equal(root.get("paymentStatus"), status);
+    }
+
+    private static Predicate getOrderStatusPredicate(Join<MerchantOrderPayment, Order> orderJoin, CriteriaBuilder criteriaBuilder, String status) {
+        return criteriaBuilder.equal(orderJoin.get("status"), status);
+    }
+
+    private static Predicate getTransactionStatusPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String status) {
+        return criteriaBuilder.equal(root.get("transactionStatus"), status);
+    }
+
+    private static Predicate getRefundStatusPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String status) {
+        return criteriaBuilder.equal(root.get("refundStatus"), status);
+    }
+
+    private static Predicate getFromDatePredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, Long fromDate) {
+        return criteriaBuilder.greaterThanOrEqualTo(root.get("createdDate"), fromDate);
+    }
+
+    private static Predicate getToDatePredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, Long toDate) {
+        return criteriaBuilder.lessThanOrEqualTo(root.get("createdDate"), toDate);
+    }
+
+    private static Predicate getSbiOrderRefNumberPredicate(Root<MerchantOrderPayment> root, CriteriaBuilder criteriaBuilder, String sbiOrderRefNumber) {
+        return criteriaBuilder.equal(root.get("sbiOrderRefNumber"), sbiOrderRefNumber);
+    }
+
+}
+
+
+
+
+  CREATE TABLE "PAYAGGTRANSCTION"."MERCHANT_ORDERS" 
+   (	"SBI_ORDER_REF_NUMBER" VARCHAR2(50 BYTE), 
+	"ORDER_REF_NUMBER" VARCHAR2(50 BYTE), 
+	"MERCHANT_ID" VARCHAR2(20 BYTE) NOT NULL ENABLE, 
+	"CUSTOMER_ID" VARCHAR2(50 BYTE), 
+	"ORDER_HASH" VARCHAR2(2000 BYTE), 
+	"ORDER_RETRY_COUNT" NUMBER, 
+	"CURRENCY_CODE" VARCHAR2(50 BYTE) NOT NULL ENABLE, 
+	"ORDER_AMOUNT" NUMBER(20,2) NOT NULL ENABLE, 
+	"STATUS" VARCHAR2(50 BYTE) NOT NULL ENABLE, 
+	"OTHER_DETAILS" CLOB, 
+	"THIRD_PARTY_DETAILS" CLOB, 
+	"MULTI_ACCOUNTS" CLOB, 
+	"EXPIRY" NUMBER, 
+	"PAYMENT_MODE" VARCHAR2(50 BYTE), 
+	"MERCHANT_TYPE" VARCHAR2(50 BYTE), 
+	"RETURN_URL" VARCHAR2(2000 BYTE), 
+	"CREATED_BY" VARCHAR2(100 BYTE) NOT NULL ENABLE, 
+	"UPDATED_BY" VARCHAR2(100 BYTE), 
+	"UPDATED_DATE" NUMBER, 
+	"CREATED_DATE" NUMBER NOT NULL ENABLE, 
+	"PARTITION_DATE" DATE GENERATED ALWAYS AS (TO_DATE(' 1970-01-01 00:00:00', 'syyyy-mm-dd hh24:mi:ss')+"CREATED_DATE"/1000/86400) VIRTUAL , 
+	 PRIMARY KEY ("SBI_ORDER_REF_NUMBER")
+
+
+
+
+  CREATE TABLE "PAYAGGTRANSCTION"."MERCHANT_ORDER_PAYMENTS" 
+   (	"MERCHANT_ID" VARCHAR2(20 BYTE) NOT NULL ENABLE, 
+	"ORDER_REF_NUMBER" VARCHAR2(50 BYTE), 
+	"SBI_ORDER_REF_NUMBER" VARCHAR2(50 BYTE) NOT NULL ENABLE, 
+	"ATRN_NUM" VARCHAR2(50 BYTE), 
+	"BANK_REFERENCE_NUMBER" VARCHAR2(255 BYTE), 
+	"CURRENCY_CODE" VARCHAR2(50 BYTE) NOT NULL ENABLE, 
+	"CHANNEL_BANK" VARCHAR2(100 BYTE), 
+	"PAY_MODE" VARCHAR2(50 BYTE), 
+	"GTW_MAP_ID" VARCHAR2(20 BYTE), 
+	"PAY_PROC_ID" VARCHAR2(20 BYTE), 
+	"PAY_PROC_TYPE" VARCHAR2(20 BYTE), 
+	"GTW_ISSUE_MECODE" VARCHAR2(50 BYTE), 
+	"ORDER_AMOUNT" NUMBER(20,2) NOT NULL ENABLE, 
+	"DEBIT_AMT" NUMBER(20,2), 
+	"AVAILABLE_REFUND_AMOUNT" NUMBER(20,2), 
+	"CHARGEBACK_AMOUNT" NUMBER(20,2) DEFAULT 0, 
+	"TRANSACTION_STATUS" VARCHAR2(50 BYTE) NOT NULL ENABLE, 
+	"PAYMENT_STATUS" VARCHAR2(50 BYTE), 
+	"FAIL_REASON" VARCHAR2(2000 BYTE), 
+	"SETTLEMENT_STATUS" VARCHAR2(50 BYTE), 
+	"REFUND_STATUS" VARCHAR2(50 BYTE), 
+	"CANCELLATION_STATUS" VARCHAR2(50 BYTE), 
+	"CHARGEBACK_STATUS" VARCHAR2(50 BYTE), 
+	"CIN" VARCHAR2(50 BYTE), 
+	"GST_IN" VARCHAR2(50 BYTE), 
+	"PUSH_STATUS" VARCHAR2(10 BYTE), 
+	"POOLING_STATUS" VARCHAR2(10 BYTE) DEFAULT 'P', 
+	"PUSH_RESPONSE" CLOB, 
+	"PAYMENT_SUCCESS_DATE" DATE, 
+	"CREATED_DATE" NUMBER NOT NULL ENABLE, 
+	"CREATED_BY" VARCHAR2(100 BYTE) NOT NULL ENABLE, 
+	"UPDATED_BY" VARCHAR2(100 BYTE), 
+	"UPDATED_DATE" NUMBER, 
+	"PARTITION_DATE" DATE GENERATED ALWAYS AS (TO_DATE(' 1970-01-01 00:00:00', 'syyyy-mm-dd hh24:mi:ss')+"CREATED_DATE"/1000/86400) VIRTUAL , 
+	"RETRY_ATTEMPTS" NUMBER DEFAULT (0), 
+	"RF_ID" RAW(16), 
+	"SETTLEMENT_TIME" NUMBER, 
+	"OLD_BANK_REFERENCE_NUMBER" VARCHAR2(255 BYTE), 
+	"GTW_REFERENCE_NUMBER" VARCHAR2(255 BYTE), 
+	 PRIMARY KEY ("ATRN_NUM")
+
+
