@@ -8,7 +8,7 @@ public class TransactionSpecification {
             Join<MerchantOrderPayment, Order> orderJoin = null;
             if (StringUtils.hasText(merchantOrderPaymentSearchRequest.getOrderStatus()) || 
                 StringUtils.hasText(merchantOrderPaymentSearchRequest.getSbiOrderRefNumber())) {  
-                orderJoin = root.join("order", JoinType.INNER); // Consider JoinType.LEFT if needed
+                orderJoin = root.join("order", JoinType.LEFT); // Changed to LEFT join
             }
 
             if (StringUtils.hasText(merchantOrderPaymentSearchRequest.getAtrn())) {  
