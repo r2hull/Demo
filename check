@@ -1,4 +1,13 @@
-/**
+@Mapper(
+    builder = @Builder(disableBuilder = true),
+    componentModel = "spring",
+    imports = {DateTimeUtils.class, BulkRefundStatus.class, TransactionConstant.class}
+)
+public interface RefundMapper {
+
+    // existing methods...
+
+    /**
      * Map BulkRefundRequest to BulkRefundBooking entity
      *
      * @param bulkRefundRequest BulkRefundRequest
@@ -11,10 +20,11 @@
     @Mapping(target = "filePath", source = "filePath")
     @Mapping(target = "merchantId", source = "bulkRefundRequest.mId")
     @Mapping(target = "bulkRefundStatus", expression = "java(BulkRefundStatus.IN_QUEUE.name())")
-    @Mapping(target = "createdBy", constant = "TransactionConstant.BULK_REFUND_SERVICE")
+    @Mapping(target = "createdBy", expression = "java(TransactionConstant.BULK_REFUND_SERVICE)")
     @Mapping(target = "createdDate", expression = "java(DateTimeUtils.getCurrentTimeInMills())")
     @Mapping(target = "totalRecords", ignore = true)
     @Mapping(target = "validRecords", ignore = true)
     @Mapping(target = "invalidRecords", ignore = true)
     @Mapping(target = "remark", ignore = true)
     BulkRefundBooking mapToBuildBulkRefundBooking(BulkRefundRequest bulkRefundRequest, String filePath);
+}
