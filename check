@@ -1,11 +1,20 @@
-    private static BulkRefundBooking buildBulkRefundBooking(BulkRefundRequest bulkRefundRequest, String filePath) {
-
-        return BulkRefundBooking.builder()
-                .bulkRefundStatus(BulkRefundStatus.IN_QUEUE.name())
-                .fileName(bulkRefundRequest.getFileName())
-                .filePath(filePath)
-                .merchantId(bulkRefundRequest.getMId())
-                .createdBy(TransactionConstant.BULK_REFUND_SERVICE)
-                .createdDate(DateTimeUtils.getCurrentTimeInMills())
-                .build();
-    }
+/**
+     * Map BulkRefundRequest to BulkRefundBooking entity
+     *
+     * @param bulkRefundRequest BulkRefundRequest
+     * @param filePath          uploaded file path
+     * @return BulkRefundBooking
+     */
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "bulkId", ignore = true)
+    @Mapping(target = "fileName", source = "bulkRefundRequest.fileName")
+    @Mapping(target = "filePath", source = "filePath")
+    @Mapping(target = "merchantId", source = "bulkRefundRequest.mId")
+    @Mapping(target = "bulkRefundStatus", expression = "java(BulkRefundStatus.IN_QUEUE.name())")
+    @Mapping(target = "createdBy", constant = "TransactionConstant.BULK_REFUND_SERVICE")
+    @Mapping(target = "createdDate", expression = "java(DateTimeUtils.getCurrentTimeInMills())")
+    @Mapping(target = "totalRecords", ignore = true)
+    @Mapping(target = "validRecords", ignore = true)
+    @Mapping(target = "invalidRecords", ignore = true)
+    @Mapping(target = "remark", ignore = true)
+    BulkRefundBooking mapToBuildBulkRefundBooking(BulkRefundRequest bulkRefundRequest, String filePath);
