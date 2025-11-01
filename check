@@ -1,1 +1,6 @@
-.1
+/merchant indicates that the API belongs to the merchant panel and /bulk-refund specifies that its for booking bulk refunds under the merchant
+
+other endpoints also follow the same naming convention
+
+
+mam I’ve made the changes please review
