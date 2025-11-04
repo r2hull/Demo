@@ -28,3 +28,40 @@ public interface RefundMapper {
     @Mapping(target = "remark", ignore = true)
     BulkRefundBooking mapToBuildBulkRefundBooking(BulkRefundRequest bulkRefundRequest, String filePath);
 }
+
+
+
+
+import java.util.Base64;
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
+
+public class Testing {
+    public static String encrypt(String strToEncrypt, String secret) throws Exception {
+        byte[] key = secret.getBytes("UTF-8");
+        SecretKeySpec secretKey = new SecretKeySpec(key, 0, 16, "AES");
+        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+        byte[] encryptedBytes = cipher.doFinal(strToEncrypt.getBytes("UTF-8"));
+        return Base64.getEncoder().encodeToString(encryptedBytes);
+    }
+    public static String decrypt(String strToDecrypt, String secret) throws Exception {
+        byte[] key = secret.getBytes("UTF-8");
+        SecretKeySpec secretKey = new SecretKeySpec(key, 0, 16, "AES");
+        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+        cipher.init(Cipher.DECRYPT_MODE, secretKey);
+        byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(strToDecrypt));
+        return new String(decryptedBytes, "UTF-8");
+    }
+    public static void main(String[] args) {
+        try {
+        	//TC
+            String secretKey = "";
+            String originalString = "";
+            String encryptedString =encrypt(originalString, secretKey);
+            System.out.println("Encrypted (Base64): " + encryptedString);
+            String decryptedString = decrypt(encryptedString, secretKey);
+            System.out.println("Decrypted: " + decryptedString);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }}}
