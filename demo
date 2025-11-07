@@ -1,22 +1,93 @@
--- create master table
-create table list_of_master (
-  id           varchar2(36) not null,
-  master_name  varchar2(100) not null,
-  created_date timestamp default systimestamp,
-  updated_date timestamp,
-  active       number(1) default 1,
-  constraint pk_list_of_master primary key (id)
+
+-- CREATE MASTER TABLE
+create table LIST_OF_MASTER (
+    ID RAW(16) DEFAULT SYS_GUID() NOT NULL ENABLE, 
+    MASTER_NAME     VARCHAR2(100) NOT NULL,
+    CREATED_BY      VARCHAR2(100) NOT NULL,
+ 	CREATED_AT      NUMBER NOT NULL,
+ 	UPDATED_BY      VARCHAR2(100) NOT NULL,
+ 	UPDATED_AT      NUMBER NOT NULL,
+    ACTIVE          NUMBER(1) DEFAULT 1,
+    CONSTRAINT PK_LIST_OF_MASTER PRIMARY KEY (ID)
 );
 
--- create value table
-create table list_of_value (
-  id           varchar2(36) not null,
-  master_id    varchar2(36) not null,
-  value_name   varchar2(200) not null,
-  value_alias  varchar2(50),
-  created_date timestamp default systimestamp,
-  updated_date timestamp,
-  active       number(1) default 1,
-  constraint pk_list_of_value primary key (id),
-  constraint fk_master_val foreign key (master_id) references list_of_master(id)
+
+-- CREATE VALUE TABLE
+CREATE TABLE LIST_OF_VALUE (
+    ID RAW(16) DEFAULT SYS_GUID() NOT NULL ENABLE, 
+    MASTER_ID       RAW(16) NOT NULL ENABLE, 
+    VALUE_NAME      VARCHAR2(200) NOT NULL,
+    VALUE_ALIAS     VARCHAR2(50),
+    CREATED_BY      VARCHAR2(100) NOT NULL,
+   	CREATED_AT      NUMBER NOT NULL,
+   	UPDATED_BY      VARCHAR2(100) NOT NULL,
+   	UPDATED_AT      NUMBER NOT NULL,
+    ACTIVE          NUMBER(1) DEFAULT 1,
+    CONSTRAINT PK_LIST_OF_VALUE PRIMARY KEY (ID),
+    CONSTRAINT FK_MASTER_VAL FOREIGN KEY (MASTER_ID) REFERENCES LIST_OF_MASTER(ID)
 );
+
+
+@EqualsAndHashCode(callSuper = true)
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "LIST_OF_MASTER")
+public class ListOfMaster extends AuditEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+    private String masterName;
+    private long active;
+}
+
+
+
+@EqualsAndHashCode(callSuper = true)
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "LIST_OF_VALUE")
+public class ListOfValue extends AuditEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+    private UUID masterId;
+    private String valueName;
+    private String valueAlias;
+    private long active;
+}
+
+@Getter
+@Setter
+@Audited
+@MappedSuperclass
+public class AuditEntity extends AuditEntityByDate implements Serializable {
+
+    @CreatedBy
+    private String createdBy;
+
+    @LastModifiedBy
+    private String updatedBy;
+
+}
+
+@Getter
+@Setter
+@MappedSuperclass
+@Audited
+@EntityListeners(AuditingEntityListener.class)
+public class AuditEntityByDate implements Serializable {
+
+    @CreatedDate
+    private Long createdAt;
+
+    @LastModifiedDate
+    private Long updatedAt;
+
+}
+
