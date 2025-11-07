@@ -1,1 +1,24 @@
-Static admin data is required on the MIF page to load static data ie. state: MP, MH , city: Indore, Bhopal etc Success Response: { "staus": 1, "data": [ { "value": "Madhya-Pradesh" "alias": "MP" }, { "value": "Maharashta" "alias": "MH" } ] } Database Tables list_of_master Column Type id uuid master_name varchar list_of_value Column Type id uuid master_id uuid value_name varchar value_alias varchar
+DescriptionStatic admin data is required on the MIF page to load static data ie. state: MP, MH , city: Indore, Bhopal etcAPI DetailsMethod: POSTAPI Endpoint: /admin/master/{master}Access Type: Open APIRequest Header:{
+  "Authorization": "Bearer Token",
+}Success Response:{ 
+  "staus": 1, 
+  "data": [ 
+    { 
+      "value": "Madhya-Pradesh"
+      "alias": "MP"
+    },
+    { 
+      "value": "Maharashta"
+      "alias": "MH"
+    }  
+  ] 
+} Error response{
+  "status":0, 
+    "errors": [
+        {
+            "errorCode":"ERROR_CODE ",
+            "errorMessage":"ERROR_MSG"
+        },
+    ]
+}
+Data FlowAdmin controller – Once Token is verified request will be routed on admin controller and then call admin serviceAdmin service – Admin service will validate the request and call to admin dao to fetch all request values for passed masterAdmin dao – Calls to admin service in external service to call admin API which returns the required responseAdmin service Client- master api will be called from admin service which will provide data for passed masterTesting Check ListValidate the request bodyValidate all user inputsDeveloper ChecklistClass Flow90% Unit test case coverageDevelopment StepsCreate Controller and getValues method with post request mappingCreate admin service and getValues methodCall to admin api and pass master id which will return either error or list of values in response objecthandle and send the responseDatabase Tableslist_of_masterColumnTypeiduuidmaster_namevarcharlist_of_valueColumnTypeiduuidmaster_iduuidvalue_namevarcharvalue_aliasvarcharAcceptance CriteriaTest cases should have 90% coverageInvalid request should throw error with status as 0Valid request should send all the list of values against the passed master
