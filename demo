@@ -1,1 +1,1 @@
-1rrrrr
+Static admin data is required on the MIF page to load static data ie. state: MP, MH , city: Indore, Bhopal etc Success Response: { "staus": 1, "data": [ { "value": "Madhya-Pradesh" "alias": "MP" }, { "value": "Maharashta" "alias": "MH" } ] } Database Tables list_of_master Column Type id uuid master_name varchar list_of_value Column Type id uuid master_id uuid value_name varchar value_alias varchar
