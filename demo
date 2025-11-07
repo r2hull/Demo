@@ -1,25 +1,25 @@
-Constitution of Business 
+INSERT INTO LIST_OF_MASTER (
+    ID, MASTER_NAME, CREATED_BY, CREATED_AT, UPDATED_BY, UPDATED_AT, ACTIVE
+)
+VALUES (
+    SYS_GUID(), 'Constitution of Business', 'admin', 20251107, 'admin', 20251107, 1
+);
 
-Provide a drop-down list with the following options: 
 
-Partnership Firm 
 
-Pvt Ltd 
 
-Public Ltd 
-
-Co-op Society 
-
-Trust 
-
-Individual 
-
-Corporation 
-
-Educational Institution 
-
-Religious Organisation 
-
-Registered Charity 
-
-Government Agency 
+INSERT INTO LIST_OF_VALUE (
+    ID, MASTER_ID, VALUE_NAME, VALUE_ALIAS, CREATED_BY, CREATED_AT, UPDATED_BY, UPDATED_AT, ACTIVE
+)
+VALUES 
+(SYS_GUID(), '42FCD57BA39BA854E0637C86B10A8B1D', 'Partnership Firm', NULL, 'admin', 20251107, 'admin', 20251107, 1),
+(SYS_GUID(), '42FCD57BA39BA854E0637C86B10A8B1D', 'Pvt Ltd', NULL, 'admin', 20251107, 'admin', 20251107, 1),
+(SYS_GUID(), '42FCD57BA39BA854E0637C86B10A8B1D', 'Public Ltd', NULL, 'admin', 20251107, 'admin', 20251107, 1),
+(SYS_GUID(), '42FCD57BA39BA854E0637C86B10A8B1D', 'Co-op Society', NULL, 'admin', 20251107, 'admin', 20251107, 1),
+(SYS_GUID(), '42FCD57BA39BA854E0637C86B10A8B1D', 'Trust', NULL, 'admin', 20251107, 'admin', 20251107, 1),
+(SYS_GUID(), '42FCD57BA39BA854E0637C86B10A8B1D', 'Individual', NULL, 'admin', 20251107, 'admin', 20251107, 1),
+(SYS_GUID(), '42FCD57BA39BA854E0637C86B10A8B1D', 'Corporation', NULL, 'admin', 20251107, 'admin', 20251107, 1),
+(SYS_GUID(), '42FCD57BA39BA854E0637C86B10A8B1D', 'Educational Institution', NULL, 'admin', 20251107, 'admin', 20251107, 1),
+(SYS_GUID(), '42FCD57BA39BA854E0637C86B10A8B1D', 'Religious Organisation', NULL, 'admin', 20251107, 'admin', 20251107, 1),
+(SYS_GUID(), '42FCD57BA39BA854E0637C86B10A8B1D', 'Registered Charity', NULL, 'admin', 20251107, 'admin', 20251107, 1),
+(SYS_GUID(), '42FCD57BA39BA854E0637C86B10A8B1D', 'Government Agency', NULL, 'admin', 20251107, 'admin', 20251107, 1);
