@@ -1,9 +1,14 @@
-@Repository
-public interface ListOfMasterRepository extends JpaRepository<ListOfMaster, UUID> {
-    Optional<ListOfMaster> findByMasterNameAndActive(String masterName, long active);
-}
+@Service
+@RequiredArgsConstructor
+public class MasterService {
 
-@Repository
-public interface ListOfValueRepository extends JpaRepository<ListOfValue, UUID> {
-    List<ListOfValue> findByMasterIdAndActive(UUID masterId, long active);
+    private final ListOfMasterRepository masterRepository;
+    private final ListOfValueRepository valueRepository;
+
+    public List<ListOfValue> getValuesByMasterName(String masterName) {
+        ListOfMaster master = masterRepository.findByMasterNameAndActive(masterName, 1L)
+                .orElseThrow(() -> new ResourceNotFoundException("Master not found: " + masterName));
+
+        return valueRepository.findByMasterIdAndActive(master.getId(), 1L);
+    }
 }
