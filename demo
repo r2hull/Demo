@@ -1,3 +1,52 @@
-42FF51247A9B4ABEE0637C86B10A10D3	state	admin	20251107	admin	20251107	1
-42FF51247A9C4ABEE0637C86B10A10D3	city	admin	20251107	admin	20251107	1
-42FCD57BA398A854E0637C86B10A8B1D	country	admin	20251107	admin	20251107	1
+List<ListOfValue> findByMasterIdAndParentIdAndActive(UUID masterId, UUID parentId, long active);
+
+
+public List<ListOfValue> getValuesByMasterNameAndParent(String masterName, UUID parentId) {
+    ListOfMaster master = masterRepository.findByMasterNameAndActive(masterName, 1L)
+            .orElseThrow(() -> new ResourceNotFoundException("Master not found: " + masterName));
+
+    return valueRepository.findByMasterIdAndParentIdAndActive(master.getId(), parentId, 1L);
+}
+
+
+
+
+
+
+@GetMapping("/{masterName}/values")
+public ResponseEntity<List<ListOfValue>> getValuesByMasterName(
+        @PathVariable String masterName,
+        @RequestParam(required = false) UUID parentId) {
+
+    List<ListOfValue> values = (parentId == null)
+            ? masterService.getValuesByMasterName(masterName)
+            : masterService.getValuesByMasterNameAndParent(masterName, parentId);
+
+    return ResponseEntity.ok(values);
+}
+
+
+@Query("SELECT mv FROM MasterValue mv WHERE mv.master.alias = :alias AND mv.active = 1")
+List<MasterValue> findByAlias(@Param("alias") String alias);
+
+@Query("SELECT mv FROM MasterValue mv WHERE mv.parentId = :parentId AND mv.active = 1")
+List<MasterValue> findByParentId(@Param("parentId") String parentId);
+
+
+@GetMapping("/master-values")
+public ResponseEntity<List<MasterValueResponse>> getMasterValues(
+        @RequestParam(required = false) String alias,
+        @RequestParam(required = false) String parentId) {
+
+    List<MasterValueResponse> result;
+
+    if (alias != null) {
+        result = masterService.getByAlias(alias);
+    } else if (parentId != null) {
+        result = masterService.getByParentId(parentId);
+    } else {
+        result = Collections.emptyList();
+    }
+
+    return ResponseEntity.ok(result);
+}
