@@ -1,52 +1,23 @@
-List<ListOfValue> findByMasterIdAndParentIdAndActive(UUID masterId, UUID parentId, long active);
-
-
-public List<ListOfValue> getValuesByMasterNameAndParent(String masterName, UUID parentId) {
-    ListOfMaster master = masterRepository.findByMasterNameAndActive(masterName, 1L)
-            .orElseThrow(() -> new ResourceNotFoundException("Master not found: " + masterName));
-
-    return valueRepository.findByMasterIdAndParentIdAndActive(master.getId(), parentId, 1L);
-}
-
-
-
-
-
-
-@GetMapping("/{masterName}/values")
-public ResponseEntity<List<ListOfValue>> getValuesByMasterName(
-        @PathVariable String masterName,
-        @RequestParam(required = false) UUID parentId) {
-
-    List<ListOfValue> values = (parentId == null)
-            ? masterService.getValuesByMasterName(masterName)
-            : masterService.getValuesByMasterNameAndParent(masterName, parentId);
-
-    return ResponseEntity.ok(values);
-}
-
-
-@Query("SELECT mv FROM MasterValue mv WHERE mv.master.alias = :alias AND mv.active = 1")
-List<MasterValue> findByAlias(@Param("alias") String alias);
-
-@Query("SELECT mv FROM MasterValue mv WHERE mv.parentId = :parentId AND mv.active = 1")
-List<MasterValue> findByParentId(@Param("parentId") String parentId);
-
-
-@GetMapping("/master-values")
-public ResponseEntity<List<MasterValueResponse>> getMasterValues(
-        @RequestParam(required = false) String alias,
-        @RequestParam(required = false) String parentId) {
-
-    List<MasterValueResponse> result;
-
-    if (alias != null) {
-        result = masterService.getByAlias(alias);
-    } else if (parentId != null) {
-        result = masterService.getByParentId(parentId);
-    } else {
-        result = Collections.emptyList();
-    }
-
-    return ResponseEntity.ok(result);
-}
+DescriptionStatic admin data is required on the MIF page to load static data ie. state: MP, MH , city: Indore, Bhopal etcAPI DetailsMethod: POSTAPI Endpoint: /admin/master/{master}Access Type: Open APIRequest Header:{
+  "Authorization": "Bearer Token",
+}Success Response:{ 
+  "staus": 1, 
+  "data": [ 
+    { 
+      "value": "Madhya-Pradesh"
+      "alias": "MP"
+    },
+    { 
+      "value": "Maharashta"
+      "alias": "MH"
+    }  
+  ] 
+} Error response{
+  "status":0, 
+    "errors": [
+        {
+            "errorCode":"ERROR_CODE ",
+            "errorMessage":"ERROR_MSG"
+        },
+    ]
+}Data FlowAdmin controller – Once Token is verified request will be routed on admin controller and then call admin serviceAdmin service – Admin service will validate the request and call to admin dao to fetch all request values for passed masterAdmin dao – Calls to admin service in external service to call admin API which returns the required responseAdmin service Client- master api will be called from admin service which will provide data for passed masterTesting Check ListValidate the request bodyValidate all user inputsDeveloper ChecklistClass Flow90% Unit test case coverageDevelopment StepsCreate Controller and getValues method with post request mappingCreate admin service and getValues methodCall to admin api and pass master id which will return either error or list of values in response objecthandle and send the responseDatabase Tableslist_of_masterColumnTypeiduuidmaster_namevarcharlist_of_valueColumnTypeiduuidmaster_iduuidvalue_namevarcharvalue_aliasvarcharAcceptance CriteriaTest cases should have 90% coverageInvalid request should throw error with status as 0Valid request should send all the list of values against the passed master
