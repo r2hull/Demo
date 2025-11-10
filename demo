@@ -75,3 +75,9 @@ public class MasterDataController {
 }
 
 
+
+
+@Repository
+public interface ListOfMasterRepository extends JpaRepository<ListOfMaster, UUID> {
+    Optional<ListOfMaster> findByMasterNameIgnoreCase(String masterName);
+}
