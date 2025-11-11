@@ -1,13 +1,32 @@
- List<ListOfValue> listOfValues = masterDataDao.getMasterValues(alias,parentId);
-@Entity
-@Table(name = "LIST_OF_VALUE")
-public class ListOfValue extends AuditEntity {
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ListOfValueDto {
     private UUID id;
     private UUID masterId;
     private String valueName;
     private String valueAlias;
-    private UUID parentId;
+    private UUID parentId; // can be null
     private long active;
+}
+
+
+@Mapper(componentModel = "spring")
+public interface MasterDataMapper {
+
+    /**
+     * Map single entity to DTO
+     *
+     * @param listOfValue ListOfValue entity
+     * @return ListOfValueDto
+     */
+    ListOfValueDto entityToDto(ListOfValue listOfValue);
+
+    /**
+     * Map list of entities to list of DTOs
+     *
+     * @param listOfValues List of ListOfValue entities
+     * @return List of ListOfValueDto
+     */
+    List<ListOfValueDto> entityToDto(List<ListOfValue> listOfValues);
 }
