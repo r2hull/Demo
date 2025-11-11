@@ -1,83 +1,52 @@
-@Repository
-public interface ListOfValueRepository extends JpaRepository<ListOfValue, UUID> {
+public List<MasterValueResponse> getMasterData(String alias, String parentId) {
 
-    // get all values for given master id
-    List<ListOfValue> findByMasterIdAndActive(UUID masterId, long active);
+    // 1️⃣ Check for leading/trailing spaces or invalid chars
+    if (alias == null || alias.trim().isEmpty()) {
+        throw new InvalidRequestException("Alias must not be blank");
+    }
+    alias = alias.trim();
 
-    // get all values for given parent id (dependent dropdown)
-    List<ListOfValue> findByParentIdAndActive(UUID parentId, long active);
+    if (!alias.matches("^[A-Z_]+$")) {
+        throw new InvalidRequestException("Alias must contain only uppercase alphabets and underscores");
+    }
 
+    // 2️⃣ Fetch master by alias
+    Master master = masterRepository.findByAlias(alias)
+            .orElseThrow(() -> new ResourceNotFoundException("Invalid alias: " + alias));
+
+    // 3️⃣ If parentId is provided → validate logical parent mapping
+    if (parentId != null && !parentId.isBlank()) {
+        MasterValue parentValue = masterValueRepository.findById(parentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Parent ID not found"));
+
+        // check if parentValue belongs to correct master type
+        if (!isParentValidForAlias(alias, parentValue.getMaster().getAlias())) {
+            throw new InvalidRequestException(
+                "Invalid parentId for alias " + alias + ". Expected parent of type " +
+                expectedParent(alias) + " but got " + parentValue.getMaster().getAlias()
+            );
+        }
+
+        return masterValueRepository.findByMasterAndParent(master, parentValue);
+    }
+
+    // 4️⃣ If no parentId → just return all values for alias
+    return masterValueRepository.findByMaster(master);
 }
 
-
-
-
-@Service
-@RequiredArgsConstructor
-@Slf4j
-public class MasterDataService {
-
-    private final ListOfMasterRepository masterRepo;
-    private final ListOfValueRepository valueRepo;
-
-    public List<ListOfValue> getMasterValues(String alias, UUID parentId) {
-
-        if (parentId != null) {
-            // dependent data (like state, city)
-            log.info("Fetching values for parentId: {}", parentId);
-            return valueRepo.findByParentIdAndActive(parentId, 1L);
-        }
-
-        if (alias != null && !alias.isBlank()) {
-            log.info("Fetching master by alias: {}", alias);
-            Optional<ListOfMaster> masterOpt = masterRepo.findByMasterNameIgnoreCase(alias);
-            if (masterOpt.isEmpty()) {
-                throw new RuntimeException("Invalid master alias");
-            }
-            return valueRepo.findByMasterIdAndActive(masterOpt.get().getId(), 1L);
-        }
-
-        throw new RuntimeException("Either alias or parentId must be provided");
+// helper mapping logic
+private boolean isParentValidForAlias(String alias, String parentAlias) {
+    switch (alias) {
+        case "STATE": return parentAlias.equals("COUNTRY");
+        case "CITY": return parentAlias.equals("STATE");
+        default: return true; // others don't need parent
     }
 }
 
-
-
-@RestController
-@RequestMapping("/api/master-values")
-@RequiredArgsConstructor
-public class MasterDataController {
-
-    private final MasterDataService masterDataService;
-
-    @GetMapping
-    public ResponseEntity<?> getMasterValues(
-            @RequestParam(required = false) String alias,
-            @RequestParam(required = false) UUID parentId) {
-
-        try {
-            List<ListOfValue> values = masterDataService.getMasterValues(alias, parentId);
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", 1);
-            response.put("data", values);
-            return ResponseEntity.ok(response);
-
-        } catch (RuntimeException e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", 0);
-            error.put("errors", List.of(Map.of(
-                    "errorCode", "MASTER_FETCH_ERROR",
-                    "errorMessage", e.getMessage()
-            )));
-            return ResponseEntity.badRequest().body(error);
-        }
+private String expectedParent(String alias) {
+    switch (alias) {
+        case "STATE": return "COUNTRY";
+        case "CITY": return "STATE";
+        default: return "NONE";
     }
-}
-
-
-
-
-@Repository
-public interface ListOfMasterRepository extends JpaRepository<ListOfMaster, UUID> {
-    Optional<ListOfMaster> findByMasterNameIgnoreCase(String masterName);
 }
