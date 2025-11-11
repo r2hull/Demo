@@ -1,32 +1,13 @@
-create table LIST_OF_MASTER (
-    ID RAW(16) DEFAULT SYS_GUID() NOT NULL ENABLE,
-    MASTER_NAME     VARCHAR2(100) NOT NULL,
-    CREATED_BY      VARCHAR2(100) NOT NULL,
- 	CREATED_AT      NUMBER NOT NULL,
- 	UPDATED_BY      VARCHAR2(100) NOT NULL,
- 	UPDATED_AT      NUMBER NOT NULL,
-    ACTIVE          NUMBER(1) DEFAULT 1,
-    CONSTRAINT PK_LIST_OF_MASTER PRIMARY KEY (ID)
-);
-
-CREATE TABLE LIST_OF_VALUE (
-    ID RAW(16) DEFAULT SYS_GUID() NOT NULL ENABLE,
-    MASTER_ID       RAW(16) NOT NULL ENABLE,
-    VALUE_NAME      VARCHAR2(200) NOT NULL,
-    VALUE_ALIAS     VARCHAR2(50),
-    CREATED_BY      VARCHAR2(100) NOT NULL,
-   	CREATED_AT      NUMBER NOT NULL,
-   	UPDATED_BY      VARCHAR2(100) NOT NULL,
-   	UPDATED_AT      NUMBER NOT NULL,
-    ACTIVE          NUMBER(1) DEFAULT 1,
-    CONSTRAINT PK_LIST_OF_VALUE PRIMARY KEY (ID),
-    CONSTRAINT FK_MASTER_VAL FOREIGN KEY (MASTER_ID) REFERENCES LIST_OF_MASTER(ID)
-);
-
-ALTER TABLE LIST_OF_VALUE
-ADD PARENT_ID RAW(16) NULL;
-
-ALTER TABLE LIST_OF_VALUE
-ADD CONSTRAINT FK_LOV_PARENT FOREIGN KEY (PARENT_ID) REFERENCES LIST_OF_VALUE(ID);
-
-
+ List<ListOfValue> listOfValues = masterDataDao.getMasterValues(alias,parentId);
+@Entity
+@Table(name = "LIST_OF_VALUE")
+public class ListOfValue extends AuditEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+    private UUID masterId;
+    private String valueName;
+    private String valueAlias;
+    private UUID parentId;
+    private long active;
+}
