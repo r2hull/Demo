@@ -1,32 +1,16 @@
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class ListOfValueDto {
-    private UUID id;
-    private UUID masterId;
-    private String valueName;
-    private String valueAlias;
-    private UUID parentId; // can be null
-    private long active;
-}
+ALTER TABLE LIST_OF_MASTER ADD (
+    CODE VARCHAR2(100) NOT NULL,
+    DESCRIPTION VARCHAR2(500)
+);
+
+ALTER TABLE LIST_OF_MASTER ADD CONSTRAINT UK_MASTER_CODE UNIQUE (CODE);
 
 
-@Mapper(componentModel = "spring")
-public interface MasterDataMapper {
+ALTER TABLE LIST_OF_VALUE ADD (
+    CODE VARCHAR2(100) NOT NULL,
+    DESCRIPTION VARCHAR2(500),
+    PARENT_CODE VARCHAR2(100)
+);
 
-    /**
-     * Map single entity to DTO
-     *
-     * @param listOfValue ListOfValue entity
-     * @return ListOfValueDto
-     */
-    ListOfValueDto entityToDto(ListOfValue listOfValue);
+ALTER TABLE LIST_OF_VALUE ADD CONSTRAINT UK_VALUE_CODE UNIQUE (CODE);
 
-    /**
-     * Map list of entities to list of DTOs
-     *
-     * @param listOfValues List of ListOfValue entities
-     * @return List of ListOfValueDto
-     */
-    List<ListOfValueDto> entityToDto(List<ListOfValue> listOfValues);
-}
