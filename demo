@@ -1,1 +1,53 @@
 Rahul Suresh Yadav I have updated your PR also n merged it, but there is one more change its needs for getMasterData without any filter, you have to group the response as per master code and create the response @GetMapping public AdminResponse<MasterDataDto> getMasterValues() { logger.info("Controller layer: Received request to fetch all top-level master data."); return masterService.getMasterData(); } public AdminResponse<MasterDataDto> getMasterData() { logger.info("Service layer: Starting getMasterData"); List<MasterDataDto> masterDataDtoList = masterDao.findMasterData().stream().map(masterDataMapper::entityToDto).toList(); logger.info("Service layer: Successfully retrieved and mapped {} records for operation: {}", masterDataDtoList.size()); return AdminResponse.<MasterDataDto>builder().status(SUCCESS_RESPONSE_CODE).data(masterDataDtoList).build(); } public List<MasterData> findMasterData() { log.debug("DAO layer: Fetching records where parentId is null."); return masterDataRepository.findByParentCodeIsNull().orElseThrow(() -> { log.warn("No records found for Master Data"); return new AdminException(NOT_FOUND_ERROR_CODE, MessageFormat.format(NOT_FOUND_ERROR_MESSAGE, MASTER_DATA)); }); } suggest what should i change her?
+@Entity
+@Table(name = "MASTER_DATA")
+public class MasterData extends AuditEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+    @Enumerated(EnumType.STRING)
+    private MasterCode masterCode;
+    private String name;
+    private String code;
+    @Enumerated(EnumType.STRING)
+    private MasterCode parentCode;
+    private long active;
+}
+
+data:
+Constitution
+State
+City
+Pincode
+Nature of Business
+-----------
+Constitution of Business :
+Provide a drop-down list with the following options: 
+Partnership Firm 
+Pvt Ltd 
+Public Ltd 
+
+Nature of Business:
+Government utilities
+Private utilities
+Education
+
+Country:
+India
+..
+
+State:
+Maharashtra
+Madhya pradesh 
+
+City:
+Mumbai
+Pune
+..
+
+Indore
+..
+
+
+
+
