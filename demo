@@ -1,1 +1,14 @@
-@JsonInclude(JsonInclude.Include.NON_NULL) public class MasterDataDto { private UUID id; private MasterCode masterCode; private String name; private String code; private String parentCode; } public AdminResponse<Map<MasterCode, List<MasterDataDto>>> getMasterData() { logger.info("Service layer: Starting getMasterData"); List<MasterDataDto> masterDataDtoList = masterDao.findMasterData().stream().map(masterDataMapper::entityToDto).toList(); logger.info("Service layer: Successfully retrieved and mapped {} records", masterDataDtoList.size()); Map<MasterCode, List<MasterDataDto>> groupedData = masterDataDtoList.stream().collect(Collectors.groupingBy(MasterDataDto::getMasterCode)); logger.info("Service layer: Successfully grouped data into {} categories", groupedData.size()); return AdminResponse.<Map<MasterCode, List<MasterDataDto>>>builder().status(SUCCESS_RESPONSE_CODE).data(List.of(groupedData)).build(); } can we create object for this insist of MAP
+    public void validateMerchantHostedRequest(PaymentDto paymentDto) {
+        errorDtoList = new ArrayList<>();
+        logger.info("Merchant hosted validation started");
+        if (ObjectUtils.isNotEmpty(paymentDto.getGstinDto())){
+            validateGstn(paymentDto);
+        }
+        if (StringUtils.equalsIgnoreCase(paymentDto.getPayMode(), NB, CC, DC, PC,WALLET)){
+            validateCards(paymentDto);
+        }
+        if (StringUtils.equalsIgnoreCase(paymentDto.getPayMode(),UPI)){
+            validateVpa(paymentDto);
+        }
+        logger.info("Merchant hosted completed");
+    }
