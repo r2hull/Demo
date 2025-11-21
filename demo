@@ -1,14 +1,34 @@
-    public void validateMerchantHostedRequest(PaymentDto paymentDto) {
-        errorDtoList = new ArrayList<>();
-        logger.info("Merchant hosted validation started");
-        if (ObjectUtils.isNotEmpty(paymentDto.getGstinDto())){
-            validateGstn(paymentDto);
-        }
-        if (StringUtils.equalsIgnoreCase(paymentDto.getPayMode(), NB, CC, DC, PC,WALLET)){
-            validateCards(paymentDto);
-        }
-        if (StringUtils.equalsIgnoreCase(paymentDto.getPayMode(),UPI)){
-            validateVpa(paymentDto);
-        }
-        logger.info("Merchant hosted completed");
+public void validateMerchantHostedRequest(PaymentDto paymentDto) {
+
+    errorDtoList = new ArrayList<>();
+    logger.info("Merchant hosted validation started");
+
+    // GST validation
+    if (Objects.nonNull(paymentDto.getGstinDto())) {
+        validateGstn(paymentDto);
     }
+
+    PayMode payMode = paymentDto.getPayMode();
+
+    if (payMode != null) {
+        switch (payMode) {
+
+            case NB:
+            case CC:
+            case DC:
+            case PC:
+            case WALLET:
+                validateCards(paymentDto);
+                break;
+
+            case UPI:
+                validateVpa(paymentDto);
+                break;
+
+            default:
+                logger.warn("Unknown pay mode: {}", payMode);
+        }
+    }
+
+    logger.info("Merchant hosted completed");
+}
