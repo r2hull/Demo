@@ -1,18 +1,4 @@
-Nirmal Singh Gurjar MR is ready for review 
+mam ihave made the changes as per the requirement that was explained to me
+if this approach is not correct please guide me i will update it.
 
-Rahul Suresh Yadav
-Nirmal Singh Gurjar MR is ready for review   https://gitlab.epay.sbi/epay/microservices/epay_transaction_service/-/merge_requests/1022/diffs
-i am not sure if this MR is making any sense 
- 
-why we are doing any change in Transaction for this 
- 
-or am i missing anything 
- 
-i have not mentioned anywhere that we have to make any change like this... 
- 
-API was already there its just we need to create the client on Integration side or call it , if its related  to Validation API what we need to provide the merchant 
-
-
-Nirmal Singh Gurjar updated the MR plz check
-
-I can review this PR only, one i can see the Payment Booking API, because still i feel its not required this much changes...
+since i will be on leave from 1stdec please help me with the approach a bit early so that i can finish it before that
