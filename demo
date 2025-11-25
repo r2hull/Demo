@@ -1,34 +1,18 @@
-public void validateMerchantHostedRequest(PaymentDto paymentDto) {
+Nirmal Singh Gurjar MR is ready for review 
 
-    errorDtoList = new ArrayList<>();
-    logger.info("Merchant hosted validation started");
+Rahul Suresh Yadav
+Nirmal Singh Gurjar MR is ready for review   https://gitlab.epay.sbi/epay/microservices/epay_transaction_service/-/merge_requests/1022/diffs
+i am not sure if this MR is making any sense 
+ 
+why we are doing any change in Transaction for this 
+ 
+or am i missing anything 
+ 
+i have not mentioned anywhere that we have to make any change like this... 
+ 
+API was already there its just we need to create the client on Integration side or call it , if its related  to Validation API what we need to provide the merchant 
 
-    // GST validation
-    if (Objects.nonNull(paymentDto.getGstinDto())) {
-        validateGstn(paymentDto);
-    }
 
-    PayMode payMode = paymentDto.getPayMode();
+Nirmal Singh Gurjar updated the MR plz check
 
-    if (payMode != null) {
-        switch (payMode) {
-
-            case NB:
-            case CC:
-            case DC:
-            case PC:
-            case WALLET:
-                validateCards(paymentDto);
-                break;
-
-            case UPI:
-                validateVpa(paymentDto);
-                break;
-
-            default:
-                logger.warn("Unknown pay mode: {}", payMode);
-        }
-    }
-
-    logger.info("Merchant hosted completed");
-}
+I can review this PR only, one i can see the Payment Booking API, because still i feel its not required this much changes...
