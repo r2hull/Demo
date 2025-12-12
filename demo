@@ -1,1 +1,26 @@
-https://teams.microsoft.com/l/meetup-join/19%3ameeting_ZDBkNjJkYjAtNzhmYy00NmEyLTkyMjYtOTMzN2QzMTJhZGIx%40thread.v2/0?context=%7b%22Tid%22%3a%22b553c4ea-9255-4e9b-ab21-e65af26175cf%22%2c%22Oid%22%3a%22e249e4b0-e48e-431e-bf49-95682fa01ec7%22%7d
+
+@Data
+@Entity
+@Table(name = "TOKEN_MANAGEMENT")
+@Builder
+@EqualsAndHashCode(callSuper = true)
+@AllArgsConstructor
+@NoArgsConstructor
+public class TokenManagement extends AuditEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+    private String userName;
+    private String phoneNumber;
+    private String tokenType;
+    private String token;
+    @Schema(description = "Token expiry time (epoch time)", example = "1704067200000")
+    private Long tokenExpiryTime;
+    @Schema(description = "Token is GENERATED/EXPIRED/INVALIDATED")
+    @Enumerated(EnumType.STRING)
+    private TokenStatus tokenStatus;
+    private boolean isActive;
+    private int requestCount;
+
+}
