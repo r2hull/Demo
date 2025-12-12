@@ -1,26 +1,26 @@
+public TokenManagement getValidTokenIfNotExpiringSoon(
+        String userName, String phoneNumber, String tokenType) {
 
-@Data
-@Entity
-@Table(name = "TOKEN_MANAGEMENT")
-@Builder
-@EqualsAndHashCode(callSuper = true)
-@AllArgsConstructor
-@NoArgsConstructor
-public class TokenManagement extends AuditEntity {
+    long now = System.currentTimeMillis();
+    long oneMinLater = now + 60_000L; // 1 minute baad
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
-    private String userName;
-    private String phoneNumber;
-    private String tokenType;
-    private String token;
-    @Schema(description = "Token expiry time (epoch time)", example = "1704067200000")
-    private Long tokenExpiryTime;
-    @Schema(description = "Token is GENERATED/EXPIRED/INVALIDATED")
-    @Enumerated(EnumType.STRING)
-    private TokenStatus tokenStatus;
-    private boolean isActive;
-    private int requestCount;
-
+    return repo.findValidActiveToken(userName, phoneNumber, tokenType, now)
+               .filter(token -> token.getTokenExpiryTime() > oneMinLater) // 1 min se jyada bacha ho
+               .orElse(null); // nahi toh null → matlab token expire hone wala hai, naya banao
 }
+
+
+
+@Query("""
+    SELECT t FROM TokenManagement t 
+    WHERE t.userName = :userName 
+      AND t.phoneNumber = :phoneNumber 
+      AND t.tokenType = :tokenType 
+      AND t.isActive = true 
+      AND t.tokenExpiryTime > :currentTime
+    """)
+Optional<TokenManagement> findValidActiveToken(
+    @Param("userName") String userName,
+    @Param("phoneNumber") String phoneNumber, 
+    @Param("tokenType") String tokenType,
+    @Param("currentTime") long currentTime);
