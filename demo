@@ -1,26 +1,40 @@
-public TokenManagement getValidTokenIfNotExpiringSoon(
-        String userName, String phoneNumber, String tokenType) {
+@Query("SELECT t FROM TokenManagement t " +
+       "WHERE t.userName = :userName " +
+       "AND t.tokenType = :tokenType " +
+       "AND t.token = :token " +
+       "AND t.isActive = true " +
+       "AND t.tokenExpiryTime > :currentTime")
+Optional<TokenManagement> findByUserNameAndTokenTypeAndTokenAndIsActiveTrueAndTokenExpiryTimeGreaterThan(
+    @Param("userName") String userName,
+    @Param("tokenType") String tokenType,
+    @Param("token") String token,
+    @Param("currentTime") long currentTime);
+
+
+
+public TokenManagement getOrRefreshToken(String userName, String tokenType, String oldToken) {
 
     long now = System.currentTimeMillis();
-    long oneMinLater = now + 60_000L; // 1 minute baad
+    long oneMinLater = now + 60_000L;
 
-    return repo.findValidActiveToken(userName, phoneNumber, tokenType, now)
-               .filter(token -> token.getTokenExpiryTime() > oneMinLater) // 1 min se jyada bacha ho
-               .orElse(null); // nahi toh null → matlab token expire hone wala hai, naya banao
+    // Step 1: Purane token se record nikaal (exact match + abhi valid ho)
+    TokenManagement tokenEntity = repo.findByUserNameAndTokenTypeAndTokenAndIsActiveTrueAndTokenExpiryTimeGreaterThan(
+            userName, tokenType, oldToken, now)
+        .orElseThrow(() -> new InvalidTokenException("Invalid or expired token"));
+
+    // Step 2: Agar 1 minute se jyada bacha hai → purana hi return kar do
+    if (tokenEntity.getTokenExpiryTime() > oneMinLater) {
+        return tokenEntity;
+    }
+
+    // Step 3: 1 min ya kam bacha → naya token generate karo
+    String newToken = TokenGenerator.generate(); // tera method
+    long newExpiry = now + getExpiryDuration(tokenType); // 30 min ya jo bhi
+
+    tokenEntity.setToken(newToken);
+    tokenEntity.setTokenExpiryTime(newExpiry);
+    tokenEntity.setTokenStatus(TokenStatus.GENERATED);
+    tokenEntity.setRequestCount(tokenEntity.getRequestCount() + 1);
+
+    return repo.save(tokenEntity);
 }
-
-
-
-@Query("""
-    SELECT t FROM TokenManagement t 
-    WHERE t.userName = :userName 
-      AND t.phoneNumber = :phoneNumber 
-      AND t.tokenType = :tokenType 
-      AND t.isActive = true 
-      AND t.tokenExpiryTime > :currentTime
-    """)
-Optional<TokenManagement> findValidActiveToken(
-    @Param("userName") String userName,
-    @Param("phoneNumber") String phoneNumber, 
-    @Param("tokenType") String tokenType,
-    @Param("currentTime") long currentTime);
