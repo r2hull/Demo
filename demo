@@ -1,40 +1,10 @@
-@Query("SELECT t FROM TokenManagement t " +
-       "WHERE t.userName = :userName " +
-       "AND t.tokenType = :tokenType " +
-       "AND t.token = :token " +
-       "AND t.isActive = true " +
-       "AND t.tokenExpiryTime > :currentTime")
-Optional<TokenManagement> findByUserNameAndTokenTypeAndTokenAndIsActiveTrueAndTokenExpiryTimeGreaterThan(
-    @Param("userName") String userName,
-    @Param("tokenType") String tokenType,
-    @Param("token") String token,
-    @Param("currentTime") long currentTime);
+Currently, OTP verification logic checks whether the user is logging in or signing up.
+As per the new requirement, this distinction is no longer needed.
+
+Changes required:
+- Remove login/signup based checks from OTP verification
+- Allow any user to verify OTP and log in directly
+- Update OTP logic as per the new flow
 
 
-
-public TokenManagement getOrRefreshToken(String userName, String tokenType, String oldToken) {
-
-    long now = System.currentTimeMillis();
-    long oneMinLater = now + 60_000L;
-
-    // Step 1: Purane token se record nikaal (exact match + abhi valid ho)
-    TokenManagement tokenEntity = repo.findByUserNameAndTokenTypeAndTokenAndIsActiveTrueAndTokenExpiryTimeGreaterThan(
-            userName, tokenType, oldToken, now)
-        .orElseThrow(() -> new InvalidTokenException("Invalid or expired token"));
-
-    // Step 2: Agar 1 minute se jyada bacha hai → purana hi return kar do
-    if (tokenEntity.getTokenExpiryTime() > oneMinLater) {
-        return tokenEntity;
-    }
-
-    // Step 3: 1 min ya kam bacha → naya token generate karo
-    String newToken = TokenGenerator.generate(); // tera method
-    long newExpiry = now + getExpiryDuration(tokenType); // 30 min ya jo bhi
-
-    tokenEntity.setToken(newToken);
-    tokenEntity.setTokenExpiryTime(newExpiry);
-    tokenEntity.setTokenStatus(TokenStatus.GENERATED);
-    tokenEntity.setRequestCount(tokenEntity.getRequestCount() + 1);
-
-    return repo.save(tokenEntity);
-}
+Simplified OTP verification logic for user login
