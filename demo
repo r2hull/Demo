@@ -1,10 +1,1 @@
-Currently, OTP verification logic checks whether the user is logging in or signing up.
-As per the new requirement, this distinction is no longer needed.
-
-Changes required:
-- Remove login/signup based checks from OTP verification
-- Allow any user to verify OTP and log in directly
-- Update OTP logic as per the new flow
-
-
-Simplified OTP verification logic for user login
+x
