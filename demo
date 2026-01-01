@@ -1,1 +1,156 @@
-x
+
+public class TransactionTrackingResponse {
+
+    private String merchantReferenceNumber;
+    private String sbiEpayReferenceNumber;
+    private String bankReferenceNumber;
+    private Long transactionDateAndTime;
+    private BigDecimal transactionAmount;
+    private BigDecimal totalAmount;
+    private String transactionStatus;
+    private String transactionStatusDescription;
+    private Long settlementDate;
+    private String cinNumber;
+    private String payMode;
+    private String channelBank;
+    private String cardType;
+    private List<TransactionTrackingRefundDetailsDto> refundDetails;
+    private Long count;
+    private Long total;
+
+    public String getMerchantReferenceNumber() {
+        return merchantReferenceNumber;
+    }
+
+    public void setMerchantReferenceNumber(String merchantReferenceNumber) {
+        this.merchantReferenceNumber = merchantReferenceNumber;
+    }
+
+    public String getSbiEpayReferenceNumber() {
+        return sbiEpayReferenceNumber;
+    }
+
+    public void setSbiEpayReferenceNumber(String sbiEpayReferenceNumber) {
+        this.sbiEpayReferenceNumber = sbiEpayReferenceNumber;
+    }
+
+    public String getBankReferenceNumber() {
+        return bankReferenceNumber;
+    }
+
+    public void setBankReferenceNumber(String bankReferenceNumber) {
+        this.bankReferenceNumber = bankReferenceNumber;
+    }
+
+    public Long getTransactionDateAndTime() {
+        return transactionDateAndTime;
+    }
+
+    public void setTransactionDateAndTime(Long transactionDateAndTime) {
+        this.transactionDateAndTime = transactionDateAndTime;
+    }
+
+    public BigDecimal getTransactionAmount() {
+        return transactionAmount;
+    }
+
+    public void setTransactionAmount(BigDecimal transactionAmount) {
+        this.transactionAmount = transactionAmount;
+    }
+
+    public BigDecimal getTotalAmount() {
+        return totalAmount;
+    }
+
+    public void setTotalAmount(BigDecimal totalAmount) {
+        this.totalAmount = totalAmount;
+    }
+
+    public String getTransactionStatus() {
+        return transactionStatus;
+    }
+
+    public void setTransactionStatus(String transactionStatus) {
+        this.transactionStatus = transactionStatus;
+    }
+
+    public String getTransactionStatusDescription() {
+        return transactionStatusDescription;
+    }
+
+    public void setTransactionStatusDescription(String transactionStatusDescription) {
+        this.transactionStatusDescription = transactionStatusDescription;
+    }
+
+    public Long getSettlementDate() {
+        return settlementDate;
+    }
+
+    public void setSettlementDate(Long settlementDate) {
+        this.settlementDate = settlementDate;
+    }
+
+    public String getCinNumber() {
+        return cinNumber;
+    }
+
+    public void setCinNumber(String cinNumber) {
+        this.cinNumber = cinNumber;
+    }
+
+    public String getPayMode() {
+        return payMode;
+    }
+
+    public void setPayMode(String payMode) {
+        this.payMode = payMode;
+    }
+
+    public String getChannelBank() {
+        return channelBank;
+    }
+
+    public void setChannelBank(String channelBank) {
+        this.channelBank = channelBank;
+    }
+
+    public String getCardType() {
+        return cardType;
+    }
+
+    public void setCardType(String cardType) {
+        this.cardType = cardType;
+    }
+
+    public List<TransactionTrackingRefundDetailsDto> getRefundDetails() {
+        return refundDetails;
+    }
+
+    public void setRefundDetails(List<TransactionTrackingRefundDetailsDto> refundDetails) {
+        this.refundDetails = refundDetails;
+    }
+
+    public Long getCount() {
+        return count;
+    }
+
+    public void setCount(Long count) {
+        this.count = count;
+    }
+
+    public Long getTotal() {
+        return total;
+    }
+
+    public void setTotal(Long total) {
+        this.total = total;
+    }
+}
+ public List<TransactionTrackingResponse> getResponse(ReportResponse reportResponse,String payMode,String channelBank){
+        List<TransactionTrackingResponse> data = reportResponse.getData();
+
+
+return data;
+}
+
+so the requirements is if the payMode is not null the apply filter on it using stream and collect it afterthat same for cannelBank and if in future any other filter is req then do it and after all filtering return same datalist
