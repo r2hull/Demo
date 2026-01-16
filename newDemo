@@ -80,3 +80,19 @@ public class MerchantOrderAccountInfo  extends AuditEntity {
 
 }
 
+ public TransactionResponse<String> createMerchantOrder(EncryptedRequest encryptedRequest) {
+
+        OrderDto orderDto = buildRequestByEncryptRequest(encryptedRequest.getEncryptedRequest(), mek, OrderDto.class);
+        logger.debug("build OrderDto{} ", orderDto);
+        // Step 3 : Validate and create order.
+        orderDto = createMerchantOrder(orderDto);
+        String sbiOrderRefNumber = orderDto.getSbiOrderRefNumber(); //orderId
+        List<MultiAccountDto> multiAccountDetails = orderValidator.getMultiAccountDtos(orderDto);
+        MerchantBankAccountsDetailDto bankDetails = adminDao.getBankDetails(List.of("1000003"));
+
+
+//MerchantOrderAccountInfo save
+        //Step 4 : Create order response
+        logger.info("Merchant Order creation completed");
+        return TransactionResponse.<String>builder().data(List.of(EncryptionDecryptionUtil.encryptValue(mek, TransactionUtil.toJson(orderDto)))).status(TransactionConstant.RESPONSE_SUCCESS).build();
+    }
