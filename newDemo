@@ -1,45 +1,117 @@
-@Builder
-public class MerchantBankAccountsDetailDto {
+private void persistMerchantOrderAccounts(
+        OrderDto orderDto,
+        MerchantBankAccountsDetailDto bankDetails) {
 
-    @JsonProperty("mId")
-    private String mId;
-    private BankAccountDto primaryAccount;
-    private List<BankAccountDto> secondaryAccount;
+    List<MultiAccountDto> multiAccounts =
+            orderValidator.getMultiAccountDtos(orderDto);
 
+    List<MerchantOrderAccountInfo> entities =
+            buildMerchantOrderAccountInfos(orderDto, bankDetails, multiAccounts);
+
+    merchantOrderAccountInfoRepository.saveAll(entities);
 }
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
-public class BankAccountDto {
 
-    private String bankId;
-    private String accountId;
-    private String accountNumber;
-    private String accountNickName;
-    private String primaryAccount; //Y, N
-    @JsonIgnore
-    private String mId;
 
+private List<MerchantOrderAccountInfo> buildMerchantOrderAccountInfos(
+        OrderDto orderDto,
+        MerchantBankAccountsDetailDto bankDetails,
+        List<MultiAccountDto> multiAccounts) {
+
+    if (multiAccounts == null || multiAccounts.isEmpty()) {
+        return List.of(buildFromPrimaryAccount(orderDto, bankDetails));
+    }
+
+    return buildFromMultiAccounts(orderDto, bankDetails, multiAccounts);
 }
-@Builder
-public class MultiAccountDto {
 
-    private String accountIdentifier;
-    private BigDecimal amount;
+
+private MerchantOrderAccountInfo buildFromPrimaryAccount(
+        OrderDto orderDto,
+        MerchantBankAccountsDetailDto bankDetails) {
+
+    BankAccountDto primary = bankDetails.getPrimaryAccount();
+
+    return buildEntity(
+            orderDto,
+            primary,
+            orderDto.getOrderAmount(),
+            AccountType.P
+    );
 }
-  
 
-List<MultiAccountDto> multiAccountDetails = orderValidator.getMultiAccountDtos(orderDto);
-        MerchantBankAccountsDetailDto bankDetails = adminDao.getBankDetails(List.of("1000003"));
-        if(multiAccountDetails.isEmpty()){
-            String sbiOrderRefNumber = orderDto.getSbiOrderRefNumber(); //orderId 5D4F137CA9CD4BDBACBE
-            String accountNickName = bankDetails.getPrimaryAccount().getAccountNickName();
-            String accountNumber = bankDetails.getPrimaryAccount().getAccountNumber();
-            MerchantOrderAccountInfo.builder().orderId(sbiOrderRefNumber)
-                    .accountHeader(accountNickName).amount(orderDto.getOrderAmount()).accountNumber(accountNumber)
-                    .accountType(AccountType.P).accountClassification(orderDto.getAccountClassification()).build();
-        }else{
-//            String accountNickName;
-            MultiAccountDto.accountIdentifier ko 
-                    BankAccountDto .accountNickName se match krnwe ka 
-            then check krne ka jaha bhi match hua uska primaryAccount  if Y mila toh AccountType.P else S
-        }
+
+
+private List<MerchantOrderAccountInfo> buildFromMultiAccounts(
+        OrderDto orderDto,
+        MerchantBankAccountsDetailDto bankDetails,
+        List<MultiAccountDto> multiAccounts) {
+
+    List<MerchantOrderAccountInfo> result = new ArrayList<>();
+
+    for (MultiAccountDto multiAccount : multiAccounts) {
+
+        BankAccountDto bankAccount =
+                resolveBankAccount(bankDetails, multiAccount.getAccountIdentifier());
+
+        AccountType accountType =
+                isPrimary(bankAccount) ? AccountType.P : AccountType.S;
+
+        result.add(
+                buildEntity(
+                        orderDto,
+                        bankAccount,
+                        multiAccount.getAmount(),
+                        accountType
+                )
+        );
+    }
+    return result;
+}
+
+
+
+private BankAccountDto resolveBankAccount(
+        MerchantBankAccountsDetailDto bankDetails,
+        String accountIdentifier) {
+
+    BankAccountDto primary = bankDetails.getPrimaryAccount();
+
+    if (primary != null &&
+        accountIdentifier.equalsIgnoreCase(primary.getAccountNickName())) {
+        return primary;
+    }
+
+    return bankDetails.getSecondaryAccount()
+            .stream()
+            .filter(acc ->
+                    accountIdentifier.equalsIgnoreCase(acc.getAccountNickName()))
+            .findFirst()
+            .orElseThrow(() ->
+                    new IllegalArgumentException(
+                            "Invalid accountIdentifier: " + accountIdentifier));
+}
+
+
+private boolean isPrimary(BankAccountDto account) {
+    return "Y".equalsIgnoreCase(account.getPrimaryAccount());
+}
+
+
+private MerchantOrderAccountInfo buildEntity(
+        OrderDto orderDto,
+        BankAccountDto account,
+        BigDecimal amount,
+        AccountType accountType) {
+
+    return MerchantOrderAccountInfo.builder()
+            .orderId(orderDto.getSbiOrderRefNumber())
+            .accountHeader(account.getAccountNickName())
+            .accountNumber(account.getAccountNumber())
+            .amount(amount)
+            .accountType(accountType)
+            .accountClassification(orderDto.getAccountClassification())
+            .build();
+}
+
+
