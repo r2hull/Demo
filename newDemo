@@ -1,21 +1,15 @@
 @Repository
-public interface MerchantOrderPaymentRepository
-        extends JpaRepository<MerchantOrderPayment, String> {
-
-    @Query("""
-        SELECT mop.sbiOrderRefNumber
-        FROM MerchantOrderPayment mop
-        WHERE mop.atrnNumber = :atrn
-    """)
-    String findSbiOrderRefByAtrn(@Param("atrn") String atrn);
-}
-
-
-@Repository
 public interface MerchantOrderAccountInfoRepository
         extends JpaRepository<MerchantOrderAccountInfo, UUID> {
 
-    List<MerchantOrderAccountInfo> findBySbiOrderRefNumber(
-            String sbiOrderRefNumber
+    @Query("""
+        SELECT mai
+        FROM MerchantOrderAccountInfo mai
+        JOIN MerchantOrderPayment mop
+            ON mai.sbiOrderRefNumber = mop.sbiOrderRefNumber
+        WHERE mop.atrnNumber = :atrn
+    """)
+    List<MerchantOrderAccountInfo> findAccountInfoByAtrn(
+            @Param("atrn") String atrn
     );
 }
