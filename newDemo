@@ -1,117 +1,125 @@
-private void persistMerchantOrderAccounts(
-        OrderDto orderDto,
-        MerchantBankAccountsDetailDto bankDetails) {
-
-    List<MultiAccountDto> multiAccounts =
-            orderValidator.getMultiAccountDtos(orderDto);
-
-    List<MerchantOrderAccountInfo> entities =
-            buildMerchantOrderAccountInfos(orderDto, bankDetails, multiAccounts);
-
-    merchantOrderAccountInfoRepository.saveAll(entities);
+@Entity
+@Table(name = "MERCHANT_ORDER_ACCOUNT_INFO")
+public class MerchantOrderAccountInfo  extends AuditEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(nullable = false, updatable = false)
+    private UUID id;
+    private String sbiOrderRefNumber;
+    private String accountHeader;
+    private BigDecimal amount;
+    private String accountNumber;
+    @Enumerated(EnumType.STRING)
+    private AccountType accountType;
+    @Enumerated(EnumType.STRING)
+    private AccountClassification accountClassification;
 }
 
 
 
-private List<MerchantOrderAccountInfo> buildMerchantOrderAccountInfos(
-        OrderDto orderDto,
-        MerchantBankAccountsDetailDto bankDetails,
-        List<MultiAccountDto> multiAccounts) {
+@Data
+@EqualsAndHashCode(callSuper = true)
+@Entity
+@Table(name = "MERCHANT_ORDER_PAYMENTS")
+public class MerchantOrderPayment extends AuditEntity {
 
-    if (multiAccounts == null || multiAccounts.isEmpty()) {
-        return List.of(buildFromPrimaryAccount(orderDto, bankDetails));
+    @Id
+    @Column(name = "ATRN_NUM", nullable = false, updatable = false, unique = true)
+    private String atrnNumber;
+    @Column(name = "MERCHANT_ID")
+    private String mId;
+    private String orderRefNumber;
+    private String sbiOrderRefNumber;
+    private String bankReferenceNumber;
+    private String oldBankReferenceNumber;
+
+    private String currencyCode;
+    private BigDecimal orderAmount;
+    @Column(name = "DEBIT_AMT")
+    private BigDecimal debitAmount;
+    private BigDecimal availableRefundAmount;
+    private BigDecimal chargebackAmount;
+
+    private String gstIn;
+    private String channelBank;
+    @Enumerated(EnumType.STRING)
+    private PayMode payMode;
+    @Column(name = "GTW_MAP_ID")
+    private String pgBankCode;//this is gateway map id
+    private String payProcId; //this is pay proc id e.g. Visa, Master, Rupay
+    @Column(name = "PAY_PROC_TYPE")
+    private String paymodeType; //this is Pay proc type e.g. onus, offus
+    @Column(name = "GTW_ISSUE_MECODE")
+    private String gatewayIssueMECode; //merchant wise and/or payment wise ME code received from bank
+    private String cin;
+
+    @Enumerated(EnumType.STRING)
+    private PaymentStatus paymentStatus;
+    @Enumerated(EnumType.STRING)
+    private TransactionStatus transactionStatus;
+    @Enumerated(EnumType.STRING)
+    private SettlementStatus settlementStatus;
+    @Enumerated(EnumType.STRING)
+    private TransactionRefundStatus refundStatus;
+    @Enumerated(EnumType.STRING)
+    private CancellationStatus cancellationStatus;
+    private String chargebackStatus;
+
+    @Lob
+    private String pushResponse;
+    private Date paymentSuccessDate;
+    private String failReason;
+    private String pushStatus;
+
+    private UUID rfId;
+    private Long settlementTime;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sbiOrderRefNumber", insertable = false, updatable = false)
+    private Order order;
+
+    /**
+     * Generate ATRN number dynamically for transaction.
+     */
+    @PrePersist
+    protected void generatedATRN() {
+        this.atrnNumber = TransactionUtil.createAtrnNumber(mId, payMode);
     }
 
-    return buildFromMultiAccounts(orderDto, bankDetails, multiAccounts);
 }
 
 
-private MerchantOrderAccountInfo buildFromPrimaryAccount(
-        OrderDto orderDto,
-        MerchantBankAccountsDetailDto bankDetails) {
+in request I get atrn with the help of atrn I get MerchantOrderPayment from this I get sbiorderrefnumber and using this I get MerchantOrderAccountInfo 
 
-    BankAccountDto primary = bankDetails.getPrimaryAccount();
+select these all field :
+    private UUID id;
+    private String sbiOrderRefNumber;
+    private String accountHeader;
+    private String accountNumber;
+    private AccountType accountType;
+    private AccountClassification accountClassification;
 
-    return buildEntity(
-            orderDto,
-            primary,
-            orderDto.getOrderAmount(),
-            AccountType.P
-    );
+and sum(MerchantOrderPayment.amount )
+where settlement is null or PENDING
+
+
+create query like this
+
+    @Query("select new com.epay.merchant.model.response.UserMenuPermissionResponse(ump.id, up.id, ump.userId, mi.id, mi.code, mi.name,up.permission) "+
+            "from UserMenuPermission ump, MenuInfo mi, Permission up " +
+            "where ump.permissionId = up.id and ump.menuId = mi.id and ump.userId = :userId")
+    List<UserMenuPermissionResponse> findUserMenuPermissionByUserId(@Param("userId") UUID userId);
+
+
+use this dto
+public class MerchantOrderAccountInfoDto {
+
+    private UUID id;
+    private String sbiOrderRefNumber;
+    private String accountHeader;
+    private BigDecimal amount;
+    private String accountNumber;
+    private AccountType accountType;
+    private AccountClassification accountClassification;
+
 }
-
-
-
-private List<MerchantOrderAccountInfo> buildFromMultiAccounts(
-        OrderDto orderDto,
-        MerchantBankAccountsDetailDto bankDetails,
-        List<MultiAccountDto> multiAccounts) {
-
-    List<MerchantOrderAccountInfo> result = new ArrayList<>();
-
-    for (MultiAccountDto multiAccount : multiAccounts) {
-
-        BankAccountDto bankAccount =
-                resolveBankAccount(bankDetails, multiAccount.getAccountIdentifier());
-
-        AccountType accountType =
-                isPrimary(bankAccount) ? AccountType.P : AccountType.S;
-
-        result.add(
-                buildEntity(
-                        orderDto,
-                        bankAccount,
-                        multiAccount.getAmount(),
-                        accountType
-                )
-        );
-    }
-    return result;
-}
-
-
-
-private BankAccountDto resolveBankAccount(
-        MerchantBankAccountsDetailDto bankDetails,
-        String accountIdentifier) {
-
-    BankAccountDto primary = bankDetails.getPrimaryAccount();
-
-    if (primary != null &&
-        accountIdentifier.equalsIgnoreCase(primary.getAccountNickName())) {
-        return primary;
-    }
-
-    return bankDetails.getSecondaryAccount()
-            .stream()
-            .filter(acc ->
-                    accountIdentifier.equalsIgnoreCase(acc.getAccountNickName()))
-            .findFirst()
-            .orElseThrow(() ->
-                    new IllegalArgumentException(
-                            "Invalid accountIdentifier: " + accountIdentifier));
-}
-
-
-private boolean isPrimary(BankAccountDto account) {
-    return "Y".equalsIgnoreCase(account.getPrimaryAccount());
-}
-
-
-private MerchantOrderAccountInfo buildEntity(
-        OrderDto orderDto,
-        BankAccountDto account,
-        BigDecimal amount,
-        AccountType accountType) {
-
-    return MerchantOrderAccountInfo.builder()
-            .orderId(orderDto.getSbiOrderRefNumber())
-            .accountHeader(account.getAccountNickName())
-            .accountNumber(account.getAccountNumber())
-            .amount(amount)
-            .accountType(accountType)
-            .accountClassification(orderDto.getAccountClassification())
-            .build();
-}
-
-
