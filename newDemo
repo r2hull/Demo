@@ -1,4 +1,34 @@
+@Query("""
+SELECT new com.yourpkg.dto.MerchantOrderAccountInfoDto(
+    mai.id,
+    mai.sbiOrderRefNumber,
+    mai.accountHeader,
+    mai.amount,
+    mai.accountNumber,
+    mai.accountType,
+    mai.accountClassification,
+    COALESCE((
+        SELECT SUM(mop2.orderAmount)
+        FROM MerchantOrderPayment mop2
+        WHERE mop2.mId = :merchantId
+          AND (mop2.settlementStatus IS NULL 
+               OR mop2.settlementStatus = 'TO_BE_SETTLED')
+          AND mop2.sbiOrderRefNumber = mai.sbiOrderRefNumber
+    ), 0)
+)
+FROM MerchantOrderAccountInfo mai
+JOIN MerchantOrderPayment mop
+    ON mai.sbiOrderRefNumber = mop.sbiOrderRefNumber
+WHERE mop.atrnNumber = :atrn
+""")
+List<MerchantOrderAccountInfoDto> getFullAccountInfoWithUnsettled(
+        @Param("atrn") String atrn,
+        @Param("merchantId") String merchantId
+);
+
+
 @AllArgsConstructor
+@Getter
 public class MerchantOrderAccountInfoDto {
 
     private UUID id;
@@ -8,4 +38,24 @@ public class MerchantOrderAccountInfoDto {
     private String accountNumber;
     private AccountType accountType;
     private AccountClassification accountClassification;
+
+    private BigDecimal unsettledAmount; // 🔥 extra field
 }
+
+
+public TransactionResponse<List<MerchantOrderAccountInfoDto>> 
+getAvailableAmountToBeSettled(MerchantOrderAccountInfoReq request) {
+
+    if (!refundValidator.validateMerchantAccountInfo(request)) {
+        return TransactionResponse.success(Collections.emptyList());
+    }
+
+    return TransactionResponse.success(
+        merchantOrderAccountInfoRepository.getFullAccountInfoWithUnsettled(
+            request.getAtrn(),
+            request.getMId()
+        )
+    );
+}
+
+
