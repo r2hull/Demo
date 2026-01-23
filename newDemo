@@ -1,15 +1,43 @@
-@Repository
-public interface MerchantOrderAccountInfoRepository
-        extends JpaRepository<MerchantOrderAccountInfo, UUID> {
+
+    public TransactionResponse<MerchantOrderAccountInfoDto> getAvailableAmountToBeSettled(MerchantOrderAccountInfoReq refundSearchRequest) {
+        boolean multiAccountAndRefundAdjustmentFlag = refundValidator.validateMerchantAccountInfo(refundSearchRequest);
+        if (multiAccountAndRefundAdjustmentFlag){
+            List<MerchantOrderAccountInfoDto> merchantOrderAccountInfos=merchantOrderAccountInfoDao.getAccountInfoByAtrn(refundSearchRequest.getAtrn());
+            List<String> accountHeaderList = merchantOrderAccountInfos.stream().map(MerchantOrderAccountInfoDto::getAccountHeader).toList();
+            List<MerchantBankInfoProjection> unsettledAccountInfo = merchantOrderPaymentDao.getUnsettledAccountInfo(refundSearchRequest.getMId(), accountHeaderList);
+        }
+        return ;
+    }
+
+    public List<MerchantOrderAccountInfoDto> getAccountInfoByAtrn( String atrn) {
+        List<MerchantOrderAccountInfo> merchantOrderAccountInfoList = merchantOrderAccountInfoRepository.findAccountInfoByAtrn(atrn);
+        return merchantOrderAccountInfoMapper.entityToDto(merchantOrderAccountInfoList);
+    }
+
+
+    public List<MerchantBankInfoDto> getUnsettledAccountInfo(String merchantId, List<String> accountHeaders){
+        List<MerchantBankInfoProjection> unsettledAccountInfo = merchantOrderPaymentRepository.getUnsettledAccountInfo(merchantId, accountHeaders);
+        return merchantOrderPaymentMapper.projectionToDto(unsettledAccountInfo);
+    }
 
     @Query("""
-        SELECT mai
-        FROM MerchantOrderAccountInfo mai
-        JOIN MerchantOrderPayment mop
-            ON mai.sbiOrderRefNumber = mop.sbiOrderRefNumber
-        WHERE mop.atrnNumber = :atrn
-    """)
-    List<MerchantOrderAccountInfo> findAccountInfoByAtrn(
-            @Param("atrn") String atrn
-    );
-}
+                SELECT mai
+                FROM MerchantOrderAccountInfo mai
+                JOIN MerchantOrderPayment mop
+                    ON mai.sbiOrderRefNumber = mop.sbiOrderRefNumber
+                WHERE mop.atrnNumber = :atrn
+            """)
+    List<MerchantOrderAccountInfo> findAccountInfoByAtrn(@Param("atrn") String atrn);
+
+
+    @Query("SELECT mai.accountHeader as header , NVL(SUM(mop.orderAmount), 0) as amount FROM MerchantOrderAccountInfo mai " +
+            "JOIN MerchantOrderPayment mop ON mop.sbiOrderRefNumber = mai.sbiOrderRefNumber " +
+            "WHERE mop.mId = :merchantId " +
+            "AND (mop.settlementStatus IS NULL or mop.settlementStatus='TO_BE_SETTLED') " +
+            "AND mai.accountHeader IN (:accountHeaders) " +
+            "GROUP BY mai.accountHeader"
+    )
+    List<MerchantBankInfoProjection> getUnsettledAccountInfo(@Param("merchantId") String merchantId, @Param("accountHeaders") List<String> accountHeaders);
+
+
+
