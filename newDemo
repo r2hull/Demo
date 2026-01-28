@@ -1,1 +1,29 @@
-aa
+                List<MerchantOrderAccountInfoDto> accountInfoWithUnsettled = merchantOrderAccountInfoRepository.getFullAccountInfoWithUnsettled(refundBookRequest.getAtrnNumber(), refundBookRequest.getMId());
+
+
+private List<MultiAccountDto> multiAccount;
+
+public class MultiAccountDto {
+
+    private String accountIdentifier;
+    private BigDecimal amount;
+}
+
+
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class MerchantOrderAccountInfoDto {
+
+    private UUID id;
+    private String sbiOrderRefNumber;
+    private String accountHeader;
+    private BigDecimal amount;
+    private String accountNumber;
+    private AccountType accountType;
+    private AccountClassification accountClassification;
+
+    private BigDecimal unsettledAmount;
+}
