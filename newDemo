@@ -1,29 +1,17 @@
-                List<MerchantOrderAccountInfoDto> accountInfoWithUnsettled = merchantOrderAccountInfoRepository.getFullAccountInfoWithUnsettled(refundBookRequest.getAtrnNumber(), refundBookRequest.getMId());
+for (MultiAccountDto req : multiAccount) {
+    String reqHeader = req.getAccountIdentifier();
+    BigDecimal reqAmount = req.getAmount();
 
+    MerchantOrderAccountInfoDto match = accountInfoWithUnsettled.stream()
+            .filter(db -> db.getAccountHeader() != null 
+                       && db.getAccountHeader().equals(reqHeader))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException(
+                    "No account found for header: " + reqHeader));
 
-private List<MultiAccountDto> multiAccount;
-
-public class MultiAccountDto {
-
-    private String accountIdentifier;
-    private BigDecimal amount;
-}
-
-
-
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class MerchantOrderAccountInfoDto {
-
-    private UUID id;
-    private String sbiOrderRefNumber;
-    private String accountHeader;
-    private BigDecimal amount;
-    private String accountNumber;
-    private AccountType accountType;
-    private AccountClassification accountClassification;
-
-    private BigDecimal unsettledAmount;
+    if (reqAmount.compareTo(match.getUnsettledAmount()) > 0) {
+        throw new IllegalArgumentException(
+                String.format("Requested amount %s exceeds unsettled amount %s for header '%s'",
+                        reqAmount, match.getUnsettledAmount(), reqHeader));
+    }
 }
