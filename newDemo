@@ -1,57 +1,13 @@
-@Builder
-public class RefundBookRequest implements Serializable {
-    @JsonProperty("mId")
-    private String mId;
-    @NotBlank(message = REFUND_TYPE_IS_REQUIRED)
-    private String refundType;
-    @NotNull(message = REFUND_AMOUNT_IS_REQUIRED)
-    private BigDecimal refundAmount;
-    @NotBlank(message = ATRN_NUMBER_IS_REQUIRED)
-    private String atrnNumber;
-    private String remark;
-    private List<MultiAccountDto> multiAccount;
+@Transactional
+public void saveRefundAccounts(RefundBookRequest request, RefundResponse response, UUID payoutId) {
+    List<RefundAccountInfo> accounts = request.getMultiAccount().stream()
+            .map(dto -> RefundAccountInfo.builder()
+                    .arrnNum(response.getAtrnNumber())
+                    .accountHeader(dto.getAccountIdentifier())
+                    .amount(dto.getAmount())
+                    .payoutId(payoutId)
+                    .build())
+            .collect(Collectors.toList());
+
+    refundAccountInfoRepository.saveAll(accounts);
 }
-
-@NoArgsConstructor
-@Builder
-public class MultiAccountDto {
-
-    private String accountIdentifier;
-    private BigDecimal amount;
-}
-
-
-@Table(name = "REFUND_ACCOUNT_INFO")
-public class RefundAccountInfo extends AuditEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
-    private String arrnNum;
-    private String accountHeader;
-    private BigDecimal amount;
-    private UUID payoutId;
-
-}
-
-
-@JsonInclude(JsonInclude.Include.NON_NULL)
-public class RefundResponse {
-
-    private String arrnNumber;
-    private String sbiOrderRefNumber;
-    private String atrnNumber;
-    private BigDecimal refundAmount;
-    private String refundType;
-    private String refundStatus;
-    private PayMode payMode;
-    private Long requestTime;
-    private BigDecimal refundAvailableAmount;
-    private String remark;
-    private Long refundProcessedDate;
-
-}
-
-
-
-i want to build all multiAccount list in RefundAccountInfo save this and use arrnNum form RefundResponse
