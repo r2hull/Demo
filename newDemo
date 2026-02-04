@@ -1,1 +1,23 @@
-Share folder: https://neosofttechnologiesmail-my.sharepoint.com/:f:/g/personal/binoy_medhi_neosofttech_com/En35FMBnFlVNkEv5swpW7fYB0QHK_BFyKospf7bEJdfixA?e=2ytwjQs
+MERCHANT_RISK_SCORE_INFO										
+This table will contain risk score of the merchant risk score calculation infomation										
+column	type									
+id	uuid									
+l1_score	number									
+l2_score	number									
+mcc_rational	varchar									
+remark	varchar									
+reviewer_remark	varchar									
+status	varchar									
+										
+MERCHANT_RISK_SCORE										
+This table will contain risk score of the merchant onboarding process submitted by L1 and L2, info id referring to merchant_risk_score_info table										
+Column	Type									
+id										
+risk_score_info_id										
+process_code										
+process_details_code										
+l1_score										
+l1_score_remark										
+l2_score										
+l2_score_remark										
+audit columns	4									
