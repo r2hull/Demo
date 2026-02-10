@@ -1,23 +1,46 @@
-MERCHANT_RISK_SCORE_INFO										
-This table will contain risk score of the merchant risk score calculation infomation										
-column	type									
-id	uuid									
-l1_score	number									
-l2_score	number									
-mcc_rational	varchar									
-remark	varchar									
-reviewer_remark	varchar									
-status	varchar									
-										
-MERCHANT_RISK_SCORE										
-This table will contain risk score of the merchant onboarding process submitted by L1 and L2, info id referring to merchant_risk_score_info table										
-Column	Type									
-id										
-risk_score_info_id										
-process_code										
-process_details_code										
-l1_score										
-l1_score_remark										
-l2_score										
-l2_score_remark										
-audit columns	4									
+
+    @Query("""
+            SELECT new com.epay.transaction.dto.MerchantOrderAccountInfoDto(
+                mai.id,
+                mai.sbiOrderRefNumber,
+                mai.accountHeader,
+                mai.amount,
+                mai.accountNumber,
+                mai.accountType,
+                mai.accountClassification,
+                COALESCE((
+                    SELECT SUM(mop2.orderAmount)
+                    FROM MerchantOrderPayment mop2
+                    WHERE mop2.mId = :merchantId
+                      AND (mop2.settlementStatus IS NULL 
+                           OR mop2.settlementStatus = 'TO_BE_SETTLED'
+                           AND mop2.transactionStatus = 'SUCCESS'
+                           AND mop2.paymentStatus = 'SUCCESS'
+                           )
+                      AND mop2.sbiOrderRefNumber = mai.sbiOrderRefNumber
+                ), 0)
+            )
+            FROM MerchantOrderAccountInfo mai
+            JOIN MerchantOrderPayment mop
+                ON mai.sbiOrderRefNumber = mop.sbiOrderRefNumber
+            WHERE mop.atrnNumber = :atrn
+            """)
+    List<MerchantOrderAccountInfoDto> getFullAccountInfoWithUnsettled(@Param("atrn") String atrn, @Param("merchantId") String merchantId);
+
+
+@Entity
+@Table(name = "MERCHANT_ORDER_ACCOUNT_INFO")
+public class MerchantOrderAccountInfo  extends AuditEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(nullable = false, updatable = false)
+    private UUID id;
+    private String sbiOrderRefNumber;
+    private String accountHeader;
+    private BigDecimal amount;
+    private String accountNumber;
+    @Enumerated(EnumType.STRING)
+    private AccountType accountType;
+    @Enumerated(EnumType.STRING)
+    private AccountClassification accountClassification;
+}
