@@ -1,1 +1,69 @@
-a
+Create DV Modification to Send Plain Request Response
+
+# Description
+
+We need to modify the existing implementation of DV endpoint for egrass, instead of integration service encrypting order status dto and calling order creation via SDK, we need to call direct order status endpoint with plain request and without token.
+
+# API Details
+
+**Method:** POST
+
+**API Endpoint: Existing Egrass DV Endpoint (Mention)**
+
+**Access Type:** Open API
+
+**Request Body:**
+
+```
+Egrass Request DV Object
+```
+
+**Success Response:**
+
+```
+Egrass Response DV Object
+```
+
+**Error response**
+
+```
+{
+  "status":0, 
+    "errors": [
+        {
+            "errorCode":"ERROR_CODE ",
+            "errorMessage":"ERROR_MSG"
+        },
+    ]
+}
+```
+
+# Data Flow
+
+1. Merchant will call integration service url in their custom request object
+2. Integration layer will map merchant object to our internal order status dto
+3. Order status dto will be sent on transaction service order status endpoint
+4. Plain order status response will be mapped to merchant object with encryption
+5. Response will be sent to merchant
+
+# Developer Checklist
+
+* Class Flow
+* 90% Unit test case coverage
+
+# Development Steps
+
+1. Go to controller, remove AES encryption if done
+2. Go to transaction service client and Implement order status private endpoint method
+3. Pass plain Order status DTO and txn order status endpoint
+4. Store request response in db
+5. Map order status to merchant specific format and encrypt as per merchant logic
+6. Send the response
+
+# Database Tables
+
+* Integration_api_log
+
+# Acceptance Criteria
+
+* Test cases should have 90% coverage
